@@ -61,13 +61,15 @@ jobs:
     env:
       IPHONEOS_DEPLOYMENT_TARGET: '15.0'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/setup@v3
+        with:
+          install: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -117,7 +119,7 @@ jobs:
 
       - name: Download engine
         if: ${{ needs.engine.result == 'success' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: engine-ios
           path: ${{ runner.temp }}/engine-ios
@@ -190,13 +192,13 @@ jobs:
             | tee "$RUNNER_TEMP/ota.txt"
           echo "link=$(sed -n 's/^Link: //p' "$RUNNER_TEMP/ota.txt")" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: trs-launcher-ios-app
           path: out/
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: TRS-Launcher-Xcode
           path: out/TRS-Launcher-Xcode.zip
@@ -210,7 +212,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: trs-launcher-ios-app
           path: out
