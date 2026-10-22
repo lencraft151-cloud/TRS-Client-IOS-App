@@ -1,0 +1,335 @@
+//! „TRS-Optimierung“ für Vanilla-Instanzen: Sie starten unter der Haube mit
+//! Fabric, dem TRS Client und bewährten Performance-Mods (Sodium & Co.) –
+//! wie bei Lunar oder Badlion. Abschaltbar pro Instanz, dann echtes Vanilla.
+
+use serde::{Deserialize, Serialize};
+
+use crate::client_mod::{self, Build};
+use crate::instance::{Instance, Loader, LoaderKind};
+use crate::paths::Paths;
+use crate::presets::{ApplyProgress, ItemStatus};
+use crate::{Error, Result, fsutil, loaders, presets};
+
+/// Bei Änderungen am Performance-Paket hochzählen – dann wird es einmal neu
+/// geprüft und ergänzt.
+const PACK_REVISION: u32 = 1;
+const MARKER: &str = "trs-boost.json";
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Marker {
+    pack_revision: u32,
+    game_version: String,
+}
+
+pub fn wants_boost(instance: &Instance) -> bool {
+    instance.loader.kind == LoaderKind::Vanilla && instance.overrides.boost != Some(false)
+}
+
+/// Liefert die Instanz so, wie sie gestartet werden soll: bei aktiver
+/// Optimierung mit Fabric statt Vanilla. Gibt es für die Version kein Fabric
+/// (vor 1.14), aber einen TRS-Client-Build für Forge (z. B. 1.8.9), dann mit
+/// Forge. Sonst – oder offline ohne Cache – bleibt es bei Vanilla.
+pub async fn effective_instance(http: &reqwest::Client, paths: &Paths, builds: &[Build], instance: &Instance) -> Instance {
+    if !wants_boost(instance) {
+        return instance.clone();
+    }
+    let as_loader = |kind| Instance { loader: Loader { kind, version: None }, ..instance.clone() };
+    if loaders::supports(http, paths, LoaderKind::Fabric, &instance.game_version).await {
+        return as_loader(LoaderKind::Fabric);
+    }
+    match client_mod::boost_loader(builds, &instance.game_version) {
+        Some(kind @ (LoaderKind::Forge | LoaderKind::NeoForge)) => as_loader(kind),
+        _ => instance.clone(),
+    }
+}
+
+/// Einmal pro Version bzw. Paket-Revision die Performance-Mods ergänzen.
+/// Fehler (offline, Modrinth down) blockieren den Start nicht – dann wird beim
+/// nächsten Start erneut ergänzt. Abbrechen bricht auch den Start ab.
+pub async fn ensure_performance(
+    http: &reqwest::Client,
+    paths: &Paths,
+    builds: &[Build],
+    effective: &Instance,
+    progress: &(dyn Fn(ApplyProgress) + Sync),
+) -> Result<()> {
+    let marker_file = paths.instance_dir(&effective.id).join(MARKER);
+    if is_done(&marker_file, effective).await {
+        return Ok(());
+    }
+    // Versionswechsel: Was schon liegt, gilt sonst als „installiert“ und bliebe alt.
+    let previous: Marker = fsutil::read_json(&marker_file).await.ok().flatten().unwrap_or_default();
+    if !previous.game_version.is_empty() && previous.game_version != effective.game_version {
+        match refresh_pack(http, paths, effective).await {
+            Ok(n) => tracing::info!("TRS-Optimierung für '{}': {n} Mods auf {} gehoben", effective.id, effective.game_version),
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(e) => tracing::warn!("Performance-Mods konnten nicht aktualisiert werden: {e}"),
+        }
+    }
+    match presets::install_fps_boost_report(http, paths, builds, effective, progress).await {
+        Ok(report) => {
+            tracing::info!("TRS-Optimierung für '{}': {} Dateien", effective.id, report.files.len());
+            if report.items.iter().any(|i| i.status == ItemStatus::Failed) {
+                // Nicht als erledigt merken: Beim nächsten Start wird ergänzt, was fehlt.
+                tracing::warn!("TRS-Optimierung für '{}' unvollständig – nächster Start versucht es erneut", effective.id);
+                return Ok(());
+            }
+            fsutil::write_json(
+                &marker_file,
+                &Marker { pack_revision: PACK_REVISION, game_version: effective.game_version.clone() },
+            )
+            .await
+        }
+        Err(Error::Cancelled) => Err(Error::Cancelled),
+        Err(e) => {
+            tracing::warn!("Performance-Mods konnten nicht installiert werden: {e}");
+            Ok(())
+        }
+    }
+}
+
+/// Hebt die eingeschalteten Mods des Pakets auf die neueste Version für genau
+/// diese Minecraft-Version (im Update-Kanal). Sonst bliebe nach 26.1.1 → 26.1.2
+/// etwa Sodium 0.8.9 liegen (Modrinth führt es auch für 26.1.2), obwohl Iris
+/// dort 0.9.x verlangt. Liefert, wie viele getauscht wurden.
+async fn refresh_pack(http: &reqwest::Client, paths: &Paths, effective: &Instance) -> Result<usize> {
+    use crate::content::{self, ContentKind, Platform};
+    use crate::presets::VersionLookup;
+
+    let pack = presets::fps_boost_projects();
+    let lookup = presets::ModrinthLookup::new(http, paths, effective);
+    let mut changed = 0;
+    for item in content::list(paths, &effective.id, ContentKind::Mod).await? {
+        let Some(source) = item.source.as_ref().filter(|s| s.platform == Platform::Modrinth && pack.contains(&s.project_id.as_str()))
+        else {
+            continue;
+        };
+        if !item.enabled {
+            continue;
+        }
+        crate::task::checkpoint().await?;
+        let versions = match lookup.versions(&source.project_id, ContentKind::Mod).await {
+            Ok(v) => v,
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(e) => {
+                tracing::debug!("Versionen von {} nicht abrufbar: {e}", source.project_id);
+                continue;
+            }
+        };
+        let Some(newest) = crate::modrinth::newest_in_channel(versions, effective.overrides.channel()) else { continue };
+        if newest.id == source.version_id {
+            continue;
+        }
+        match crate::modrinth::install_with_dependencies(http, paths, effective, ContentKind::Mod, &newest, Some(&item.file_name)).await {
+            Ok(_) => changed += 1,
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(e) => tracing::warn!("{} nicht aktualisiert: {e}", item.file_name),
+        }
+    }
+    Ok(changed)
+}
+
+/// Wurde das Paket für diese Version schon vollständig ergänzt?
+async fn is_done(marker_file: &std::path::Path, effective: &Instance) -> bool {
+    let marker: Marker = fsutil::read_json(marker_file).await.ok().flatten().unwrap_or_default();
+    marker.pack_revision == PACK_REVISION && marker.game_version == effective.game_version
+}
+
+/// Muss vor dem Start noch etwas ergänzt werden (für die Fortschrittsanzeige)?
+pub async fn needs_performance(paths: &Paths, effective: &Instance) -> bool {
+    !is_done(&paths.instance_dir(&effective.id).join(MARKER), effective).await
+}
+
+/// Merkt, für welche Spielversion Mod Menu schon ergänzt (oder bewusst weggelassen) wurde.
+const MOD_MENU_MARKER: &str = "trs-modmenu.json";
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ModMenuMarker {
+    game_version: String,
+}
+
+/// Mod Menu gibt es nur für Fabric – auch für Vanilla mit TRS-Optimierung (`effective`).
+/// Aufgerufen wird es nur beim Start über die Engine (Android/iOS).
+pub fn wants_mod_menu(effective: &Instance) -> bool {
+    effective.loader.kind == LoaderKind::Fabric
+}
+
+/// Steht Mod Menu für diese Version noch aus? Einmal ergänzt, bleibt die Entscheidung des
+/// Spielers: Entfernt er Mod Menu, kommt es erst nach einem Versionswechsel wieder.
+pub async fn needs_mod_menu(paths: &Paths, effective: &Instance) -> bool {
+    let marker: ModMenuMarker =
+        fsutil::read_json(&paths.instance_dir(&effective.id).join(MOD_MENU_MARKER)).await.ok().flatten().unwrap_or_default();
+    marker.game_version != effective.game_version
+}
+
+/// Ergänzt Mod Menu (mit Fabric API) wie die Performance-Mods. Offline oder bei Fehlern
+/// startet das Spiel trotzdem – der nächste Start versucht es erneut. Abbrechen bricht ab.
+pub async fn ensure_mod_menu(
+    http: &reqwest::Client,
+    paths: &Paths,
+    builds: &[Build],
+    effective: &Instance,
+    progress: &(dyn Fn(ApplyProgress) + Sync),
+) -> Result<()> {
+    if !wants_mod_menu(effective) || !needs_mod_menu(paths, effective).await {
+        return Ok(());
+    }
+    match presets::install_mod_menu(http, paths, builds, effective, progress).await {
+        Ok(Some(report)) if report.items.iter().any(|i| i.status == ItemStatus::Failed) => {
+            tracing::warn!("Mod Menu für '{}' unvollständig – nächster Start versucht es erneut", effective.id);
+            return Ok(());
+        }
+        Ok(report) => {
+            if let Some(item) = report.as_ref().and_then(|r| r.items.first()) {
+                tracing::info!("Mod Menu für '{}': {:?}", effective.id, item.status);
+            }
+        }
+        Err(Error::Cancelled) => return Err(Error::Cancelled),
+        Err(e) => {
+            tracing::warn!("Mod Menu konnte nicht installiert werden: {e}");
+            return Ok(());
+        }
+    }
+    fsutil::write_json(
+        &paths.instance_dir(&effective.id).join(MOD_MENU_MARKER),
+        &ModMenuMarker { game_version: effective.game_version.clone() },
+    )
+    .await
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+
+    use super::*;
+    use crate::instance::InstanceOverrides;
+
+    fn instance(kind: LoaderKind, boost: Option<bool>) -> Instance {
+        Instance {
+            id: "t".into(),
+            name: "T".into(),
+            game_version: "1.21.1".into(),
+            loader: Loader { kind, version: None },
+            created_at: Utc::now(),
+            last_played: None,
+            total_play_seconds: 0,
+            icon: None,
+            group: None,
+            overrides: InstanceOverrides { boost, ..Default::default() },
+        }
+    }
+
+    /// Gegen das echte Modrinth: Erststart einer frischen Vanilla-1.21.11-Instanz mit
+    /// TRS-Optimierung. Kein Mod darf ohne seine Pflicht-Abhängigkeit liegen.
+    /// `cargo test -p trs-core real_modrinth_vanilla_boost -- --ignored --nocapture`
+    #[tokio::test]
+    #[ignore = "braucht Internet (Modrinth), lädt ~15 MB"]
+    async fn real_modrinth_vanilla_boost_1_21_11() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths::new(dir.path());
+        let vanilla = Instance { game_version: "1.21.11".into(), ..instance(LoaderKind::Vanilla, None) };
+        let builds = client_mod::load_builds(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/client-mod"));
+        assert!(!builds.is_empty());
+        let http = reqwest::Client::builder().user_agent("theredstonee/trs-launcher (boost test)").build().unwrap();
+        let effective = effective_instance(&http, &paths, &builds, &vanilla).await;
+        assert_eq!(effective.loader.kind, LoaderKind::Fabric);
+        ensure_performance(&http, &paths, &builds, &effective, &|_| {}).await.unwrap();
+        assert!(!needs_performance(&paths, &effective).await, "vollständig → gemerkt");
+        let mods = crate::content::content_dir(&paths, &effective.id, crate::content::ContentKind::Mod);
+        let mut files: Vec<String> =
+            std::fs::read_dir(&mods).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+        files.sort();
+        println!("{files:#?}");
+        assert!(files.iter().any(|f| f.starts_with("moreculling")), "More Culling installiert");
+        assert!(files.iter().any(|f| f.starts_with("cloth-config")), "Cloth Config fehlt");
+        let entries = crate::modcompat::installed_entries(&paths, &effective.id).await.unwrap();
+        let bundled = client_mod::builtin_mods(&paths, &builds, &effective).await;
+        let builtins: Vec<crate::modcompat::ModInfo> = bundled
+            .iter()
+            .map(|b| crate::modcompat::ModInfo {
+                id: b.id.clone(),
+                name: b.name.clone(),
+                version: b.version.clone(),
+                scheme: crate::modcompat::meta::Scheme::Fabric,
+                provides: Vec::new(),
+                depends: Vec::new(),
+                breaks: Vec::new(),
+            })
+            .collect();
+        let missing = crate::modcompat::missing_dependencies(&entries, &builtins);
+        assert!(missing.is_empty(), "Jar-in-Jar der Fabric API zählt: {missing:?}");
+
+        let cloth = files.iter().find(|f| f.starts_with("cloth-config")).unwrap().clone();
+        let has_cloth = || std::fs::read_dir(&mods).unwrap().any(|e| e.unwrap().file_name().to_string_lossy() == cloth);
+        // Abgebrochener erster Start (More Culling da, Cloth Config nicht, nichts gemerkt):
+        // der nächste Start ergänzt die Abhängigkeit der schon installierten Mod.
+        crate::content::delete(&paths, &effective.id, crate::content::ContentKind::Mod, &cloth).await.unwrap();
+        std::fs::remove_file(paths.instance_dir(&effective.id).join(MARKER)).unwrap();
+        ensure_performance(&http, &paths, &builds, &effective, &|_| {}).await.unwrap();
+        assert!(has_cloth(), "vom Paket nachgeladen");
+
+        // Schutznetz vor dem Start: Cloth Config fehlt (Paket schon erledigt) → wird ergänzt.
+        crate::content::delete(&paths, &effective.id, crate::content::ContentKind::Mod, &cloth).await.unwrap();
+        let fix = crate::depcheck::ensure_before_launch(&http, &paths, &builds, &effective, &|_| {}).await.unwrap();
+        println!("{fix:?}");
+        assert!(has_cloth(), "vor dem Start nachgeladen");
+        assert_eq!(fix.needed_by, ["More Culling 1.6.2"]);
+        // Deaktiviert: wird wieder eingeschaltet.
+        crate::content::set_enabled(&paths, &effective.id, crate::content::ContentKind::Mod, &cloth, false).await.unwrap();
+        let fix = crate::depcheck::ensure_before_launch(&http, &paths, &builds, &effective, &|_| {}).await.unwrap();
+        assert!(has_cloth() && fix.added.len() == 1, "{fix:?}");
+        // Alles da: nichts zu tun.
+        assert!(crate::depcheck::ensure_before_launch(&http, &paths, &builds, &effective, &|_| {}).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn mod_menu_only_for_fabric_and_once_per_version() {
+        use crate::content::{self, ContentKind};
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths::new(dir.path());
+        let fabric = instance(LoaderKind::Fabric, None);
+        assert!(wants_mod_menu(&fabric));
+        for kind in [LoaderKind::Vanilla, LoaderKind::Quilt, LoaderKind::Forge, LoaderKind::NeoForge] {
+            assert!(!wants_mod_menu(&instance(kind, None)), "{kind:?}");
+        }
+        // Forge: gar nichts, auch kein Merker.
+        let forge = instance(LoaderKind::Forge, None);
+        let offline = reqwest::Client::builder().proxy(reqwest::Proxy::all("http://127.0.0.1:9").unwrap()).build().unwrap();
+        ensure_mod_menu(&offline, &paths, &[], &forge, &|_| {}).await.unwrap();
+        assert!(!paths.instance_dir("t").join(MOD_MENU_MARKER).exists());
+
+        // Offline: Start läuft weiter, gemerkt wird nichts (nächster Start versucht es erneut).
+        assert!(needs_mod_menu(&paths, &fabric).await);
+        ensure_mod_menu(&offline, &paths, &[], &fabric, &|_| {}).await.unwrap();
+        assert!(needs_mod_menu(&paths, &fabric).await);
+
+        // Von Hand eingelegtes Mod Menu unter anderem Namen: an der Mod-ID erkannt, keine zweite Kopie.
+        let mods = content::content_dir(&paths, &fabric.id, ContentKind::Mod);
+        std::fs::create_dir_all(&mods).unwrap();
+        {
+            use std::io::Write;
+            let mut zip = zip::ZipWriter::new(std::fs::File::create(mods.join("eigenes-menue.jar")).unwrap());
+            zip.start_file("fabric.mod.json", zip::write::SimpleFileOptions::default()).unwrap();
+            zip.write_all(br#"{"schemaVersion":1,"id":"modmenu","version":"11.0.3"}"#).unwrap();
+            zip.finish().unwrap();
+        }
+        ensure_mod_menu(&offline, &paths, &[], &fabric, &|_| {}).await.unwrap();
+        assert!(!needs_mod_menu(&paths, &fabric).await, "für 1.21.1 erledigt");
+        let files: Vec<_> = std::fs::read_dir(&mods).unwrap().map(|e| e.unwrap().file_name()).collect();
+        assert_eq!(files, ["eigenes-menue.jar"]);
+
+        // Neue Spielversion: wird wieder geprüft.
+        let newer = Instance { game_version: "1.21.4".into(), ..fabric.clone() };
+        assert!(needs_mod_menu(&paths, &newer).await);
+    }
+
+    #[test]
+    fn boost_only_for_vanilla_unless_disabled() {
+        assert!(wants_boost(&instance(LoaderKind::Vanilla, None)));
+        assert!(!wants_boost(&instance(LoaderKind::Vanilla, Some(false))));
+        assert!(!wants_boost(&instance(LoaderKind::Fabric, None)));
+        assert!(!wants_boost(&instance(LoaderKind::Forge, None)));
+    }
+}

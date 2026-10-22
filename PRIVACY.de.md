@@ -1,0 +1,617 @@
+[English](PRIVACY.md) · [**Deutsch**](PRIVACY.de.md) · [Español](PRIVACY.es.md)
+
+# Datenschutz
+
+Der TRS Launcher läuft auf deinem Computer. Er hat **keine Telemetrie, keine Analyse, keine Absturzberichte und keine
+Werbung**. Informationen an einen Server des TRS-Launcher-Projekts schickt er nur, wenn du die optionalen
+[TRS-Dienste](#trs-dienste) (Umhänge, Freunde, Online-Status, Chat) einschaltest. Ohne deine Einwilligung sendet der Launcher
+dorthin nichts.
+
+Zu anderen Diensten verbindet sich der Launcher nur, wenn das für etwas nötig ist, worum du ihn gebeten hast:
+
+| Dienst | Wann | Was gesendet wird |
+|---|---|---|
+| Microsoft / Xbox Live / Minecraft-Dienste | Anmelden, Spiel starten | Übliche OAuth-Anmeldung; dein Minecraft-Zugriffstoken beim Spielstart |
+| Mojang (`piston-meta`, `libraries`, `resources`) | Eine Version installieren oder starten | Download-Anfragen für Spieldateien |
+| Mojang-Sitzungsserver (`sessionserver.mojang.com`) | Anmeldung bei den TRS-Diensten (nur nach deiner Zustimmung) | Dieselbe „join“-Anfrage wie bei der Anmeldung auf einem Minecraft-Server: dein Zugriffstoken, deine UUID und eine einmalige Challenge |
+| Mojang-Profildienste (`api.mojang.com`, `sessionserver.mojang.com`, `textures.minecraft.net`) | Skin per Spielername importieren, Spielergesichter anzeigen (Freunde, Admin-Suche) | Der gesuchte Spielername bzw. die UUID; der Download des Skin-Bildes |
+| Die Website eines Links, den du eingibst | Nur wenn du einen Skin „per Link“ importierst | Eine normale Download-Anfrage für dieses Bild (nur HTTPS, ohne Cookies oder Konten) |
+| TRS-Dienste (`trs-launcher.theredstonee.de`, bisher auch `api.theredstonee.de`) | Nur nach deiner Zustimmung, siehe [unten](#trs-dienste) | Deine UUID, dein Name, deine Umhang-Wahl, Freunde, Online-Status, Chat-Nachrichten und gesendete Bilder, Meldungen |
+| Maven-/Meta-Server von Fabric, Quilt, Forge, NeoForge | Einen Modloader installieren | Download-Anfragen |
+| Modrinth (`api.modrinth.com`, `cdn.modrinth.com`) | Inhalte durchsuchen, installieren oder aktualisieren | Suchanfragen, Datei-Hashes installierter Mods (für die Update-Prüfung) |
+| CurseForge (`api.curseforge.com`; Dateien und Bilder von `edge.forgecdn.net`, `mediafilez.forgecdn.net`, `media.forgecdn.net`) | Nur wenn du CurseForge als Quelle wählst, ein CurseForge-Modpack installierst, Inhalte von CurseForge installiert hast oder eine CurseForge-Instanz mit fehlenden Dateien importierst | Suchanfragen und Filter, die Projekt- und Datei-IDs von CurseForge-Inhalten (für Details und die Update-Prüfung), Download-Anfragen. Wie bei jeder Anfrage im Internet gehört deine IP-Adresse dazu. Ein CurseForge-Konto brauchst du nicht – der Launcher weist sich mit seinem eigenen API-Schlüssel aus, nicht mit Daten über dich. |
+| Minecraft-Server in deiner Serverliste | Live-Status anzeigen; „Schnell verbinden“ (siehe [unten](#schnell-verbinden)) | Ein üblicher Serverlisten-Ping; eine DNS-Abfrage der Server-Adressen und ein kurzer Verbindungstest zu jeder (aufgebaut und gleich wieder geschlossen, es wird nichts gesendet) |
+| mclo.gs | Nur wenn du auf „Log teilen“ klickst und bestätigst | Der gewählte Log (neuester Log, ein älterer Log oder ein Absturzbericht), ohne Zugriffstokens und ohne deinen Windows-/Linux-Benutzernamen |
+| GitHub (`github.com`) | Nach Launcher-Updates suchen | Eine Anfrage nach dem Update-Manifest |
+| Discord-App auf deinem Computer (nur lokal, kein Internet) | Solange der Launcher offen ist und „Discord-Status zeigen“ an ist (Standard), siehe [unten](#discord) | Dein Discord-Status: „Im TRS Launcher“ bzw. Minecraft-Version, Modloader und Spielzeit des laufenden Spiels |
+
+Account-Tokens werden nur auf deinem Computer gespeichert, verschlüsselt mit Windows DPAPI. Beim Deinstallieren wird das
+Programm entfernt; deine Daten in `%APPDATA%\TRS-Launcher` kannst du jederzeit löschen.
+
+## Import aus anderen Launchern
+
+Wenn du „Aus anderem Launcher importieren“ öffnest, sucht der Launcher **auf deinem eigenen Rechner** nach anderen
+Launchern (offizieller Minecraft Launcher, CurseForge-App, Modrinth App, Prism/MultiMC, Lunar Client, Badlion, Feather,
+OneClient, ATLauncher, GDLauncher, TLauncher) und liest deren Instanz-Listen. Davon verlässt nichts deinen Rechner,
+und die Dateien der anderen Launcher werden nur gelesen, nie verändert – ihre Datenbanken werden aus einer temporären
+Kopie gelesen, die gleich danach gelöscht wird. Anmeldedaten anderer Launcher (Konto- und Token-Dateien) werden nie
+gelesen oder kopiert. Beim Import werden Welten, Mods, Pakete, Einstellungen und Serverliste in die neue TRS-Instanz
+kopiert; die Projekt- und Datei-IDs, die der andere Launcher gespeichert hat, bleiben erhalten, damit Updates möglich
+sind. Nur wenn Dateien einer CurseForge-Instanz fehlen, lädt der Launcher sie von CurseForge (siehe Tabelle oben).
+
+## Kontowechsel im Spiel (TRS Client)
+
+- **Spiel über den TRS Launcher gestartet:** Der TRS Client kann deine Launcher-Konten anzeigen und ohne Neustart
+  wechseln. Wählst du ein Konto, gibt der Launcher dem Spiel ein frisches Minecraft-Zugriffstoken – nur über eine lokale
+  Verbindung auf deinem Computer (`127.0.0.1`), verschlüsselt und nur an den Spielprozess, den er selbst gestartet hat.
+  Der Schlüssel dafür geht beim Start im Speicher an das Spiel und landet nie auf der Festplatte. Dabei verlässt nichts
+  deinen PC. „Konto hinzufügen“ im Spiel öffnet die normale Microsoft-Anmeldung des Launchers im Browser.
+- **Spiel ohne TRS Launcher gestartet:** Im Spiel hinzugefügte Konten melden sich direkt bei Microsoft, Xbox Live und den
+  Minecraft-Diensten an (mit der eigenen Anmelde-App des TRS Launchers). Gespeichert wird nur das Refresh-Token,
+  verschlüsselt (Windows DPAPI, sonst AES mit einer Schlüsseldatei in deinem Benutzerordner), in
+  `config/trsclient/accounts.json` dieses Spielordners. Zugriffstokens bleiben im Arbeitsspeicher. Entfernst du ein
+  Konto im Spiel, wird es gelöscht.
+- Für die kleinen Gesichter in der Liste lädt das Spiel den Skin von `textures.minecraft.net` und bei Bedarf das
+  öffentliche Profil von `sessionserver.mojang.com`.
+
+## Garderobe im Spiel (TRS Client)
+
+Die Garderobe des TRS Clients (Skins, Outfits, Umhänge, Emotes und der Skin-Editor) geht nur für das online, was du
+dort tust:
+
+- **Skin anwenden oder Minecraft-Umhang wählen** schickt das Skin-Bild und die Armform (Classic/Slim) bzw. die
+  Umhang-Wahl mit deinem Minecraft-Zugangs-Token direkt an Mojang (`api.minecraftservices.com`) – genau wie der
+  offizielle Launcher. Um deine Umhänge zu zeigen, liest das Spiel dort dein Minecraft-Profil und lädt die Bilder von
+  `textures.minecraft.net`.
+- **Skin per Spielername hinzufügen** sucht den Namen bei Mojang (`api.mojang.com`, `sessionserver.mojang.com`) oder,
+  mit eingeschalteten TRS-Diensten, über die TRS-Dienste und lädt diesen Skin von `textures.minecraft.net`.
+- **Skin per Link hinzufügen** lädt genau dieses eine Bild von der eingegebenen Adresse – nur HTTPS, ohne Cookies und
+  nie von Adressen in deinem lokalen Netz.
+- **Skin aus einer Datei hinzufügen** öffnet den Dateidialog deines Systems; die Datei wird nur auf deinem PC gelesen.
+- **Mit eingeschalteten TRS-Diensten** sind deine Skins in der Garderobe dieselben „Meine Skins“ wie im Launcher (mit
+  deinem TRS-Konto synchronisiert, siehe unten), und deine Favoriten, Outfits (Name, Skin, Umhang) und die Plätze des
+  Emote-Rads werden in einem kleinen Eintrag „wardrobe“ deines TRS-Kontos gespeichert, damit sie auf jedem PC gleich
+  sind. Die Wahl eines TRS-Umhangs wird in deinem TRS-Konto gespeichert; nach dem Anwenden eines Skins meldet das Spiel
+  das den TRS-Diensten, damit andere TRS-Spieler den neuen Skin früher sehen.
+- **Ohne TRS-Dienste** bleibt alles auf deinem PC unter `config/trsclient/wardrobe/` im Spielordner.
+
+## Schnell verbinden
+
+„Schnell verbinden“ (Modul des TRS Clients, standardmäßig an) und die Server-Seite des Launchers sprechen nur mit den
+Servern, die du nutzt, und mit deinem normalen DNS – nie mit den TRS-Diensten:
+
+- **Server vorab auflösen:** Wenn du einen Server in der Liste auswählst oder ein Spiel mit einem Server startest,
+  werden seine DNS-Einträge (SRV, IPv4- und IPv6-Adressen) abgefragt, und die schnellste Adresse wird ermittelt, indem
+  zu jeder kurz eine Verbindung aufgebaut und sofort wieder geschlossen wird – ohne Daten zu senden, wie beim üblichen
+  Serverlisten-Ping. Der Launcher gibt das Ergebnis über `config/trsclient/connect-hints.json` ans Spiel; Einträge
+  laufen nach höchstens 10 Minuten ab.
+- **Server-Ressourcenpakete:** Der TRS Client merkt sich, welches Ressourcenpaket (Adresse und Prüfsumme) ein Server
+  geschickt hat – nur wenn du es angenommen hast – in `config/trsclient/server-packs.json` im Spielordner. Wählst du
+  den Server wieder aus, wird das Paket im Hintergrund von der Adresse geladen, die der Server genannt hat – derselbe
+  Download, den Minecraft beim Beitreten machen würde, nie von Adressen in deinem lokalen Netz, außer der Server
+  selbst steht dort. Abgelehnte Pakete werden vergessen.
+
+## Discord
+
+Läuft die Discord-App auf deinem Computer, zeigt der Launcher einen Status auf deinem Discord-Profil („Spielt TRS
+Launcher“): „Im TRS Launcher“, solange nur der Launcher offen ist, und beim Spielen die **Minecraft-Version, den
+Modloader (z. B. Fabric) und wie lange du schon spielst**. Server-Adressen, Instanz- oder Spielernamen zeigt er nie.
+
+- Der Launcher spricht nur mit der Discord-App **auf deinem eigenen Computer** (Discords lokale Schnittstelle, eine
+  Named Pipe bzw. ein lokaler Socket). Er selbst sendet dafür nichts ins Internet und braucht deine Discord-Anmeldung
+  nicht.
+- Die Discord-App zeigt diesen Status dann auf deinem Profil an – **öffentlich sichtbar für alle, die dein
+  Discord-Profil sehen können** (Freunde, Mitglieder gemeinsamer Server). Was Discord damit macht, regelt
+  [Discords Datenschutzerklärung](https://discord.com/privacy).
+- Beim Schließen des Launchers verschwindet der Status. Läuft Discord nicht, passiert nichts.
+- Der Status ist **ab Werk an** und jederzeit abschaltbar unter *Einstellungen → Datenschutz → Discord-Status zeigen*
+  (oder in Discord unter *Benutzereinstellungen → Aktivitäts-Privatsphäre*).
+
+## TRS-Dienste
+
+Die TRS-Dienste bringen TRS-Umhänge, eine Freundesliste und einen Online-Status in den Launcher und in die TRS-Client-Mod.
+Sie sind **aus, bis du im Launcher zustimmst** (vor der ersten Anmeldung erklärt ein kurzer Hinweis, was gespeichert
+wird). Unter *Einstellungen → Datenschutz* kannst du sie jederzeit wieder ausschalten.
+
+### So funktioniert die Anmeldung
+
+Der Launcher meldet sich mit deinem Minecraft-Account genauso an, wie ein Minecraft-Server einen Spieler prüft: Er holt
+sich beim TRS-Server eine einmalige Challenge, bestätigt sie mit deinem Minecraft-Zugriffstoken beim Sitzungsserver von
+Mojang, und der TRS-Server fragt bei Mojang nach, ob das passiert ist. **Der TRS-Server sieht weder dein Passwort noch
+dein Minecraft-Zugriffstoken.** Danach stellt er ein eigenes Token aus, das der Launcher mit Windows DPAPI verschlüsselt
+auf deinem Computer speichert und nie an Webinhalte oder an das Spiel weitergibt. Die TRS-Client-Mod meldet sich selbst
+über die Spielsitzung an.
+
+### Freunde im Spiel (TRS Client)
+
+Sind die TRS-Dienste an, zeigt die TRS-Client-Mod deine Freundesliste im Spiel. Sie fragt Freunde, Anfragen und
+Blockierte beim TRS-Server nur ab, solange der Freunde-Bildschirm (bzw. Serverliste/Pausenmenü mit Freunde-Anzeige)
+offen ist – etwa alle 30 Sekunden, sonst alle 90 Sekunden oder gar nicht. Anfragen, Entfernen und Blockieren werden nur
+gesendet, wenn du sie anklickst. Die Gesichter der Freunde kommen vom öffentlichen Profildienst von Mojang
+(`sessionserver.mojang.com`, `textures.minecraft.net`) und bleiben nur im Arbeitsspeicher. Die Mod speichert davon
+nichts auf deinem Computer – außer den Servern, die du in der Serverliste anheftest
+(`config/trsclient/server-pins.json`, nur Adressen, wird nirgendwohin gesendet).
+
+### TRS-Symbol im Spiel (TRS Client)
+
+Der TRS Client zeigt ein kleines TRS-Symbol neben den Namen von Spielern, die **gerade mit TRS spielen**: solange sie
+mit dem TRS Client in einer Welt oder auf einem Server sind oder ein vom TRS Launcher gestartetes Spiel läuft. Wer nur
+den Launcher offen hat oder mit einem anderen Client spielt, bekommt kein Symbol. Dafür meldet der TRS Client etwa
+einmal pro Minute „im Spiel“ (Version, Modloader und – nur mit „Server teilen“ – die Serveradresse), solange du in
+einer Welt oder auf einem Server bist; der Launcher tut dasselbe, solange ein von ihm gestartetes Spiel läuft. Beides
+ist der unten beschriebene Online-Status und endet, wenn du die Welt verlässt bzw. das Spiel beendet ist.
+
+- **Wer es sieht:** Ob jemand gerade spielt, sehen nur Spieler, die **selbst gerade im Spiel** sind – praktisch andere
+  TRS-Spieler auf demselben Server, neben Namen, die sie ohnehin sehen. Alle anderen bekommen „kein Symbol“. Dein
+  eigenes Symbol siehst du immer. Von dir blockierte Spieler sehen es nie.
+- **Abschalten:** „TRS-Symbol zeigen“ (*Einstellungen → Datenschutz*) blendet dein Symbol für alle aus. Den
+  Online-Status auf „niemand“ zu stellen versteckt dich nur in Freundeslisten – das Symbol **nicht**.
+
+### Umhänge mit Freunden teilen
+
+Einen Umhang, den du hochgeladen hast, kannst du mit einem Freund teilen, sobald das Team ihn freigegeben hat. Dein
+Freund bekommt im Launcher und im Spiel ein Angebot und entscheidet, ob er es annimmt. Dafür speichert der TRS-Server,
+welcher Umhang wem von wem wann angeboten wurde und ob das Angebot angenommen ist. Nach dem Annehmen kann dein Freund
+den Umhang wie seinen eigenen tragen, und andere TRS-Spieler sehen ihn an ihm. Ein Freund darf den Umhang an seine
+eigenen Freunde weitergeben (höchstens 20 Spieler je Umhang).
+
+- **Wer was sieht:** Der Ersteller sieht alle, die den Umhang haben oder ein offenes Angebot dafür (mit ihrem
+  Minecraft-Namen), auch Spieler, an die ein Freund ihn weitergegeben hat. Wer den Umhang hat, sieht, von wem er ihn
+  bekommen hat, den Namen des Erstellers und die Spieler, an die er ihn selbst weitergegeben hat.
+- **Beenden:** Der Ersteller kann den Umhang jederzeit jedem wieder wegnehmen; dann verlieren ihn auch alle, an die
+  dieser Spieler ihn weitergegeben hat. Jeder kann einen geteilten Umhang zurückgeben. Wenn du einen Freund entfernst
+  oder einen Spieler blockierst, fallen offene Angebote zwischen euch weg; schon angenommene Umhänge bleiben, bis jemand
+  sie zurücknimmt. Wird der Umhang gelöscht, vom Team abgelehnt oder ein TRS-Account gelöscht, sind die betroffenen
+  Teilungen sofort weg.
+
+### Chat und Soziales (TRS-Dienste)
+
+Mit eingeschalteten TRS-Diensten kannst du im Launcher und im Spiel mit Freunden und in Gruppen schreiben.
+
+- **Was gespeichert wird:** deine Nachrichten (Text, Antworten, Bearbeitungen, Server-Einladungen, Wegpunkt-Karten),
+  Bilder, die du sendest, Reaktionen, Lesestände, Stummschaltungen von Unterhaltungen und Gruppenmitgliedschaften. Nachrichten bleiben
+  wie in einem normalen Chat **gespeichert, bis sie gelöscht werden** – von dir (für alle), vom Gruppenbesitzer, vom
+  Team oder zusammen mit deinem Account.
+- **Verschlüsselung:** Nachrichtentexte, Einladungen und Gruppennamen liegen **verschlüsselt** auf dem Server
+  (AES-256-GCM). Bilder werden vom Server **neu kodiert** – dabei gehen Standortdaten und alle anderen Metadaten
+  verloren, große Bilder werden verkleinert – und ebenfalls verschlüsselt gespeichert. Der Schlüssel wird getrennt von
+  den Daten aufbewahrt. Das Team liest nur gemeldete Nachrichten (siehe unten); eine allgemeine Admin-Ansicht von Chats
+  gibt es nicht.
+- **Wer was sieht:** eine Direktnachricht nur du und dein Freund; eine Gruppennachricht die aktuellen Mitglieder (wer
+  später hinzukommt, sieht erst Nachrichten ab seinem Beitritt). Blockierst du jemanden, werden seine Nachrichten in
+  gemeinsamen Gruppen für dich ausgeblendet. Seid ihr keine Freunde mehr, bleibt ein Direktchat lesbar, aber niemand
+  kann mehr hineinschreiben.
+- **Lesebestätigungen und „schreibt gerade“** sind ab Werk an und lassen sich in den Datenschutz-Einstellungen
+  abschalten; dann siehst du sie auch von anderen nicht. „Schreibt gerade“ liegt nur wenige Sekunden im Arbeitsspeicher
+  des Servers.
+- **Server-Einladungen:** Zeigt ein Chat eine Serveradresse, fragt der TRS-Server diesen Minecraft-Server nach Symbol,
+  Spielerzahl und Beschreibung (der übliche Server-List-Ping) und merkt sich die Antwort etwa eine Minute im
+  Arbeitsspeicher. Deine IP-Adresse wird nicht weitergegeben – der Minecraft-Server sieht nur den TRS-Server. Adressen
+  in lokalen Netzen werden nie angefragt.
+- **Wegpunkte:** Im TRS Client kannst du einen Wegpunkt (oder deine Position) an einen Freund oder eine Gruppe schicken.
+  Die Karte enthält nur den Namen, den du vergeben hast, die Koordinaten, die Dimension und die Server-Adresse – bei
+  einer Einzelspielerwelt nur eine kurze, aus dem Weltordner berechnete Kennung, nie den Weltnamen. Koordinaten, die im
+  normalen Minecraft-Chat stehen, erkennt der TRS Client **nur lokal**; sie als Wegpunkt zu speichern, sendet nichts.
+- **Echtzeit:** Solange Launcher oder Spiel offen sind, liefert eine Verbindung zum TRS-Server neue Nachrichten und
+  andere Neuigkeiten (Freundschaftsanfragen, Online-Status, Umhang-Angebote) sofort. Verpasste Neuigkeiten hält der
+  Server bis zu 10 Minuten im Arbeitsspeicher, damit sie nach einer kurzen Unterbrechung ankommen.
+
+### Chat-Daten auf diesem PC
+
+- **Benachrichtigungs-Einstellungen** (Ecke, Dauer, Ton, Nicht stören, welche Arten) liegen nur in den Einstellungen des
+  Launchers auf deinem PC. Windows-Benachrichtigungen erscheinen nur, solange der Launcher im Hintergrund ist, und nur
+  mit eingeschaltetem Schalter.
+- **Bilder von deinem PC** bleiben, wo sie sind. Damit sie unter „Uploads“ erscheinen, merkt sich der Launcher die Pfade
+  der zuletzt 40 gewählten Bilddateien in `chat-uploads.json` in seinem Datenordner; mit Stern markierte Screenshots
+  stehen in `screenshot-favorites.json`. Davon verlässt nichts deinen PC, solange du kein Bild sendest. Aus der
+  Zwischenablage eingefügte Bilder liegen nur im Arbeitsspeicher, bis der Launcher schließt.
+- **Empfangene Bilder** lädt der Launcher selbst und hält sie nur im Arbeitsspeicher, solange er läuft – nichts davon
+  wird auf die Platte geschrieben, und dein TRS-Token erreicht nie das Launcher-Fenster.
+- **„Zuletzt online“** in der Freundesliste ist das, was der Launcher selbst gesehen hat (lokal je Konto gespeichert),
+  keine Angabe des Servers.
+
+### Geteilte Screenshots
+
+In der Screenshot-Galerie des Launchers und im TRS Client („Clips & Bilder“) kannst du einen Screenshot als Link teilen
+(`https://trs-launcher.theredstonee.de/s/…`). Gesendet wird nur das eine Bild, das du auswählst, und nur, wenn du auf
+„Als Link teilen“ klickst; deine anderen Screenshots bleiben auf deinem PC.
+
+- **Was gespeichert wird:** das Bild, vom Server **neu kodiert** (dabei gehen Standortdaten und alle anderen Metadaten
+  verloren; Bilder über 4096 Pixel werden verkleinert), Größe und Format, wann es geteilt wurde und wann es abläuft,
+  sowie welcher TRS-Account es geteilt hat. Der Account wird nur intern genutzt – für deine Liste „Meine geteilten
+  Bilder“, die Grenzen und die Moderation. Die öffentliche Seite und das Bild zeigen **keinen Spielernamen und keine
+  UUID**.
+- **Wer es sieht:** **jeder, der den Link hat** – es gibt kein Passwort. Der Link enthält einen langen Zufallscode, der
+  sich nicht erraten lässt, und die Seite bittet Suchmaschinen, sie nicht aufzunehmen (`noindex`). Postest du den Link
+  in Discord oder einer ähnlichen App, laden deren Server das Bild, um eine Vorschau zu zeigen.
+- **Wie lange:** **30 Tage**, danach wird das Bild automatisch gelöscht. Du kannst es vorher unter „Meine geteilten
+  Bilder“ im Launcher oder im TRS Client löschen – der Link funktioniert dann sofort nicht mehr (Vorschauen, die andere
+  Apps schon erstellt haben, liegen außerhalb unseres Einflusses). „Alle TRS-Daten löschen“ löscht alle deine geteilten
+  Bilder.
+- **Grenzen:** höchstens 10 MB je Bild, 50 aktive Links und 20 neue Links pro Tag und Account. Eine Upload-Sperre der
+  Moderation sperrt auch das Teilen.
+- **Meldungen:** Ein geteiltes Bild kann gemeldet werden, auch direkt auf seiner Seite. Eine Meldung von der Seite
+  sendet nur den Grund; die Seite speichert keine IP-Adresse (Ratenbegrenzungen zählen nur im Arbeitsspeicher). Eine
+  Meldung bewahrt wie andere Meldungen eine Kopie des Bildes als Beweis auf (siehe unten), und das Team kann geteilte
+  Bilder löschen.
+
+### Modpacks teilen
+
+Im Launcher kannst du eine Instanz als Modpack teilen (*Instanz → Teilen → Modpack teilen*). Der Launcher packt die
+**Mod-Liste** (Mods, die es auf Modrinth gibt, stehen nur mit ihrer Download-Adresse drin) und die **Ordner, die du
+auswählst** (z. B. Einstellungen/Configs, Resource Packs, eigene Mod-Dateien) in eine `.mrpack`-Datei und lädt sie erst
+hoch, wenn du auf „Teilen“ klickst. Welten, Screenshots, Logs und Konto-Dateien kommen nie mit.
+
+- **Was gespeichert wird:** die Pack-Datei, Name, Beschreibung und Version, Minecraft-Version und Modloader, wie viele
+  Dateien sie enthält, wann sie geteilt, aktualisiert wurde und wann sie abläuft, wie oft sie installiert wurde, der
+  teilende TRS-Account und an welche Freunde sie geschickt wurde.
+- **Wer es sieht:** Jeder mit dem **Code** (`TRS-XXXX-XXXX`) oder dem **Link** (`/p/…`) sieht Name, Beschreibung,
+  Inhaltsübersicht und **deinen Spielernamen samt Kopf** – damit man weiß, von wem das Pack ist. Herunterladen geht nur
+  mit TRS-Account (im Launcher). Freunde, an die du es schickst, sehen es in ihrer Liste „An dich geschickt“. Die Seite
+  wird von Suchmaschinen nicht aufgenommen.
+- **Wie lange:** Das wählst du je Pack – **1, 7 oder 30 Tage oder unbegrenzt**. Abgelaufene Packs werden automatisch
+  gelöscht; vorher kannst du ein Pack unter „Meine Modpacks“ löschen – Code und Link gelten dann sofort nicht mehr
+  (Kopien, die andere schon installiert haben, bleiben auf deren PCs). Eine neue Version behält den Code; wer das Pack
+  installiert hat, sieht „Update verfügbar“.
+- **Grenzen:** höchstens 50 MB je Pack, 10 geteilte Packs und 30 Uploads pro Tag je Account. Eine Upload-Sperre der
+  Moderation verhindert auch das Teilen.
+- **Meldungen:** Ein Pack kann im Launcher oder auf seiner Seite (angemeldet) gemeldet werden. Die Meldung bewahrt Name,
+  Code, Beschreibung, Inhaltsübersicht und Prüfsumme des Packs als Beleg auf (nicht die Datei); das Team kann Packs
+  löschen.
+
+### Schaltungs-Bibliothek (TRS Client)
+
+Die Schaltungs-Bibliothek im TRS Client (und auf der Website, /circuits) lädt ihre Schaltungen vom TRS-Server. Dafür
+braucht es kein Konto: Einmal je Spielstart fragt der TRS Client, ob es neue oder geänderte Schaltungen gibt, und lädt
+nur diese; sie werden in `config/trsclient/circuits/` zwischengespeichert. Das passiert nur, solange die
+TRS-Online-Funktionen erlaubt sind. Der Server zählt Anfragen je IP-Adresse nur im Arbeitsspeicher (Rate-Limit).
+
+- **Schaltung einreichen** (angemeldet, im TRS Client oder auf der Website): Wir speichern die Schaltung (nur Blöcke
+  und ihre Zustände – keine Kisteninhalte oder anderen Blockdaten), den eingegebenen Namen, die Beschreibung,
+  Kategorie und Sprache, deine Minecraft-UUID und deinen Namen, den Zeitpunkt, den Status und die Antwort des Teams.
+  Hochgeladene Dateien werden umgewandelt und sofort verworfen. Einreichungen sehen nur Team-Mitglieder, deren Rolle
+  die Bibliothek verwalten darf.
+- **Dein Name wird angezeigt:** Nimmt das Team deine Schaltung an, erscheint sie in der Bibliothek im TRS Client und
+  auf der Website **mit deinem Minecraft-Namen (und deiner UUID für das Kopfbild) als Ersteller**. Das bestätigst du
+  vor dem Einreichen.
+- **Wie lange:** Entschiedene Einreichungen werden **90 Tage** nach der Entscheidung gelöscht, offene bleiben bis zur
+  Entscheidung. Eine veröffentlichte Schaltung bleibt, bis das Team sie entfernt; „Alle TRS-Daten löschen“ löscht
+  deine Einreichungen und entfernt deinen Namen aus deinen Schaltungen. Du kannst jederzeit verlangen, dass wir eine
+  Schaltung von dir entfernen.
+- **Grenzen und Meldungen:** höchstens 5 Einreichungen am Tag; eine Upload-Sperre aus der Moderation sperrt auch das
+  Einreichen. Schaltungen können wie andere Inhalte gemeldet werden (siehe unten).
+
+### Issues und Bug-Meldungen
+
+Der öffentliche Issue-Tracker auf der Website (/issues, /roadmap) ist im Website-Teil dieser Erklärung beschrieben.
+Launcher und TRS Client nutzen ihn so:
+
+- **Benachrichtigungen:** Folgst du einem Issue (bei eigenen und kommentierten automatisch), bekommt der Launcher über
+  seine bestehende TRS-Verbindung ein Ereignis, wenn sich der Status ändert, das Team antwortet, eine Lösung erscheint
+  („Erledigt in“) oder das Issue zusammengeführt wird, und zeigt einen Sozial-Hinweis mit dem Knopf „Ansehen“, der das
+  Issue im Browser öffnet. Dafür wird auf deinem PC nichts gespeichert; es gelten die Einstellungen für Sozial-Hinweise.
+- **„Bug melden“ im TRS Client** sendet einen Titel, deine Beschreibung und – nur die Teile, die du ankreuzt, vor dem
+  Senden angezeigt – die Version des TRS Client, Minecraft-Version und Loader, deine Mod-Liste, einen Ausschnitt aus dem
+  Spiel-Log und einen Screenshot, zusammen mit deinem TRS-Account. Der Client entfernt vorher Zugangs-Tokens,
+  Sitzungs-IDs, E-Mail-Adressen, IP-Adressen, UUIDs und deinen Spielernamen aus dem Log, der Server macht das noch
+  einmal. Issue, Versionen, Mod-Liste und Screenshot sind auf der Website mit deinem Minecraft-Namen öffentlich; den
+  Log-Ausschnitt sehen nur du und das Team.
+- **Wie lange:** Issues und Kommentare bleiben, solange es den Tracker gibt; „Alle TRS-Daten löschen“ löscht deine
+  Stimmen, dein Folgen, Log-Ausschnitte und hochgeladene Bilder, deine Issues und Kommentare bleiben ohne deinen Namen.
+
+### Bug melden im TRS Client
+
+TRS-Client-Menü → „Bug melden“ schickt eine Fehlermeldung an den Issue-Tracker von TRS, angemeldet mit deinem TRS-Konto
+(die TRS-Dienste müssen im Launcher eingeschaltet sein). Gesendet wird erst, wenn du auf der Vorschau-Seite „Jetzt
+senden“ drückst – die Vorschau zeigt genau, was mitgeht.
+
+- **Immer:** Titel und Beschreibung, die du eingibst, deine Minecraft-UUID und dein Name (als Verfasser der Meldung) und
+  die Uhrzeit.
+- **Standardmäßig angehakt:** Version des TRS Clients, Minecraft-Version und Loader, Liste der Mod-Dateinamen in `mods/`.
+- **Nur wenn du es anhakst:** ein Ausschnitt aus dem Spiel-Log (die letzten 300 Zeilen von `logs/latest.log` oder der
+  Anfang des neuesten Absturzberichts) und ein Screenshot (der neueste oder einer, den du auswählst).
+- **Das Log wird vor dem Senden auf deinem PC gesäubert:** Zugangs- und Sitzungs-Tokens, `--accessToken` und ähnliche
+  Start-Argumente, UUIDs, dein Spielername und deine Kontonamen, IP-Adressen, Benutzernamen in Pfaden
+  (`C:\Users\<Name>` → `C:\Users\<user>`), E-Mail-Adressen und der Inhalt von Chat-Zeilen werden ersetzt. Die Vorschau
+  zeigt, wie viel davon entfernt wurde. Ein Screenshot geht unverändert raus – sieh dir an, was er zeigt.
+- **Wer es sieht:** Die Meldung erscheint öffentlich im Issue-Tracker auf trs-launcher.theredstonee.de (Titel,
+  Beschreibung, Screenshot, Versionen, Mod-Liste und dein Name als Verfasser). Den Log-Ausschnitt sehen nur das TRS-Team
+  und du.
+- **Grenzen:** einige Meldungen pro Tag; eine Strafe aus der Moderation kann das Melden sperren.
+
+### Meldungen und Moderation
+
+Du kannst Nachrichten, Bilder, Spieler und Gruppen melden (mit Grund und optionalem Hinweis). Die Meldung speichert eine
+verschlüsselte Kopie des gemeldeten Inhalts und von bis zu 10 Nachrichten davor und danach, genau so, wie du sie sehen
+konntest; gemeldete Bilder werden kopiert. Team-Mitglieder, deren Rolle es erlaubt, prüfen Meldungen auf der Website oder im Launcher und können
+Nachrichten löschen, verwarnen, im Chat für eine Zeit stummschalten oder sperren; jede Aktion wird protokolliert. Wer
+meldet, erfährt nur, ob etwas unternommen wurde, nicht was. Der gemeldete Spieler erfährt nicht, wer ihn gemeldet hat.
+
+Automatischer Schutz: Zu schnell oder vielfach wiederholt gesendete Nachrichten werden abgelehnt und können zu einer
+kurzen automatischen Stummschaltung führen; Links und Server-Einladungen in Gruppen werden nur vom Besitzer oder von
+Spielern angenommen, die mit allen in der Gruppe befreundet sind; das Team kann eine Liste gesperrter Wörter pflegen.
+Melden drei verschiedene Spieler denselben Spieler innerhalb eines Tages, ist dieser im Chat stumm, bis das Team es sich
+angesehen hat. Spieler, deren Meldungen oft unbegründet sind, zählen dafür nicht.
+
+Meldungen bleiben gespeichert, solange sie offen sind, und **90 Tage** nach der Entscheidung (für Einwände); danach
+werden Kopien, Notizen und Bilder gelöscht, die Meldung selbst (ohne Inhalte) nach **einem Jahr**. Löschst du deinen
+Account, bleiben deine Meldungen ohne deinen Namen erhalten; Meldungen gegen dich und eine laufende Stummschaltung
+bleiben bis zum Ende dieser Fristen, damit sich Moderation nicht durch Löschen des Accounts umgehen lässt.
+
+### Strafen und Einsprüche
+
+Das Team (Mitglieder, deren Rolle es erlaubt) kann bei Verstößen Strafen verhängen: eine Verwarnung, eine Chat-Stummschaltung, eine
+Sozial-Sperre (keine Freundesanfragen, Gruppen oder Einladungen), eine Upload-Sperre (keine eigenen Umhänge oder
+Kosmetik), eine Welt-Hosting-Sperre oder eine Sperre des ganzen TRS-Accounts – befristet oder dauerhaft. Gespeichert
+werden deine UUID, Art, Grund (aus einer festen Liste, dazu ein optionaler Text, den du siehst), Beginn und Ende, wer
+die Strafe verhängt hat, eine interne Notiz des Teams sowie jede spätere Änderung (verkürzt, verlängert, aufgehoben –
+jeweils mit Zeitpunkt, Bearbeiter und Begründung). Das Team kann zu Spielern außerdem interne Notizen anlegen und
+sieht, unter welchen Namen sich ein Account bei TRS angemeldet hat.
+
+Im Launcher und im Spiel siehst du deine aktiven und vergangenen Strafen mit Art, Grund, Beginn und Ende – nicht die
+interne Notiz und nicht, wer sie verhängt hat. Gegen jede aktive Strafe kannst du **einmal Einspruch** einlegen (20 bis
+1000 Zeichen); auch mit gesperrtem Account geht das über einen kurzen, nur dafür gültigen Zugang (1 Stunde). Jemand
+aus dem Team, der die Strafe nicht selbst verhängt hat, entscheidet und schreibt dir eine Antwort.
+
+**Speicherdauer:** Strafen samt Änderungen und Einspruch werden **2 Jahre nach ihrem Ende** (abgelaufen oder
+aufgehoben) gelöscht; dauerhafte Strafen bleiben, solange sie gelten. Interne Notizen werden nach **2 Jahren** gelöscht,
+frühere Namen **2 Jahre** nach ihrer letzten Nutzung, Einträge im Audit-Log des Teams nach **2 Jahren**. Löschst du
+deinen Account, werden Verwarnungen und beendete Strafen sofort gelöscht; **aktive** Strafen (und Notizen dazu) bleiben
+bis zu ihrem Ende, damit sie sich nicht durch Löschen umgehen lassen. Rechtsgrundlage ist unser berechtigtes Interesse
+an einem sicheren Dienst (Art. 6 Abs. 1 lit. f DSGVO).
+
+### Anmeldung auf der Website und Bewerbungen
+
+**Anmeldung mit Microsoft auf der Website.** Auf trs-launcher.theredstonee.de kannst du dich mit dem Microsoft-Konto
+anmelden, dem Minecraft: Java Edition gehört. Wir erhalten nur deine Minecraft-UUID und deinen Namen; die Tokens von
+Microsoft, Xbox und Minecraft liegen nur Sekunden im Arbeitsspeicher und werden verworfen – gespeichert werden keine
+Tokens, keine E-Mail, kein Passwort, nur eine Website-Sitzung (8 Stunden).
+
+**Anmeldung mit dem TRS Launcher auf der Website.** Statt mit Microsoft kannst du eine Anmeldung auf der Website im
+Launcher bestätigen: Die Website zeigt einen kurzen Code und öffnet den Launcher (oder du gibst den Code unter
+Einstellungen → Datenschutz → „Auf der Website anmelden“ ein). Der Launcher fragt die Anfrage ab und bestätigt sie
+**erst nach deinem Klick auf „Bestätigen“** mit dem TRS-Token des Kontos, das du auswählst; „Ablehnen“ lehnt sie ab.
+Gesendet werden nur der Bezug der Anfrage und der Code; angezeigt werden Website, Code, eine grobe Browser-Angabe (etwa
+„Firefox · Windows“) und die Uhrzeit der Anfrage. Der Server hält die Anfrage höchstens zwei Minuten (Hashes von Link und
+Browser-Wert, Code, grobe Browser-Angabe, nach der Bestätigung deine UUID), danach nur noch die Website-Sitzung
+(8 Stunden).
+
+**News im Launcher.** Mit eingeschalteten TRS-Diensten lädt der Launcher auch die News-Beiträge des Teams von
+trs-launcher.theredstonee.de (Text und Bilder; ohne deinen Token – über dich wird nichts gesendet) und speichert sie
+lokal zwischen.
+
+**Bewerbungen für das Team:** Stelle, Minecraft-Name und UUID, Discord-Name, Altersgruppe (nie das Geburtsdatum), deine
+Antworten, Status und unsere Antwort. Sehen können sie nur Team-Mitglieder, deren Rolle Bewerbungen prüfen darf.
+Abgelehnte oder zurückgezogene Bewerbungen werden 6 Monate nach der Entscheidung gelöscht, angenommene 6 Monate nach
+deinem Austritt aus dem Team; mit dem TRS-Konto werden sie sofort gelöscht.
+
+### Welt für Freunde hosten (TRS Client)
+
+Im TRS Client kannst du deine Einzelspielerwelt ohne Portfreigabe für Freunde öffnen („Welt hosten“). Der TRS-Server
+regelt nur, **wer beitreten darf**, und hilft den beiden Spielen, **sich zu finden**; das Spiel selbst läuft nie über
+den TRS-Server.
+
+- **Auf dem TRS-Server gespeichert, solange die Welt offen ist:** Weltname, Minecraft-Version, Mod-Loader und deine
+  Einstellungen (Spielmodus, PvP, Cheats, max. Spieler, offen/geschlossen, für Freunde sichtbar), der Beitrittscode, wen
+  du eingeladen hast, wer beitreten wollte und wen du hereingelassen oder gesperrt hast (mit Zeitpunkt), und die
+  Spielerzahl, die dein Spiel meldet. Schließt du die Welt oder meldet sich dein Spiel 90 Sekunden nicht, wird das alles
+  **gelöscht**. Freunde sehen deine offene Welt nur, wenn du sie für Freunde sichtbar lässt.
+- **Länger gespeichert:** nur deine eigene Liste der Spieler, die du für alle deine Welten gesperrt hast („Sperre
+  merken“), bis du sie entfernst oder dein TRS-Konto löschst.
+- **Verbinden:** Die beiden Spiele versuchen zuerst, sich **direkt** zu verbinden. Dafür fragt jedes Spiel einen
+  STUN-Server (ab Werk nur den TRS-Relay-Server) nach seiner öffentlichen Adresse und schickt seine Verbindungsdaten über
+  den TRS-Server an den anderen Spieler. **Bei einer direkten Verbindung sehen du und der andere Spieler gegenseitig
+  eure IP-Adresse** – wie auf jedem Minecraft-Server. Diese Daten werden nur weitergereicht und höchstens 10 Minuten im
+  Arbeitsspeicher des Servers für die Zustellung gehalten.
+- **TRS-Relay:** Klappt keine direkte Verbindung, laufen die Spieldaten über den TRS-Relay-Server (ein eigener Server in
+  Deutschland, betrieben vom TRS-Launcher-Projekt). Er lässt nur Spieler mit einem kurzlebigen Zugangsschlüssel des
+  TRS-Servers herein, sieht die IP-Adressen der verbundenen Spiele und leitet die Bytes weiter. Er **speichert und
+  protokolliert keine Spieldaten und keine IP-Adressen** (nur Zähler wie die Zahl der Verbindungen) und schreibt nichts
+  auf die Platte.
+- **Beitreten aus dem Launcher:** Unter *Sozial → Welten*, im Chat (Weltkarten) und in Benachrichtigungen zeigt der
+  Launcher offene Welten und Einladungen deiner Freunde und schickt dein „Beitreten“/„Anfragen“ mit deiner
+  TRS-Anmeldung an den TRS-Server. Lässt man dich herein, startet er eine passende Instanz und gibt dem Spiel nur die
+  ID und den Beitrittscode der Welt – über die lokale Verbindung auf deinem PC (`127.0.0.1`), ohne Zugangsschlüssel.
+  Das Spiel verbindet sich dann selbst wie oben beschrieben. Der Launcher speichert zu gehosteten Welten nichts auf
+  der Festplatte.
+- **Öffentlicher Link (e4mc):** Optional kannst du einen öffentlichen Link erstellen, mit dem jeder beitreten kann. Dafür
+  wird **e4mc** genutzt, ein Dienst anderer Betreiber, nicht der TRS-Server. Schaltest du ihn ein (nur nach einer
+  Warnung, die du bestätigen musst), verbindet sich dein Spiel mit dem Relay von e4mc; e4mc sieht deine IP-Adresse und
+  die der Mitspieler und leitet die Spieldaten weiter, es gilt die Datenschutzerklärung von e4mc. Ab Werk ist er aus.
+  Beim ersten Einschalten lädt das Spiel die nötige Netzwerk-Bibliothek (Netty mit QUIC, Open Source) einmalig von
+  Maven Central (`repo1.maven.org`, geprüft gegen feste Prüfsummen) und fragt den Vermittler von e4mc
+  (`broker.e4mc.link`) nach dem nächsten Relay – beide sehen dabei deine IP-Adresse. Der e4mc-Teil des TRS Client beruht
+  auf der Mod e4mc (MIT-Lizenz, © Skye); der Lizenztext liegt dem Spiel bei.
+- **Nur über das Relay:** Im TRS Client (Sozial → „Direktverbindungen“) kannst du Direktverbindungen abschalten. Dann
+  nutzt dein Spiel immer das TRS-Relay, und der andere Spieler erfährt deine IP-Adresse nie.
+- **Welt-Backup:** Vor dem Öffnen kann der TRS Client ein ZIP deiner Welt im Ordner `backups` des Spiels auf deinem PC
+  ablegen. Es verlässt deinen PC nie.
+- **Schutz im Spiel:** Ein Gast kann sich nur mit dem Namen anmelden, den der TRS-Server für ihn bestätigt hat (niemand
+  kann den Namen des Hosts übernehmen), und wenn du einen Spieler entfernst oder sperrst, trennt das Spiel seine
+  Verbindung sofort.
+
+#### Lokalen Server teilen („Meine Server“)
+
+- **Adressen:** Damit du siehst, wie Freunde einen Server auf deinem PC erreichen, fragt der Launcher deine öffentliche
+  IP-Adresse bei `api.ipify.org` ab (klappt das nicht, bei Cloudflare `1.1.1.1/cdn-cgi/trace`) – beide sehen deine
+  IP-Adresse. Das Ergebnis bleibt nur 10 Minuten im Arbeitsspeicher. „Erreichbarkeit prüfen“ lässt den TRS-Server diese
+  Adresse anpingen (wie bei Server-Karten im Chat).
+- **Über TRS Relay:** Der Launcher legt auf dem TRS-Server einen Welt-Raum an, den nur eingeladene Freunde sehen (gleiche
+  Daten und Löschregeln wie beim Welt-Hosting oben), und verbindet sich selbst mit dem TRS Relay; Spieler erreichen deinen
+  Server darüber, dein Server sieht sie als Verbindungen von deinem eigenen PC. Einladungen sind Welt-Einladungen mit
+  einer Karte in deinem Chat.
+- **Öffentlicher Link (e4mc):** ab Werk aus und nur nach einer Warnung; der Launcher verbindet sich dann mit Broker und
+  Relay von e4mc (`*.e4mc.link`), die deine IP-Adresse und die der Mitspieler sehen und die Spieldaten weiterleiten. Es
+  gilt die Datenschutzerklärung von e4mc. Ausschalten oder den Server stoppen beendet den Link.
+
+#### Mods und Resource Pack beim Welt-Hosting
+
+- **Ab Werk aus.** Nur wenn du für eine Welt „Mods teilen“ oder „Resource Pack teilen“ einschaltest, teilt der TRS
+  Client etwas; die Wahl wird im Spielordner gemerkt (`config/trsclient/hosting-share.json`).
+- **Was der TRS-Server speichert (nur solange die Welt offen ist, danach gelöscht):** die Liste der geteilten Mods –
+  Name, Version, Dateiname, Größe, Pflicht/optional, Quelle (Modrinth, CurseForge, direkt vom Host oder „selbst
+  besorgen“) mit Projekt- und Datei-IDs und den Prüfsummen der Dateien (SHA-1, SHA-512/SHA-256) – und beim Resource
+  Pack dessen Name, Größe und Prüfsummen. Alle, die deine Welt sehen dürfen, sehen diese Liste. **Dateien** werden nie
+  auf dem TRS-Server gespeichert oder über ihn verschickt.
+- **Erkennen deiner Mods:** Um festzustellen, welche Mods es bei Modrinth oder CurseForge gibt, liest der TRS Launcher
+  die Mod-Dateien deiner Instanz und schickt ihre Prüfsummen (und CurseForge-Fingerprints) an Modrinth
+  (`api.modrinth.com`) und CurseForge (`api.curseforge.com`); ohne Launcher fragt der TRS Client selbst bei Modrinth.
+  Sie sehen deine IP-Adresse.
+- **Dateien direkt zwischen den Spielern:** Mods, die es in keinem Store gibt (nur wenn du „Mods direkt vom Host
+  übertragen“ einschaltest), und das Resource Pack gehen **direkt vom Spiel des Hosts zum Gast** – über dieselbe
+  Direktverbindung bzw. das TRS-Relay wie das Spiel, das die Bytes nur weiterleitet und nichts speichert. Nur Spieler,
+  die du in die Welt gelassen hast, bekommen sie, und nur genau die Dateien, die du gewählt hast. Store-Mods laden Gäste
+  selbst von Modrinth bzw. CurseForge.
+- **Gäste:** Der Launcher zeigt die Liste bei jedem Beitritt und prüft jede Datei (Prüfsumme und Größe), bevor er sie
+  verwendet. Mods direkt vom Host werden erst übernommen, wenn du „Ich vertraue diesem Host“ bestätigst. Das Resource
+  Pack wird nur verwendet, wenn du Minecrafts Frage mit Ja beantwortest; dein Spiel reicht es über eine lokale Adresse
+  auf deinem Rechner (`127.0.0.1`) an Minecraft, die nur für diese Verbindung gilt.
+
+### Erfolge
+
+Der Launcher hat Erfolge (Punkte, Seltenheiten, ein paar Belohnungen wie ein Umhang oder eine Kosmetik). Sie gehören
+zu den TRS-Diensten und funktionieren nur, solange diese eingeschaltet sind.
+
+- **Was der Server selbst zählt:** Zeit im Spiel und Tage am Stück (aus dem Spielstatus, den der Launcher bzw. der TRS
+  Client ohnehin meldet), Freunde, Chat-Nachrichten, Issues und Stimmen, Schaltungen, geteilte Packs, Welten, Umhänge
+  und Kosmetik.
+- **Was der Launcher meldet:** ein paar Dinge, die nur er weiß – ein Spiel wurde gestartet (mit der Stunde der
+  Ortszeit, 0–23, für Tageszeit-Erfolge), Mods oder ein Modpack wurden installiert (nur die Anzahl), ein Clip wurde
+  gespeichert (nur die Anzahl), der Absturz-Helfer hat etwas behoben, Instanzen wurden aus einem anderen Launcher
+  übernommen. Es gehen keine Namen, Dateien, Pfade oder Instanzen mit. Meldungen werden ein paar Sekunden gesammelt und
+  im Hintergrund gesendet; ohne TRS-Dienste oder offline geht nichts raus.
+- **Auf dem TRS-Server gespeichert:** welche Erfolge du wann freigeschaltet hast, Zähler und Merker je Account, deine
+  Gesamtzeit im Spiel mit aktueller und längster Sitzung und deine Tage am Stück (kein Verlauf der Sitzungen) sowie der
+  Schalter „Erfolge für Freunde sichtbar“.
+- **Wer es sieht:** du und deine bestätigten Freunde (Punkte und freigeschaltete Erfolge) – sonst niemand. Ist
+  „Erfolge für Freunde sichtbar“ aus (Erfolge-Seite oder *Einstellungen → Datenschutz*), sehen Freunde nur, dass deine
+  Erfolge privat sind.
+- **Wie lange:** solange dein TRS-Konto besteht; „Alle TRS-Daten löschen“ löscht alles davon.
+
+### Was gespeichert wird
+
+| Daten | Wozu |
+|---|---|
+| Minecraft-UUID und Spielername | Um deinen TRS-Account zu erkennen und Freunden deinen Namen zu zeigen |
+| Zeitpunkt der Account-Erstellung und der letzten Anmeldung | Account-Verwaltung und Schutz vor Missbrauch |
+| Die Adresse deines aktuellen Minecraft-Skins (ein öffentlicher Link auf dem Textur-Server von Mojang), sein Modell und wann er zuletzt gesehen wurde | Dein Gesicht in Listen und deine Figur auf der Team-Seite zeigen, ohne jedes Mal Mojang zu fragen |
+| Sitzungs-Tokens (nur als SHA-256-Hashes, 30 Tage gültig, höchstens 10 pro Account) | Damit du angemeldet bleibst |
+| Deine Datenschutz-Einstellungen (TRS-Symbol, Umhang für andere sichtbar, Online-Status sichtbar für Freunde/niemanden, Server teilen) | Damit sich die Dienste an deine Entscheidungen halten |
+| Dein gewählter Umhang, per Code freigeschaltete oder vom Team vergebene Umhänge | Um anderen TRS-Spielern deinen Umhang zu zeigen |
+| Umhänge, die du hochlädst (das Bild, neu kodiert ohne Metadaten), ihr Prüfstatus und ein optionaler Name | Umhang-Uploads; jeder Upload wird vom Team geprüft, bevor andere ihn sehen |
+| Meldungen, die du zu Umhängen anderer Spieler abgibst (Grund, optionale Notiz) | Moderation |
+| Geteilte Umhänge: welche Umhänge du wem angeboten hast (und wer sie weitergegeben hat), offene Angebote an dich und die Umhänge, die Freunde mit dir geteilt haben, jeweils mit Zeitpunkt und ob angenommen | Umhänge mit Freunden teilen (siehe oben) |
+| Freunde, Freundschaftsanfragen und Blockierungen | Die Freundesliste |
+| Online-Status: „online im Launcher“ oder „im Spiel“ (vom Launcher oder vom TRS Client) mit Version und Modloader und – nur wenn du „Server teilen“ eingeschaltet hast – die Serveradresse | Um Freunden zu zeigen, was du spielst, und sie nachkommen zu lassen; für das TRS-Symbol, während du spielst (siehe oben) |
+| Nur mit eingeschaltetem „Mit TRS-Konto synchronisieren“: deine eigenen Skins aus „Meine Skins“ (das Bild, neu kodiert ohne Metadaten, Name und Modell), deine eigenen Mod-Presets (Namen und Modrinth-Projekt-IDs, keine Dateien oder Ordnerpfade) sowie Theme, Akzentfarbe und Sprache, jeweils mit dem Zeitpunkt der letzten Änderung; gelöschte Skins und Presets werden kurz vermerkt | Damit sie auf allen PCs gleich sind, auf denen du diesen Minecraft-Account nutzt |
+| Nur mit eingeschalteten TRS-Diensten und eingeschaltetem „Mit TRS-Konto synchronisieren“ im TRS Client (im Spiel): deine TRS-Client-Einstellungen – welche Module an sind und ihre Einstellungen, HUD-Layouts und -Profile, die TRS-Tasten der Module, der Config-Modus für Leistungs-Mods, ob du die Einführung abgeschlossen hast (und das gewählte Modul-Paket) und welche „NEU“-Einträge du geöffnet hast – je Teil mit dem Zeitpunkt der letzten Änderung; keine Wegpunkte, keine Server-Adressen, keine Dateien, Pfade oder Tokens | Damit der TRS Client auf allen PCs und Spielordnern mit diesem Minecraft-Account gleich ist und die Einführung nur einmal erscheint |
+| Nur mit eingeschalteten TRS-Diensten: der Garderoben-Eintrag des TRS Clients – deine Lieblings-Skins, Outfits (Name, Skin, Umhang) und die Plätze des Emote-Rads, mit der Zeit der letzten Änderung | Dieselbe Garderobe auf jedem PC |
+| Nur mit eingeschalteten TRS-Diensten, eingeschaltetem „Mit TRS-Konto synchronisieren“ im TRS Client und eingeschaltetem Notiz-Schalter „Mit TRS-Konto synchronisieren“: deine Welt-Notizen aus dem TRS Client – Titel, Text (samt Checklisten und eingetippten Koordinaten), Zeitpunkt von Anlage und Änderung und die Welt, zu der sie gehören (Server-Adresse bzw. bei Einzelspielerwelten eine aus dem Weltordner gebildete Kennung samt Ordnername); gelöschte Notizen bleiben als leerer Vermerk | Dieselben Notizen auf jedem PC |
+| Chat: deine Nachrichten (Text, Antworten, Bearbeitungen, Server-Einladungen), gesendete Bilder (neu kodiert, verschlüsselt), Reaktionen, Lesestände, Stummschaltungen von Unterhaltungen und Gruppenmitgliedschaften, jeweils mit Zeitpunkt | Chatten mit Freunden und in Gruppen (siehe oben) |
+| Chat-Einstellungen: Lesebestätigungen und „schreibt gerade“ an oder aus | Damit sich der Chat an deine Entscheidungen hält |
+| Geteilte Screenshots (nur die Bilder, die du teilst): das neu kodierte Bild, Größe, Format, Zeitpunkt des Teilens und Ablaufs, der teilende Account (nicht öffentlich sichtbar) | Einen Screenshot als Link teilen (siehe oben) |
+| Geteilte Modpacks (nur die Packs, die du teilst): Pack-Datei, Name, Beschreibung, Version, Minecraft-Version, Loader, Dateizahlen, Zeitpunkt des Teilens/Aktualisierens/Ablaufs, Installationen, der teilende Account (Name auf der Pack-Seite sichtbar), Freunde, an die es geschickt wurde | Ein Modpack per Code, Link oder an Freunde teilen (siehe oben) |
+| Issues und Kommentare, die du schreibst, deine Stimmen und dein Folgen; bei „Bug melden“ im TRS Client die angekreuzten Teile (Versionen, Mod-Liste, Log-Ausschnitt – gesäubert, nur für dich und das Team sichtbar – und ein Screenshot) | Fehler melden, Funktionen vorschlagen, abstimmen und Benachrichtigungen (siehe oben) |
+| Erfolge: welche du wann freigeschaltet hast, Zähler und Merker (z. B. Zahl der Spielstarts oder installierten Mods, die Ortszeit-Stunde eines Starts), Gesamtzeit im Spiel mit aktueller und längster Sitzung, Tage am Stück und ob Freunde deine Erfolge sehen dürfen | Erfolge und ihre Belohnungen; nur für dich und deine Freunde sichtbar (siehe oben) |
+| Eingereichte Schaltungen: die Schaltung (nur Blöcke und Zustände), Name, Beschreibung, Kategorie, Sprache, Zeitpunkt, Status und Antwort des Teams; bei angenommenen Schaltungen dein Name als Ersteller | Eine Schaltung für die Bibliothek einreichen (siehe oben) |
+| Meldungen, die du abgibst, und Meldungen über dich, jeweils mit verschlüsselter Kopie des gemeldeten Inhalts samt Kontext; Strafen (Verwarnung, Stummschaltung, Sperren) mit Verlauf und Einspruch, interne Notizen des Teams, frühere Namen | Moderation (siehe oben) |
+| Welt hosten (nur solange deine Welt offen ist): Weltname, Version, Mod-Loader und Einstellungen, Beitrittscode, eingeladene Spieler, Beitrittsanfragen, hereingelassene und gesperrte Spieler mit Zeitpunkt, Spielerzahl, Liste geteilter Mods und Resource-Pack-Angaben (Namen, Größen, Quellen, Prüfsummen – keine Dateien); deine Liste der für alle Welten gesperrten Spieler | Welt für Freunde hosten (siehe oben) |
+
+**Synchronisation:** „Mit TRS-Konto synchronisieren“ (*Einstellungen → Datenschutz*, ab Werk an, solange die
+TRS-Dienste an sind) hält deine eigenen Skins, deine eigenen Presets und das Aussehen des Launchers (Theme, Akzentfarbe,
+Sprache) auf all deinen PCs gleich. Java, Arbeitsspeicher und alle anderen Einstellungen werden **nicht**
+synchronisiert und verlassen deinen PC nie. Schalter aus = keine Synchronisation mehr; was schon synchronisiert wurde,
+bleibt auf dem Server, bis du es mit „Alle TRS-Daten löschen“ löschst. Deine synchronisierten Daten kannst nur du
+lesen – es gibt keine Admin-Ansicht dafür.
+
+**TRS-Client-Synchronisation:** Die TRS-Client-Mod meldet sich selbst an (siehe oben) und legt ihre eigenen
+Einstellungen am selben Ort ab – als ein Dokument von höchstens 64 KB je Account. Das tut sie nur, solange die
+TRS-Dienste im Launcher an sind und ihr Schalter „Mit TRS-Konto synchronisieren“ (TRS-Menü → *TRS-Online-Funktionen*,
+ab Werk an) an ist; der Schalter selbst, Wegpunkte, die Freelook-Serverliste und Minecrafts eigene Optionen
+(options.txt) bleiben auf deinem PC. Das Spiel liest außerdem dein synchronisiertes Theme, Akzentfarbe und Sprache und
+schreibt sie zurück, wenn du sie in der Einführung änderst, damit der Launcher folgt. „Alle TRS-Daten löschen“ löscht
+auch dieses Dokument.
+
+**Notizen im TRS Client:** Notizen je Welt liegen auf deinem PC in `config/trsclient/notes` (eine Datei je Welt bzw.
+Server). Mit eingeschalteten TRS-Diensten und beiden Schaltern (*TRS-Online-Funktionen* → „Mit TRS-Konto
+synchronisieren“ und auf der Seite *Welt-Notizen* „Mit TRS-Konto synchronisieren“, beide ab Werk an) legt der TRS
+Client sie zusätzlich Notiz für Notiz in deinem TRS-Konto ab, damit sie auf jedem PC gleich sind. Welche Notiz im HUD angeheftet ist, bleibt auf
+deinem PC. Deine Notizen kannst nur du lesen – es gibt keine Admin-Ansicht. Eine gelöschte Notiz hinterlässt 90 Tage
+einen leeren Vermerk, damit deine anderen PCs sie auch löschen. Notiz-Schalter aus = alle Notizen bleiben auf diesem
+PC; „Alle TRS-Daten löschen“ löscht die synchronisierten Notizen.
+
+Der Online-Status liegt **nur im Arbeitsspeicher des Servers**, wird nie auf die Festplatte geschrieben, hat keinen
+Verlauf und verfällt **3 Minuten** nach der letzten Aktualisierung. Sehen können ihn nur deine Freunde – und gar
+niemand, wenn du „niemand“ einstellst. Nur ob du gerade im Spiel bist, kann zusätzlich als TRS-Symbol erscheinen (siehe
+oben).
+
+Admin-Aktionen (etwa das Freigeben eines Umhangs, eine Sperre oder die Entscheidung über eine Chat-Meldung) werden
+zusammen mit der betroffenen UUID in einem Audit-Log festgehalten.
+
+### Zweck und Rechtsgrundlage
+
+Die Daten werden nur verarbeitet, um die TRS-Dienste bereitzustellen, die du angefordert hast: Umhänge, die Freundesliste,
+den Online-Status, den Chat und die Synchronisation deiner Skins, Presets und des Launcher-Aussehens zwischen deinen PCs.
+Rechtsgrundlage ist die Erbringung des von dir gewünschten Dienstes (Art. 6 Abs. 1 lit. b DSGVO).
+Die Dienste frei von Missbrauch zu halten (Prüfung von Uploads, Meldungen samt Beweisen, Spam-Schutz, Stummschaltungen, Sperren und Ratenbegrenzungen), beruht auf
+unserem berechtigten Interesse an einem sicheren Dienst (Art. 6 Abs. 1 lit. f DSGVO). Es gibt keine Werbung, kein
+Profiling und keinen Verkauf von Daten.
+
+### Speicherdauer und Löschung
+
+- Deine Daten bleiben gespeichert, solange dein TRS-Account besteht.
+- Sitzungs-Tokens verfallen nach 30 Tagen; Abmelden oder Entfernen eines Accounts im Launcher widerruft das Token.
+- Der Online-Status verschwindet 3 Minuten nach der letzten Aktualisierung oder sofort, wenn du den Launcher schließt
+  und die Welt verlässt.
+- Synchronisierte Notizen bleiben, bis du sie im TRS Client löschst oder alle TRS-Daten löschst; Vermerke gelöschter
+  Notizen werden nach 90 Tagen entfernt.
+- Synchronisierte Skins, Presets und Einstellungen bleiben, bis du sie im Launcher löschst (ein auf einem PC gelöschter
+  Skin wird auch auf dem Server gelöscht). Vermerke über gelöschte Skins bleiben 30 Tage, damit deine anderen PCs sie
+  ebenfalls löschen können.
+- Chat-Nachrichten und Bilder bleiben, bis sie gelöscht werden (von dir für alle, vom Gruppenbesitzer oder vom Team)
+  oder die Gruppe gelöscht wird. Hochgeladene, aber nie gesendete Bilder werden nach 1 Stunde gelöscht.
+- Geteilte Screenshots werden **30 Tage** nach dem Teilen automatisch gelöscht, oder früher, wenn du (oder das Team) sie
+  löschst.
+- Geteilte Modpacks werden automatisch gelöscht, wenn die gewählte Laufzeit endet (1, 7 oder 30 Tage; „unbegrenzt“
+  bleibt, bis du oder das Team es löschen).
+- Entschiedene Schaltungs-Einreichungen werden **90 Tage** nach der Entscheidung gelöscht; veröffentlichte
+  Schaltungen bleiben, bis das Team sie entfernt (nach „Alle TRS-Daten löschen“ ohne deinen Namen).
+- **„Alle TRS-Daten löschen“** (*Einstellungen → Datenschutz*) löscht sofort alles (Art. 17 DSGVO): deinen Account,
+  Sitzungen, Freundschaften, Anfragen und Blockierungen, hochgeladene Umhänge samt Dateien, geteilte Umhänge (deine
+  Umhänge bei Freunden und die Umhänge, die Freunde mit dir geteilt haben), eingelöste Codes, Meldungen,
+  deinen Online-Status, alle synchronisierten Skins, Presets und Einstellungen, alle deine Direktchats (für beide
+  Seiten) sowie deine Nachrichten, Reaktionen und Bilder in Gruppen (eigene Gruppen gehen an das dienstälteste Mitglied) alle Bilder, die du als Link geteilt hast, alle Modpacks, die du geteilt hast, und deine Erfolge samt Zählern. Danach sind die TRS-Dienste im
+  Launcher ausgeschaltet. Die Skins und Presets auf deinem PC bleiben erhalten.
+- Nach der Löschung bleiben nur aktive Strafen (etwa eine Sperre oder eine laufende Chat-Stummschaltung, mit Grund
+  und Zeitraum) und Meldungen über dich (bis zum Ende ihrer Frist, siehe oben) erhalten, damit sie sich nicht
+  durch erneutes Anmelden umgehen lassen.
+- Server-Logs enthalten nur technische Daten (Methode, Pfad ohne Query, Status, Dauer, Request-ID) – **keine
+  IP-Adressen und keine Tokens**. Ratenbegrenzungen zählen Anfragen pro IP-Adresse und pro Account **nur im
+  Arbeitsspeicher**; diese Zähler werden nie auf die Festplatte geschrieben.
+
+### Hosting und Auftragsverarbeiter
+
+- Der TRS-Server läuft auf einem Server in **Deutschland** (von Pterodactyl verwalteter Host). Dort werden die Daten
+  gespeichert.
+- **Cloudflare** (Cloudflare, Inc. / Cloudflare Germany GmbH) ist Auftragsverarbeiter: Der Server ist nur über einen
+  Cloudflare Tunnel erreichbar, und Cloudflare beendet die HTTPS-Verbindung. Cloudflare verarbeitet deshalb in unserem
+  Auftrag deine IP-Adresse und die übertragenen Anfragen gemäß dem Data Processing Addendum von Cloudflare.
+  Übermittlungen in die USA sind durch das EU-US Data Privacy Framework und Standardvertragsklauseln abgedeckt.
+- **Mojang/Microsoft** bestätigt die Anmeldung (siehe oben): Dein Computer schickt die join-Anfrage direkt an Mojang,
+  und der TRS-Server fragt bei Mojang mit deinem Spielernamen und der einmaligen Challenge nach (`hasJoined`).
+- **Minecraft-Server aus Chat-Einladungen** werden vom TRS-Server angefragt (Server-List-Ping), um Symbol und
+  Spielerzahl zu zeigen; sie sehen dabei nur die Adresse des TRS-Servers.
+- **TRS-Relay-Server** (Welt hosten, siehe oben): ein eigener Server in **Deutschland**, betrieben vom TRS-Launcher-Projekt; er leitet nur Spieldaten weiter und speichert nichts auf der Platte.
+
+### Deine Rechte
+
+Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und
+Widerspruch (Art. 15–21 DSGVO) sowie das Recht, dich bei einer Aufsichtsbehörde zu beschweren. Das meiste davon kannst
+du selbst im Launcher erledigen (Dienste ausschalten, Datenschutz-Einstellungen ändern, alle Daten löschen). Für alles
+andere melde dich bei uns.
+
+### Kontakt
+
+Theredstonee – eröffne ein Issue unter <https://github.com/theredstonee/TRS-Launcher/issues> oder nutze die
+Kontaktdaten auf <https://theredstonee.de>. Bitte poste keine personenbezogenen Daten in öffentlichen Issues, sondern
+frag nach einem privaten Kontakt.

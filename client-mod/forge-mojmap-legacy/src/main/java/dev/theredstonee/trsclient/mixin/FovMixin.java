@@ -1,0 +1,35 @@
+package dev.theredstonee.trsclient.mixin;
+
+import dev.theredstonee.trsclient.TrsClient;
+import dev.theredstonee.trsclient.dev.HookStats;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.GameRenderer;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+/**
+ * Zoom: teilt das Sichtfeld der Welt durch den aktuellen Zoom-Faktor – am Ende von
+ * GameRenderer#getFov (nach Forges FOV-Event), nur mit useFovSetting, damit die Hand nicht mitzoomt.
+ * Nebenbei wird das tatsächlich benutzte Sichtfeld gemerkt – daraus rechnet die
+ * Wegpunkt-Anzeige ihre Bildschirmpositionen aus.
+ */
+@Mixin(GameRenderer.class)
+public abstract class FovMixin {
+	@Inject(method = "getFov", at = @At("RETURN"), cancellable = true, require = 1)
+	private void trsclient$applyZoom(Camera camera, float partialTick, boolean useFovSetting, CallbackInfoReturnable<Double> cir) {
+		HookStats.fov++;
+		if (!useFovSetting) return;
+		// Kamera-Fahrt: Sichtfeld der Fahrt (ohne Zoom).
+		dev.theredstonee.trsclient.core.cinematic.CameraPose cinematic = dev.theredstonee.trsclient.cinematic.CinematicHooks.frame();
+		if (cinematic != null && cinematic.fov > 0) {
+			cir.setReturnValue((double) cinematic.fov);
+			return;
+		}
+		double factor = TrsClient.get().updateZoom();
+		double result = factor == 1.0 ? cir.getReturnValue() : cir.getReturnValue() / factor;
+		TrsClient.get().setWorldFov(result);
+		if (factor != 1.0) cir.setReturnValue(result);
+	}
+}

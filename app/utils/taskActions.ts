@@ -1,0 +1,314 @@
+import type { ContentKind, ContentUpdate, Instance, PackProgress, Platform, StageProgress } from '~/types'
+
+// Gemeinsame Aufgaben, die mehrere Seiten starten (Entdecken, Projektseite,
+// Inhaltsliste). Sie laufen im Aufgaben-Store weiter, auch wenn die Seite
+// verlassen wird; Toasts kommen von dort genau einmal.
+
+/** `projectKey` wie in utils/platform (CurseForge mit Präfix `cf:`). */
+export function modpackTaskKey(projectKey: string): string {
+  return taskKey('modpack', projectKey)
+}
+
+export function contentTaskKey(instanceId: string, projectKey: string): string {
+  return taskKey('content', instanceId, projectKey)
+}
+
+/** Nach einer Installation: Dateien, die der Nutzer selbst laden muss, gleich zeigen. */
+function showBlocked(instanceId: string, open: boolean) {
+  const curseforge = useCurseForgeStore()
+  curseforge.touch()
+  if (open) curseforge.openBlocked(instanceId)
+}
+
+/** Der Autor sperrt das ganze Modpack: Link zur Seite auf CurseForge anbieten. */
+function offerPackPage(e: unknown) {
+  if (!(e instanceof BackendError) || e.code !== 'curseforge.packBlocked') return
+  const url = e.params?.url
+  if (!url || !isSafeLink(url)) return
+  useToasts().info(t('curseforge.packBlocked'), {
+    label: t('curseforge.openOnCurseForge'),
+    run: () => void backend.openExternalUrl(url).catch(() => {}),
+  })
+}
+
+/**
+ * Modpack installieren – mit der Frage „mit oder ohne TRS Client“ im
+ * Installations-Dialog. Mit „immer mit/ohne“ in den Einstellungen (oder wenn
+ * das Pack schon installiert wird) geht es ohne Dialog direkt los.
+ */
+export function requestModpackInstall(pack: { projectId: string; title: string; iconUrl: string | null }, platform: Platform = 'modrinth') {
+  const policy = useSettingsStore().current?.modpackTrsClient ?? 'ask'
+  const running = useTasksStore().get(modpackTaskKey(projectKey(platform, pack.projectId)))?.status === 'running'
+  if (policy !== 'ask' || running) {
+    installModpackTask(pack, platform)
+    return
+  }
+  useUiStore().modpackInstall = { pack: { projectId: pack.projectId, title: pack.title, iconUrl: pack.iconUrl }, platform }
+}
+
+/**
+ * Modpack als neue Instanz installieren (abbrechbar, pausierbar).
+ * `choice`: Version aus der Vorschau und Wahl „mit/ohne TRS Client“ (`null` = Einstellung bzw. Vorauswahl).
+ */
+export function installModpackTask(
+  pack: { projectId: string; title: string; iconUrl: string | null },
+  platform: Platform = 'modrinth',
+  choice: { versionId: string | null; trsClient: boolean | null } = { versionId: null, trsClient: null },
+) {
+  const instances = useInstancesStore()
+  return useTasksStore().run(
+    {
+      key: modpackTaskKey(projectKey(platform, pack.projectId)),
+      kind: 'modpack',
+      title: pack.title,
+      stage: packStageLabel('pack'),
+      iconUrl: pack.iconUrl,
+      cancellable: true,
+      pausable: true,
+    },
+    async (ctx) => {
+      const onProgress = (p: PackProgress) => {
+        packTaskProgress(ctx, p)
+        // Entpacken lässt sich nicht mehr sinnvoll anhalten.
+        if (p.phase === 'overrides') ctx.update({ pausable: false })
+      }
+      if (platform === 'curseforge') {
+        let result
+        try {
+          result = await backend.curseforge.installModpack(pack.projectId, onProgress, ctx.taskId, choice.versionId, choice.trsClient)
+        } catch (e) {
+          offerPackPage(e)
+          throw e
+        }
+        const { instance, blocked } = result
+        ctx.update({
+          instanceId: instance.id,
+          doneText: blocked.length
+            ? t('tasks.toast.modpackReadyBlocked', { name: instance.name, count: blocked.length }, blocked.length)
+            : t('tasks.toast.modpackReady', { name: instance.name }),
+        })
+        await instances.load()
+        showBlocked(instance.id, blocked.length > 0)
+        return instance
+      }
+      const instance = await backend.installModpack(pack.projectId, onProgress, ctx.taskId, choice.versionId, choice.trsClient)
+      ctx.update({ instanceId: instance.id, doneText: t('tasks.toast.modpackReady', { name: instance.name }) })
+      await instances.load()
+      // Presets mit „immer automatisch“ laufen danach als eigene Aufgabe.
+      void applyAutoPresetsTask(instance)
+      return instance
+    },
+  )
+}
+
+export function repairTaskKey(instanceId: string): string {
+  return taskKey('repair', instanceId)
+}
+
+export function modFixTaskKey(instanceId: string): string {
+  return taskKey('modfix', instanceId)
+}
+
+/**
+ * Unverträgliche Mods (laut Absturz-Meldung) gegen passende Versionen
+ * tauschen. `prefer` = Mod-ID, die zuerst getauscht wird.
+ */
+export function fixModConflictsTask(instance: Pick<Instance, 'id' | 'name'>, prefer: string | null) {
+  return useTasksStore().run(
+    {
+      key: modFixTaskKey(instance.id),
+      kind: 'content-update',
+      title: instance.name,
+      stage: t('crash.fixing'),
+      instanceId: instance.id,
+      cancellable: true,
+    },
+    async (ctx) => {
+      const report = await backend.fixModConflicts(instance.id, prefer, ctx.taskId)
+      const list = report.changes.map((c) => `${c.title} ${c.from ?? ''} → ${c.to}`.replace('  ', ' ')).join(', ')
+      ctx.update({ doneText: report.changes.length ? t('crash.fixDone', { list }) : t('crash.fixNothing') })
+      return report
+    },
+  )
+}
+
+export function missingModsTaskKey(instanceId: string): string {
+  return taskKey('missingmods', instanceId)
+}
+
+/**
+ * Mods installieren, die laut Absturz-Meldung fehlen (z. B. Cloth Config für
+ * More Culling). `declarer` = Mod-ID der Mod, die sie braucht.
+ */
+export function installMissingModsTask(instance: Pick<Instance, 'id' | 'name'>, declarer: string | null, dependencies: string[]) {
+  return useTasksStore().run(
+    {
+      key: missingModsTaskKey(instance.id),
+      kind: 'content-update',
+      title: instance.name,
+      stage: t('crash.installingMissing'),
+      instanceId: instance.id,
+      cancellable: true,
+    },
+    async (ctx) => {
+      const fix = await backend.installMissingDependencies(instance.id, declarer, dependencies, ctx.taskId)
+      ctx.update({ doneText: t('crash.installMissingDone', { list: fix.added.join(', ') }) })
+      return fix
+    },
+  )
+}
+
+/**
+ * Spieldateien prüfen und reparieren bzw. komplett neu laden. Beides teilt
+ * sich eine Aufgabe je Instanz – nie zwei gleichzeitig.
+ */
+export function repairInstanceTask(instance: Pick<Instance, 'id' | 'name'>, kind: 'repair' | 'reinstall') {
+  return useTasksStore().run(
+    {
+      key: repairTaskKey(instance.id),
+      kind,
+      title: instance.name,
+      stage: kind === 'repair' ? t('tasks.stage.checkingFiles') : t('tasks.stage.reinstalling'),
+      instanceId: instance.id,
+      cancellable: true,
+      pausable: true,
+      doneText: kind === 'repair' ? t('tasks.toast.repairDone') : t('tasks.toast.reinstallDone'),
+    },
+    (ctx) => {
+      const onProgress = (p: StageProgress) => ctx.progress(overallPercent(p.stage, p.percent), stageLabel(p.stage))
+      return kind === 'repair'
+        ? backend.repairInstance(instance.id, onProgress, ctx.taskId)
+        : backend.reinstallInstance(instance.id, onProgress, ctx.taskId)
+    },
+  )
+}
+
+/**
+ * Inhalt (Mod, Shader …) in eine Instanz installieren – ohne `version` die
+ * neueste passende; mit `replace` wird die installierte Datei ersetzt.
+ */
+export function installContentTask(options: {
+  instance: Pick<Instance, 'id' | 'name'>
+  projectId: string
+  title: string
+  iconUrl: string | null
+  kind: ContentKind
+  version: { id: string; versionNumber: string } | null
+  replace?: string | null
+  platform?: Platform
+}) {
+  const { instance, projectId, title, kind, version, replace } = options
+  const platform = options.platform ?? 'modrinth'
+  return useTasksStore().run(
+    {
+      key: contentTaskKey(instance.id, projectKey(platform, projectId)),
+      kind: 'content',
+      title,
+      stage: t('tasks.stage.installingInto', { name: instance.name }),
+      instanceId: instance.id,
+      iconUrl: options.iconUrl,
+      tag: version?.id ?? 'latest',
+      // Einzelne Mods fluten sonst den Verlauf.
+      record: false,
+    },
+    async (ctx) => {
+      if (replace && version) {
+        const update: ContentUpdate = { platform, kind, fileName: replace, projectId, versionId: version.id, versionNumber: version.versionNumber }
+        try {
+          await backend.applyContentUpdate(instance.id, update, ctx.taskId)
+        } catch (e) {
+          // Gesperrte Datei: steht jetzt in der Liste zum Selbst-Laden.
+          if (e instanceof BackendError && e.code === 'curseforge.downloadBlocked') showBlocked(instance.id, true)
+          throw e
+        }
+        ctx.update({ doneText: t('tasks.toast.contentVersionInstalled', { title, version: version.versionNumber }) })
+        return [replace]
+      }
+      if (platform === 'curseforge') {
+        const { files, blocked } = await backend.curseforge.install(instance.id, projectId, kind, version?.id ?? null, ctx.taskId)
+        const dependencies = Math.max(files.length - 1, 0)
+        ctx.update({
+          doneText: blocked.length
+            ? t('tasks.toast.contentBlocked', { title, count: blocked.length }, blocked.length)
+            : dependencies
+              ? t('tasks.toast.contentWithDependencies', { title }, dependencies)
+              : t('tasks.toast.contentInstalled', { title }),
+        })
+        showBlocked(instance.id, blocked.length > 0)
+        return files
+      }
+      const files = await backend.modrinthInstall(instance.id, projectId, kind, version?.id ?? null, ctx.taskId)
+      ctx.update({
+        doneText:
+          files.length > 1
+            ? t('tasks.toast.contentWithDependencies', { title }, files.length - 1)
+            : t('tasks.toast.contentInstalled', { title }),
+      })
+      return files
+    },
+  )
+}
+
+export function presetsTaskKey(instanceId: string): string {
+  return taskKey('presets', instanceId)
+}
+
+/**
+ * Presets in eine Instanz installieren (abbrechbar). Am Ende genau ein Toast
+ * mit Zusammenfassung („3 von 4 installiert – …“) und „Details“.
+ */
+export async function applyPresetsTask(instance: Pick<Instance, 'id' | 'name'>, presetIds: string[]) {
+  if (!presetIds.length) return null
+  const presets = usePresetsStore()
+  const toasts = useToasts()
+  const title = t('presets.task.title', { name: instance.name })
+  const result = await useTasksStore().run(
+    {
+      key: presetsTaskKey(instance.id),
+      kind: 'presets',
+      title,
+      stage: t('presets.task.preparing'),
+      instanceId: instance.id,
+      cancellable: true,
+      pausable: true,
+      // Den Toast mit „Details“ schicken wir selbst.
+      notify: false,
+    },
+    async (ctx) => {
+      const report = await backend.applyPresets(
+        instance.id,
+        presetIds,
+        (p) => ctx.progress(presetPercent(p), presetStage(p)),
+        ctx.taskId,
+      )
+      ctx.update({ doneText: presetSummaryText(report) })
+      return report
+    },
+  )
+  if (result.ok) {
+    const report = result.value
+    const action = { label: t('presets.report.details'), run: () => presets.openReport(report, instance) }
+    const shader = report.shaderPack ? ` · ${t('presets.report.shaderToast')}` : ''
+    const text = `${instance.name}: ${presetSummaryText(report)}${shader}`
+    if (summarizePresetReport(report).problems.length) toasts.info(text, action)
+    else toasts.ok(text, action)
+  } else if (!result.cancelled && !result.discarded) {
+    toasts.error(t('tasks.toast.failed', { title, error: errorMessage(result.error) }))
+  }
+  return result
+}
+
+/**
+ * Nach einem neuen Modpack: Presets mit „immer automatisch“ ergänzen – nur
+ * solche, die sich mit Modpacks vertragen (kein FPS-Boost).
+ */
+export async function applyAutoPresetsTask(instance: Pick<Instance, 'id' | 'name' | 'loader'>) {
+  const presets = usePresetsStore()
+  try {
+    await presets.load()
+  } catch {
+    return null
+  }
+  const ids = defaultPresetSelection(presets.items, { loader: instance.loader.kind, context: 'modpack' })
+  return applyPresetsTask(instance, ids)
+}

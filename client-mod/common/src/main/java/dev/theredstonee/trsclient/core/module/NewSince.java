@@ -1,0 +1,324 @@
+package dev.theredstonee.trsclient.core.module;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Seit welcher Mod-Version es ein Modul bzw. eine Einstellung gibt – Grundlage der „NEU“-Markierung im TRS-Menü
+ * (siehe {@link NewMarkers}). Module heißen hier wie ihre ID ({@code "zoom"}), Einstellungen
+ * {@code "<modul>.<schlüssel>"} ({@code "trsOnline.sync"}).
+ *
+ * <p>Außer Modulen und Einstellungen gibt es noch drei Arten von Einträgen:
+ * <ul>
+ *   <li>Bereiche der Menü-Leiste bzw. der Seitenleiste des Startbildschirms ({@code "menu:<bereich>"}, siehe
+ *   {@link #MENU_WARDROBE} …) – verlieren das Schild beim Öffnen.</li>
+ *   <li>Tastenbelegungen ({@code "key.trsclient.<name>"}) – markiert im Einführungsschritt „Tastenbelegung“.</li>
+ *   <li>Zusatzbereiche einer Modulseite ({@link #extras(String)}, z. B. {@link #FPS_MODE}) – zählen für die Kachel
+ *   wie eine Einstellung.</li>
+ * </ul>
+ *
+ * <p><b>Neue Module/Einstellungen/Bereiche bitte hier mit der kommenden Mod-Version eintragen</b> – ohne Eintrag
+ * gilt ein Eintrag als alt (nie „NEU“; ein Test prüft, dass jedes Modul eingetragen ist). Die Werte bis 0.5.0
+ * stammen aus den Release-Tags (mod_version je Release).
+ */
+public final class NewSince {
+	/**
+	 * Mod-Version vor den „NEU“-Markierungen: Wer von dieser (oder einer älteren) Version aktualisiert, bekommt
+	 * alles Neuere markiert.
+	 */
+	public static final String LEGACY_BASELINE = "0.5.0";
+
+	/** Kommende Mod-Version (alles, was seit dem letzten Release dazukam). */
+	public static final String NEXT = "0.6.0";
+
+	/** Menü-Bereiche (Leiste im TRS-Menü, Seitenleiste des Startbildschirms). */
+	public static final String MENU_WARDROBE = "menu:wardrobe";
+	public static final String MENU_ACCOUNTS = "menu:accounts";
+	public static final String MENU_FRIENDS = "menu:friends";
+	public static final String MENU_CLIPS = "menu:clips";
+	/** Modul-Pakete + „Einführung erneut starten“. */
+	public static final String MENU_PACKS = "menu:modPacks";
+	/** Taste „Garderobe öffnen“. */
+	public static final String KEY_WARDROBE = "key.trsclient.wardrobe";
+	/** Garderobe → Umhänge: „Mit Freund teilen“ (Umhänge mit Freunden teilen). */
+	public static final String WARDROBE_CAPE_SHARE = "wardrobe:capeShare";
+	/** Clips &amp; Bilder: Vorschau eines Clips im Spiel + „Im Launcher öffnen“. */
+	public static final String CLIPS_PREVIEW = "clips:preview";
+	/** Grafik-Modus „Schön / Max FPS“ auf der Seite „FPS-Boost“. */
+	public static final String FPS_MODE = "fpsBoost.graphicsMode";
+	/** Karten-Paket: flüssige Minimap, Weltkarte, Höhlenansicht, Fair Play. */
+	public static final String MAPS = "0.7.0";
+	public static final String KEY_WORLD_MAP = "key.trsclient.worldMap";
+	/** Sozial-Paket (TRS Client 0.8.0): Chat im Spiel, Echtzeit, Benachrichtigungen, Schnellantwort, Meldungen. */
+	public static final String SOCIAL = "0.8.0";
+	/** Leisten-/Pausen-Eintrag „Sozial“ (ersetzt „Freunde“). */
+	public static final String MENU_SOCIAL = "menu:social";
+	public static final String KEY_SOCIAL = "key.trsclient.social";
+	public static final String KEY_QUICK_REPLY = "key.trsclient.quickReply";
+	/** Schild-Position (nach TRS Client 0.8.0): Schild in der 1. Person seitlich/tiefer, eigene Block-Haltung. */
+	public static final String SHIELD = "0.8.1";
+
+	/** Welt-Hosting (TRS Client 0.9.0): Welt für Freunde öffnen, Beitritt per Einladung/Code, öffentlicher Link. */
+	public static final String HOSTING = "0.9.0";
+
+	/** Ping &amp; Latenz (TRS Client 0.10.0): echte Ping-Anzeige, Netzwerk-Optimierung, niedrige Eingabeverzögerung. */
+	public static final String LATENCY = "0.10.0";
+
+	/**
+	 * Komfort- und PvP-Paket (nächste Version nach TRS Client 0.9.1): Erwähnungen, Chat-Filter, Auto-Reconnect,
+	 * Warteschlange &amp; Hinweise, Scoreboard/Tab/Bossleiste/Titel, Warnungen, Zähler, Treffer-Feedback, Streamer-Modus.
+	 */
+	public static final String QOL = "0.10.0";
+
+	/** Teilen-Paket (TRS Client 0.11.0): Wegpunkte teilen, Koordinaten im Chat anklicken, Bildschirmfotos als Link. */
+	public static final String SHARE = "0.11.0";
+	/** Sozial → Eingabe: „Wegpunkt teilen“. */
+	public static final String SOCIAL_WAYPOINT = "social:waypoint";
+	/** Clips &amp; Bilder: „Als Link teilen“ + „Meine geteilten Bilder“. */
+	public static final String CLIPS_SHARE = "clips:share";
+	/** Komfort-Paket 2 (TRS Client 0.11.0): bessere Tooltips, Server-Profile, Panorama-Screenshots. */
+	public static final String COMFORT = "0.11.0";
+	/** Menü-Leiste „Profile“ → Reiter „Server-Profile“. */
+	public static final String MENU_SERVER_PROFILES = "menu:serverProfiles";
+	/** Taste „Panorama aufnehmen“ (standardmäßig unbelegt). */
+	public static final String KEY_PANORAMA = "key.trsclient.panorama";
+	/** Schaltungs-Bibliothek (TRS Client 0.11.0): fertige Redstone-Schaltungen, als Vorlage in der Welt einblendbar. */
+	public static final String CIRCUITS = "0.11.0";
+	/** Suche in der Minecraft-Tastenbelegung (TRS Client 0.12.0). */
+	public static final String KEY_SEARCH = "0.12.0";
+	/** Fehlerbildschirme im TRS-Stil mit „Neu anmelden“, „Erneut verbinden“ … (TRS Client 0.12.0). */
+	public static final String ERROR_SCREENS = "0.12.0";
+	/**
+	 * Minimap nach Art von Xaero (TRS Client 0.13.0): Wegpunkte am Rand, Köpfe/Symbole für Kreaturen, Farben aus
+	 * den Block-Texturen, Auto-Zoom.
+	 */
+	public static final String MINIMAP_2 = "0.13.0";
+	/** Weltkarte 2 (TRS Client 0.13.0): stufenlos zoomen, Schwung, Wegpunkt-Liste, andere Dimensionen, Export. */
+	public static final String WORLD_MAP_2 = "0.13.0";
+
+	/** „Bug melden“ im TRS-Menü (TRS Client 0.13.0). */
+	public static final String BUG_REPORT = "0.13.0";
+	/** Leisten-Eintrag „Bug melden“. */
+	public static final String MENU_BUG_REPORT = "menu:bugReport";
+
+	/**
+	 * Screenshot-Werkzeuge (TRS Client 0.14.0): Vorschau nach F2 mit Bearbeiten/Favorit/Bild kopieren/An Freunde
+	 * senden, Chatzeile mit Aktionen und Bild beim Überfahren, Bild-Editor, ersetzt Essentials Vorschau.
+	 */
+	public static final String SCREENSHOTS = "0.14.0";
+	/** Clips &amp; Bilder: Reiter „Favoriten“. */
+	public static final String SCREENSHOTS_FAVORITES = "clips:favorites";
+	/** Clips &amp; Bilder: „Bearbeiten“ in der großen Bildansicht (Bild-Editor). */
+	public static final String SCREENSHOTS_EDITOR = "clips:editor";
+	/** Notizen je Welt (TRS Client 0.14.0): Notizbuch je Welt/Server, Checklisten, Koordinaten-Links, Sync, HUD. */
+	public static final String NOTES = "0.14.0";
+	/** Leisten-Eintrag „Notizen“. */
+	public static final String MENU_NOTES = "menu:notes";
+	/** Taste „Notizen öffnen“ (standardmäßig unbelegt). */
+	public static final String KEY_NOTES = "key.trsclient.notes";
+	/** Hilfe/Docs im TRS-Menü (nächste Version nach TRS Client 0.14.0): öffnet die Dokumentation auf der Website. */
+	public static final String DOCS = "0.15.0";
+	/** Leisten-Eintrag „Hilfe“. */
+	public static final String MENU_DOCS = "menu:docs";
+	/** Kopf-Kosmetik v2 (TRS Client 0.15.0): echte 3D-Hüte/Kronen aus dem TRS Studio mit Animation und Leuchten. */
+	public static final String COSMETICS_V2 = "0.15.0";
+	/** Garderobe → Reiter „Kosmetik“ (Anprobieren, Aufsetzen). */
+	public static final String WARDROBE_COSMETICS = "wardrobe:cosmetics";
+
+	/** Hunger-Anzeige (TRS Client 0.15.1, Idee von AppleSkin): Sättigung, Essens-Vorschau, Heilung, Erschöpfung. */
+	public static final String HUNGER_OVERLAY = "0.15.1";
+	/** Randloses Vollbild (TRS Client 0.15.2): F11 füllt den aktuellen Monitor ohne exklusiven Vollbildmodus. */
+	public static final String BORDERLESS_FULLSCREEN = "0.15.2";
+	/** Chat-Köpfe (TRS Client 0.15.3): Spielerkopf vor Chat-Zeilen, nach Chat Heads von dzwdz (MPL-2.0). */
+	public static final String CHAT_HEADS = "0.15.3";
+	/**
+	 * Schnell verbinden (nächste Version nach TRS Client 0.15.5): DNS-Speicher, Vorab-Auflösen, Adressen-Rennen
+	 * (Happy Eyeballs), schnellerer Serverwechsel in Proxy-Netzwerken.
+	 */
+	public static final String FAST_CONNECT = "0.16.0";
+	/** Kamera-Fahrten und Fan-Symbole/Creator-Sterne (Creator-Programm). */
+	public static final String CINEMATIC = "0.18.0";
+	public static final String KEY_CINEMATIC = "key.trsclient.cinematicPlay";
+	/**
+	 * Halloween 2026 „Nacht der langen Schatten“ (nächste Version nach TRS Client 0.18.0): Mondnacht-Look, Kürbis-Suche,
+	 * Süßes oder Saures, Spuk-Effekte, Jumpscares, Abzeichen, Emotes, Chat-Sticker, Begleiter.
+	 */
+	public static final String HALLOWEEN = "0.19.0";
+	/** Leisten-Eintrag „Halloween“ im TRS-Menü. */
+	public static final String MENU_HALLOWEEN = "menu:halloween";
+	/** Garderobe → Kosmetik → Abschnitt „Begleiter“. */
+	public static final String WARDROBE_COMPANION = "wardrobe:companion";
+	/** Garderobe → Kosmetik → Abschnitt „Flügel“. */
+	public static final String WARDROBE_WINGS = "wardrobe:wings";
+	/** Sozial → Chat → Sticker-Auswahl. */
+	public static final String SOCIAL_STICKERS = "social:stickers";
+	/** Halloween-Schreck-Erweiterung (TRS Client 0.19.2): mehr Jumpscares, Grusel-Töne ab Werk an. */
+	public static final String HALLOWEEN_SCARE = "0.19.2";
+	/** Gamma/Helligkeit (aus „Fullbright“) + Automatisch nachlegen (TRS Client 0.19.3). */
+	public static final String GAMMA_REFILL = "0.19.3";
+	/** Taste „Gamma durchschalten“ (standardmäßig unbelegt). */
+	public static final String KEY_GAMMA_CYCLE = "key.trsclient.gammaCycle";
+	/** Taste „Automatisch nachlegen umschalten“ (standardmäßig unbelegt). */
+	public static final String KEY_AUTO_REFILL = "key.trsclient.autoRefill";
+
+	private static final Map<String, String> SINCE = new LinkedHashMap<String, String>();
+	/** Zusatzbereiche je Modul (Modul-ID → Einträge). */
+	private static final Map<String, List<String>> EXTRAS = new LinkedHashMap<String, List<String>>();
+
+	static {
+		add("0.1.0", "fps", "cps", "keystrokes", "ping", "zoom", "fullbright");
+		add("0.2.0", "armor", "effects", "coords", "clock", "memory", "server", "packs", "toggleSprint", "toggleSneak",
+				"reach", "combo", "speed", "minimap", "crosshair", "hitColor", "freelook", "titleScreen", "oldAnimations",
+				"lowFire", "blockOutline", "hitboxes", "noHurtCam", "chat", "autoGg", "textHotkeys", "waypoints");
+		add("0.3.0", "trsOnline", "capePhysics");
+		add("0.4.0", "colors", "emotes", "redstoneSignal", "redstoneOverlay", "redstoneClock", "clips", "fpsBoost",
+				"dynamicFps", "entityCulling", "particles", "worldDetails");
+		// Kommende Version: Client-Sync, Einführung + Modul-Pakete, Garderobe, Menü-Stil, Freunde, Clips & Bilder,
+		// Konten im Spiel, eingebaute Optimierungen, Grafik-Modus.
+		add(NEXT, "trsOnline.sync");
+		add(NEXT, "menuStyle", "menuStyle.pause", "menuStyle.pauseButtons", "menuStyle.multiplayer", "menuStyle.loading",
+				"menuStyle.options", "menuStyle.worlds");
+		add(NEXT, "builtinOptimizations");
+		add(NEXT, FPS_MODE);
+		extra("fpsBoost", FPS_MODE);
+		add(NEXT, MENU_WARDROBE, MENU_ACCOUNTS, MENU_FRIENDS, MENU_CLIPS, MENU_PACKS, KEY_WARDROBE);
+		add(MAPS, "worldMap", "minimap.fairPlay", "minimap.shape", "minimap.opacity", "minimap.caveMode", "minimap.showDeath",
+				"minimap.showFriends", "minimap.showHostile", "minimap.showPassive", "minimap.compass", "minimap.biome",
+				"minimap.time", KEY_WORLD_MAP);
+		// TRS Client 0.7.1: Umhänge mit Freunden teilen.
+		add("0.7.1", WARDROBE_CAPE_SHARE);
+		// TRS Client 0.7.2: Clip-Vorschau im Spiel und „Im Launcher öffnen“.
+		add("0.7.2", CLIPS_PREVIEW);
+		// TRS Client 0.8.0: Sozial (Chat, Gruppen, Bilder, Einladungen, Toasts, Schnellantwort, Meldungen).
+		add(SOCIAL, "social", MENU_SOCIAL, KEY_SOCIAL, KEY_QUICK_REPLY);
+		// Nach 0.8.0: Schild-Position (Vorlagen, eigene Regler, weiches Blocken, durchsichtig beim Blocken).
+		add(SHIELD, "shieldPosition");
+		// TRS Client 0.9.0: Welt-Hosting.
+		add(HOSTING, "social.hostingDirect");
+		// TRS Client 0.8.1: Karten blenden Dächer aus (Innenansicht).
+		add("0.8.1", "minimap.hideRoof");
+		add(LATENCY, "netOptimize", "lowLatency", "ping.jitter", "ping.graph", "ping.details", "ping.interval",
+				"ping.spikeWarning", "ping.spikeThreshold");
+		// Komfort- und PvP-Paket.
+		add(QOL, "chatMentions", "chatFilter", "autoReconnect", "queueAlerts", "scoreboard", "tabPing", "bossBar", "titles",
+				"warnings", "itemCounter", "hitFeedback", "streamerMode");
+		add(QOL, "chat.timestampTwelveHour", "chat.history", "chat.copyMode", "autoGg.presets");
+		// Teilen-Paket.
+		add(SHARE, SOCIAL_WAYPOINT, CLIPS_SHARE, "chat.coordLinks");
+		// Komfort-Paket 2: Tooltips, Server-Profile, Panorama.
+		add(COMFORT, "tooltips", "serverProfiles", "panorama", MENU_SERVER_PROFILES, KEY_PANORAMA);
+		// Schaltungs-Bibliothek.
+		add(CIRCUITS, "circuitLibrary");
+		// Suche in der Tastenbelegung.
+		add(KEY_SEARCH, "keySearch");
+		add(ERROR_SCREENS, "menuStyle.errors");
+		// Minimap 2: Wegpunkte am Rand, Kreatur-Köpfe/Symbole, Texturfarben, Auto-Zoom.
+		add(MINIMAP_2, "minimap.edgeWaypoints", "minimap.mobIcons", "minimap.colors", "minimap.autoZoomSpeed",
+				"minimap.autoZoomIndoor");
+		// Weltkarte 2.
+		add(WORLD_MAP_2, "worldMap.smoothZoom", "worldMap.inertia", "worldMap.waypointList", "worldMap.otherDimensions",
+				"worldMap.netherCoords", "worldMap.exportSize");
+		// Bug melden (Issue-Tracker der Website).
+		add(BUG_REPORT, MENU_BUG_REPORT);
+		// Screenshot-Werkzeuge (Vorschau, Editor, Favoriten, Essential ersetzen).
+		add(SCREENSHOTS, "screenshots", SCREENSHOTS_FAVORITES, SCREENSHOTS_EDITOR);
+		// Notizen je Welt.
+		add(NOTES, "notes", "pinnedNote", MENU_NOTES, KEY_NOTES);
+		// Hilfe: Docs auf der Website.
+		add(DOCS, MENU_DOCS);
+		// Kopf-Kosmetik v2: Reiter „Kosmetik“ in der Garderobe.
+		add(COSMETICS_V2, WARDROBE_COSMETICS);
+		// Hunger-Anzeige an der Hungerleiste.
+		add(HUNGER_OVERLAY, "hungerOverlay");
+		// Randloses Vollbild statt exklusivem Vollbild.
+		add(BORDERLESS_FULLSCREEN, "borderlessFullscreen");
+		// Chat-Köpfe vor Spieler-Nachrichten.
+		add(CHAT_HEADS, "chatHeads", "chatHeads.hat");
+		add(FAST_CONNECT, "fastConnect");
+		// Kamera-Fahrten; Fan-Symbole und Creator-Sterne vor Namen.
+		add(CINEMATIC, "cinematic", KEY_CINEMATIC, "trsOnline.fanSymbolNametag", "trsOnline.fanSymbolTab");
+		// Halloween 2026: Modul + Seite im TRS-Menü, Begleiter in der Garderobe, Sticker im Chat.
+		add(HALLOWEEN, "halloween", "halloween.hits", "halloween.ghostTrail", "halloween.others", "halloween.jumpscares",
+				MENU_HALLOWEEN, WARDROBE_COMPANION, WARDROBE_WINGS, SOCIAL_STICKERS);
+		// Schreck-Erweiterung (0.19.2): „Grusel-Töne“ jetzt ab Werk an unter neuem Schlüssel „spookySounds“.
+		add(HALLOWEEN_SCARE, "halloween.spookySounds");
+		// Gamma/Helligkeit (aus „Fullbright“, neuer Regler + Zyklus-Taste) und Automatisch nachlegen.
+		add(GAMMA_REFILL, "autorefill", "fullbright.level", KEY_GAMMA_CYCLE, KEY_AUTO_REFILL);
+	}
+
+	private NewSince() {
+	}
+
+	private static void add(String version, String... ids) {
+		for (String id : ids) SINCE.put(id, version);
+	}
+
+	private static void extra(String moduleId, String id) {
+		List<String> list = EXTRAS.get(moduleId);
+		if (list == null) {
+			list = new ArrayList<String>();
+			EXTRAS.put(moduleId, list);
+		}
+		if (!list.contains(id)) list.add(id);
+	}
+
+	/** Zusatzbereiche einer Modulseite, die eine eigene „NEU“-Markierung haben (leer = keine). */
+	public static synchronized List<String> extras(String moduleId) {
+		List<String> list = EXTRAS.get(moduleId);
+		return list == null ? Collections.<String>emptyList() : new ArrayList<String>(list);
+	}
+
+	/** Weiteren Eintrag setzen (Tests, andere Pakete beim Start). */
+	public static synchronized void put(String id, String version) {
+		if (id != null && version != null) SINCE.put(id, version);
+	}
+
+	/** Version, seit der es {@code id} gibt, oder null (= alt, nie „NEU“). */
+	public static synchronized String of(String id) {
+		return SINCE.get(id);
+	}
+
+	/** Alle Einträge (nur lesen). */
+	public static synchronized Map<String, String> all() {
+		return Collections.unmodifiableMap(new LinkedHashMap<String, String>(SINCE));
+	}
+
+	/** Neueste Version aller Einträge – bei einer Neuinstallation ist nichts neuer als sie. */
+	public static synchronized String latest() {
+		String best = LEGACY_BASELINE;
+		for (String v : SINCE.values()) {
+			if (compare(v, best) > 0) best = v;
+		}
+		return best;
+	}
+
+	/** Versionsvergleich "a.b.c" (fehlende Teile = 0, Nicht-Ziffern am Ende eines Teils werden ignoriert). */
+	public static int compare(String a, String b) {
+		String[] pa = a == null ? new String[0] : a.split("\\.");
+		String[] pb = b == null ? new String[0] : b.split("\\.");
+		for (int i = 0; i < Math.max(pa.length, pb.length); i++) {
+			int x = i < pa.length ? num(pa[i]) : 0;
+			int y = i < pb.length ? num(pb[i]) : 0;
+			if (x != y) return x < y ? -1 : 1;
+		}
+		return 0;
+	}
+
+	private static int num(String part) {
+		int n = 0;
+		for (int i = 0; i < part.length() && i < 6; i++) {
+			char c = part.charAt(i);
+			if (c < '0' || c > '9') break;
+			n = n * 10 + (c - '0');
+		}
+		return n;
+	}
+
+	/** Gültige Versionsangabe (für Werte aus Dateien/Sync)? */
+	public static boolean valid(String version) {
+		return version != null && version.matches("[0-9]{1,4}(\\.[0-9]{1,4}){0,3}");
+	}
+}

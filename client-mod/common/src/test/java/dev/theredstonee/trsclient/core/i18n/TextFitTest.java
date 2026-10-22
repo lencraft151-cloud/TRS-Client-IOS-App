@@ -1,0 +1,265 @@
+package dev.theredstonee.trsclient.core.i18n;
+
+import dev.theredstonee.trsclient.core.module.BoolSetting;
+import dev.theredstonee.trsclient.core.module.HudModule;
+import dev.theredstonee.trsclient.core.module.Module;
+import dev.theredstonee.trsclient.core.module.Setting;
+import dev.theredstonee.trsclient.core.module.TextSetting;
+import dev.theredstonee.trsclient.core.module.TrsModules;
+import dev.theredstonee.trsclient.core.ui.Canvas;
+import dev.theredstonee.trsclient.core.ui.Paint;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Passen die Texte in die Kacheln und Leisten des Menüs? Gemessen mit den Zeichenbreiten der
+ * Minecraft-Standardschrift (inkl. 1 px Abstand). Voll übersetzte Sprachen müssen passen,
+ * Beta-Sprachen werden nur gemeldet – dort kürzt das Menü mit "…".
+ */
+class TextFitTest {
+	/** Kachel in normaler Breite (TILE_MIN_W 116): Name 116 - 16 - 12 (Zahnrad) Pixel, zwei Zeilen. */
+	private static final int TILE_NAME_W = 116 - 16 - 12;
+	/**
+	 * Leiste im schmalen Fenster (854×480 mit GUI-Größe 2 – der Minecraft-Standard): railW 96 - PAD 10 - 6,
+	 * Text ab x + 19 mit 3 px Rand; die Fußzeile ("10 von 34 an") ab x + 14.
+	 */
+	private static final int RAIL_TEXT_W = 96 - 10 - 6 - 22;
+	private static final int RAIL_FOOTER_W = 96 - 10 - 6 - 14;
+	/** Seitenleiste des HUD-Editors (PANEL_W 174 - 16): Schalter-Zeilen w - 34, Regler/Farben w - 90. */
+	private static final int EDITOR_BOOL_W = 174 - 16 - 34;
+	private static final int EDITOR_CONTROL_W = 174 - 16 - 90;
+	/** Einstellungsseite im schmalen Fenster (Inhalt 295 - 10 px, Regler/Farbe/Auswahl w - 90). */
+	private static final int SETTING_LABEL_W = 295 - 10 - 90;
+	/** Lampen-Knöpfe des Startbildschirms: halbe Breite (BTN_W 200) minus Rand. */
+	private static final int LAMP_HALF_W = (200 - 6) / 2 - 10;
+	private static final int LAMP_FULL_W = 200 - 10;
+	/** Konto-Knopf im Standardfenster: 63 px breit, 18 px für Symbol und Rand. */
+	private static final int ACCOUNT_W = 77 - 18;
+	/**
+	 * Seitenleiste bei 640 px GUI-Breite (1280×720, GUI 2): rechts neben der Mitte 640 - 420 - 30 - 8 = 182 px,
+	 * davon Rand 14 und Symbol/Abstand 34 – die Beschriftung darf höchstens 134 px breit sein, sonst gibt es nur Symbole.
+	 */
+	private static final int SIDE_LABEL_W = 110;
+
+	@AfterEach
+	void english() {
+		I18n.use("en");
+	}
+
+	@Test
+	void moduleNamesFitTheTilesAndRailLabelsFit() {
+		Canvas c = new McFontCanvas();
+		TrsModules modules = new TrsModules();
+		List<String> problems = new ArrayList<String>();
+		for (String lang : I18n.LANGUAGES) {
+			I18n.use(lang);
+			for (Module m : modules.registry.all()) {
+				List<String> lines = Paint.wrap(c, m.name(), TILE_NAME_W);
+				boolean fits = lines.size() <= 2;
+				for (String line : lines) fits &= c.textWidth(line) <= TILE_NAME_W;
+				if (!fits) problems.add(lang + " Kachel: " + m.name() + " " + lines);
+			}
+			for (String key : new String[]{"menu.all", "menu.hudEditor", "menu.profiles", "menu.packs", "menu.accounts", "menu.wardrobe", "menu.bugReport", "menu.docs", "menu.notes", "packs.mod.rail",
+					"category.hud", "category.pvp", "category.chat", "category.world", "category.redstone", "category.performance", "category.misc"}) {
+				String s = I18n.tr(key);
+				if (c.textWidth(s) > RAIL_TEXT_W) problems.add(lang + " Leiste: " + s + " (" + c.textWidth(s) + " px)");
+			}
+			String footer = I18n.tr("menu.activeCount", 19, 34);
+			if (c.textWidth(footer) > RAIL_FOOTER_W) problems.add(lang + " Leiste: " + footer + " (" + c.textWidth(footer) + " px)");
+			HudModule hud = modules.fps;
+			for (Setting s : new Setting[]{hud.textShadow, hud.textColor, hud.scale, hud.backgroundOpacity}) {
+				int max = s instanceof BoolSetting ? EDITOR_BOOL_W : EDITOR_CONTROL_W;
+				if (c.textWidth(s.label()) > max) problems.add(lang + " HUD-Editor: " + s.label() + " (" + c.textWidth(s.label()) + " px)");
+			}
+			for (Module m : modules.registry.all()) {
+				for (Setting s : m.settings()) {
+					if (!(s instanceof BoolSetting) && !(s instanceof TextSetting) && c.textWidth(s.label()) > SETTING_LABEL_W) {
+						problems.add(lang + " Einstellung: " + s.label() + " (" + c.textWidth(s.label()) + " px)");
+					}
+				}
+			}
+			for (String key : new String[]{"title.singleplayer", "title.multiplayer", "title.options", "title.trsMenu",
+					"title.mods", "title.quit"}) {
+				String s = I18n.tr(key);
+				// Einzel-/Mehrspieler sind volle Zeilen, der Rest halbe.
+				int max = key.endsWith("player") ? LAMP_FULL_W : LAMP_HALF_W;
+				if (c.textWidth(s) > max) problems.add(lang + " Startbildschirm: " + s + " (" + c.textWidth(s) + " px)");
+			}
+			// Garderobe-Knopf unter der Figur im Standardfenster (427 px breit): Knopf 77 px, links ein Symbol.
+			String account = I18n.tr("title.wardrobe");
+			if (c.textWidth(account) > ACCOUNT_W) problems.add(lang + " Garderobe-Knopf: " + account + " (" + c.textWidth(account) + " px)");
+			// Volle Seitenleiste (ab 1280×720 mit GUI 2): höchstens so breit, dass sie neben die Mitte passt.
+			for (String key : new String[]{"title.wardrobe", "title.accounts", "title.friends", "title.clips", "title.trsSettings"}) {
+				String s = I18n.tr(key);
+				if (c.textWidth(s) > SIDE_LABEL_W) problems.add(lang + " Seitenleiste: " + s + " (" + c.textWidth(s) + " px)");
+			}
+			String soon = I18n.tr("title.soon", I18n.tr("title.trsSettings"));
+			if (c.textWidth(soon) + 22 > 400) problems.add(lang + " Hinweis: " + soon);
+			// Garderobe → Umhänge im Standardfenster (427 px): Vorschau 134 px, Knöpfe 124 px (Text ≤ 118), halbe
+			// Knöpfe (Annehmen/Ablehnen) Text ≤ 54; Fenster „Umhang teilen“: Knöpfe 74 px (Text ≤ 68).
+			for (String s : new String[]{I18n.tr("wardrobe.share.button"), I18n.tr("wardrobe.share.giveBack"),
+					I18n.tr("wardrobe.share.manage", 20)}) {
+				if (c.textWidth(s) > 118) problems.add(lang + " Garderobe: " + s + " (" + c.textWidth(s) + " px)");
+			}
+			// Garderobe → Skins: Knöpfe der Karte „Aktueller Skin“ (Text ≤ 118); Kartenbeschriftung (Karte ≥ 56 px,
+			// Text ≤ 50) und das Schild „= aktuell“ über einer Karte (≤ 50).
+			for (String key : new String[]{"wardrobe.saveCurrent", "wardrobe.inLibrary", "wardrobe.edit"}) {
+				String s = I18n.tr(key);
+				if (c.textWidth(s) > 118) problems.add(lang + " Garderobe: " + s + " (" + c.textWidth(s) + " px)");
+			}
+			if (c.textWidth(I18n.tr("wardrobe.currentCard")) > 50) {
+				problems.add(lang + " Garderobe-Karte: " + I18n.tr("wardrobe.currentCard"));
+			}
+			if (c.textWidth(I18n.tr("wardrobe.sameAsCurrent")) > 50) {
+				problems.add(lang + " Garderobe-Schild: " + I18n.tr("wardrobe.sameAsCurrent") + " (" + c.textWidth(I18n.tr("wardrobe.sameAsCurrent")) + " px)");
+			}
+			for (String key : new String[]{"wardrobe.share.accept", "wardrobe.share.decline"}) {
+				String s = I18n.tr(key);
+				if (c.textWidth(s) > 54) problems.add(lang + " Garderobe: " + s + " (" + c.textWidth(s) + " px)");
+			}
+			for (String key : new String[]{"wardrobe.share.share", "wardrobe.share.sharing", "wardrobe.share.withdraw",
+					"wardrobe.share.revoke", "wardrobe.share.confirm"}) {
+				String s = I18n.tr(key);
+				if (c.textWidth(s) > 68) problems.add(lang + " Umhang teilen: " + s + " (" + c.textWidth(s) + " px)");
+			}
+		}
+		List<String> hard = new ArrayList<String>();
+		for (String p : problems) {
+			System.out.println("Passt nicht ganz: " + p);
+			String lang = p.substring(0, p.indexOf(' '));
+			if (!I18n.BETA.contains(lang)) hard.add(p);
+		}
+		assertTrue(hard.isEmpty(), "Texte zu breit: " + hard);
+	}
+
+	/**
+	 * Clip-Meldungen in der Aktionsleiste (eine Zeile, zentriert): Standardfenster 854×480 mit GUI 2 = 427 px –
+	 * mit etwas Rand 420 px, auch mit dem längsten Tastennamen und Mikrofon.
+	 */
+	@Test
+	void clipMessagesFitTheActionBar() {
+		Canvas c = new McFontCanvas();
+		List<String> problems = new ArrayList<String>();
+		String[] plain = {"clips.enabled", "clips.hint.noLauncher", "clips.hint.disabled", "clips.hint.unreachable",
+				"clips.hint.enableFailed", "clips.hint.unsupported", "clips.hint.wait", "clips.failed.starting",
+				"clips.failed.noWindow", "clips.failed.ffmpeg", "clips.failed.ffmpegFailed", "clips.failed.encoder",
+				"clips.failed.noFrames", "clips.failed.busy", "clips.failed.error", "clips.recording.started"};
+		for (String lang : I18n.LANGUAGES) {
+			I18n.use(lang);
+			List<String> texts = new ArrayList<String>();
+			for (String key : plain) texts.add(I18n.tr(key));
+			String what = I18n.tr("clips.what.window") + " + " + I18n.tr("clips.what.audio") + " + " + I18n.tr("clips.what.mic");
+			texts.add(I18n.tr("clips.offer", "F10", what));
+			texts.add(I18n.tr("clips.ready", "F10", I18n.tr("clips.seconds", "30")));
+			texts.add(I18n.tr("clips.preparing", "100"));
+			texts.add(I18n.tr("clips.failed.ffmpegProgress", "100"));
+			for (String s : texts) {
+				if (c.textWidth(s) > 420) problems.add(lang + " Aktionsleiste: " + s + " (" + c.textWidth(s) + " px)");
+			}
+		}
+		List<String> hard = new ArrayList<String>();
+		for (String p : problems) {
+			System.out.println("Passt nicht ganz: " + p);
+			String lang = p.substring(0, p.indexOf(' '));
+			if (!I18n.BETA.contains(lang)) hard.add(p);
+		}
+		assertTrue(hard.isEmpty(), "Clip-Meldungen zu breit: " + hard);
+	}
+
+	/**
+	 * Clip-Vorschau: „Im Launcher öffnen“ sitzt als Knopf (höchstens 150 px, 16 px Rand) in der Leiste; die
+	 * Hinweise in der Bildfläche werden auf 300 px umbrochen und dürfen dort höchstens vier Zeilen brauchen.
+	 */
+	@Test
+	void clipPreviewTextsFit() {
+		Canvas c = new McFontCanvas();
+		List<String> hard = new ArrayList<String>();
+		String[] hints = {"clips.preview.loading", "clips.preview.noLauncher", "clips.preview.oldLauncher", "clips.preview.offline",
+				"clips.preview.noFfmpeg", "clips.preview.gone", "clips.preview.busy", "clips.preview.failed"};
+		for (String lang : I18n.LANGUAGES) {
+			I18n.use(lang);
+			List<String> problems = new ArrayList<String>();
+			String open = I18n.tr("clips.preview.openLauncher");
+			if (c.textWidth(open) > 134) problems.add(lang + " Knopf: " + open + " (" + c.textWidth(open) + " px)");
+			for (String key : hints) {
+				int lines = Paint.wrap(c, I18n.tr(key), 300).size();
+				if (lines > 4) problems.add(lang + " " + key + ": " + lines + " Zeilen");
+			}
+			for (String p : problems) {
+				System.out.println("Passt nicht ganz: " + p);
+				if (!I18n.BETA.contains(lang)) hard.add(p);
+			}
+		}
+		assertTrue(hard.isEmpty(), "Texte der Clip-Vorschau zu breit: " + hard);
+	}
+
+	@Test
+	void longHyphenatedWordsBreakAtTheHyphen() {
+		Canvas c = new McFontCanvas();
+		List<String> lines = Paint.wrap(c, "TRS-Online-Funktionen", TILE_NAME_W);
+		assertEquals(2, lines.size(), lines.toString());
+		assertEquals("TRS-Online-", lines.get(0));
+		assertEquals("Funktionen", lines.get(1));
+		lines = Paint.wrap(c, "Kein Schadens-Wackeln", TILE_NAME_W);
+		assertEquals(2, lines.size(), lines.toString());
+		assertEquals("Kein Schadens-", lines.get(0));
+		assertEquals("Kein Schadens-Wackeln", Paint.join(lines, 0));
+	}
+
+	/** Breiten der Minecraft-ASCII-Schrift (Glyphe + 1 px Abstand). */
+	static final class McFontCanvas implements Canvas {
+		@Override public void fill(int x1, int y1, int x2, int y2, int argb) { }
+		@Override public void text(String text, int x, int y, int argb, boolean shadow) { }
+		@Override public int lineHeight() { return 9; }
+		@Override public void flush() { }
+		@Override public void scissor(int x1, int y1, int x2, int y2) { }
+		@Override public void noScissor() { }
+		@Override public void raise(float z) { }
+		@Override public void push() { }
+		@Override public void translate(float x, float y) { }
+		@Override public void scale(float factor) { }
+		@Override public void pop() { }
+
+		@Override
+		public int textWidth(String text) {
+			int w = 0;
+			for (int i = 0; i < text.length(); i++) w += width(text.charAt(i));
+			return w;
+		}
+
+		@Override
+		public String clip(String text, int maxWidth) {
+			int w = 0;
+			for (int i = 0; i < text.length(); i++) {
+				w += width(text.charAt(i));
+				if (w > maxWidth) return text.substring(0, i);
+			}
+			return text;
+		}
+
+		static int width(char ch) {
+			switch (ch) {
+				case 'i': case '!': case ',': case '.': case ':': case ';': case '|': case '\'': case 'í': case 'ì': case 'ı':
+					return 2;
+				case 'l': case '`':
+					return 3;
+				case 't': case 'I': case '[': case ']': case 'İ':
+					return 4;
+				case ' ':
+					return 4;
+				case 'f': case 'k': case '(': case ')': case '{': case '}': case '"': case '*': case '<': case '>':
+					return 5;
+				case '@': case '~': case '…': case '–':
+					return 7;
+				default:
+					return 6;
+			}
+		}
+	}
+}

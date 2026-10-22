@@ -1,0 +1,959 @@
+package dev.theredstonee.trsclient.core.online;
+
+import dev.theredstonee.trsclient.core.cape.CapeDiskCache;
+import dev.theredstonee.trsclient.core.cape.CapeFrames;
+import dev.theredstonee.trsclient.core.cosmetic.CosmeticModels;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Verbindung des TRS Clients zur TRS API: Anmeldung über die Spiel-Sitzung (Mojang-Join), Lookup der
+ * sichtbaren Spieler (Abzeichen/Umhang), Presence-Herzschlag und das Laden der Umhang-Texturen.
+ *
+ * <p>Alles Netzwerk läuft in zwei Hintergrund-Threads (API, Texturen); der Spiel-Thread ruft nur
+ * {@link #tick} (billig, nie blockierend) und liest Ergebnisse. Das Token lebt nur im Speicher; bei 401
+ * wird neu angemeldet. Ist die API im Launcher abgeschaltet ({@code trs-api.json}) oder das Modul aus,
+ * passiert gar nichts.
+ */
+public final class TrsOnline {
+	public static final long PRESENCE_INTERVAL_MS = 60_000L;
+	/**
+	 * Nach dem Verlassen der Welt so lange warten, bevor "offline" (via client) rausgeht – ein schneller
+	 * Wiederbeitritt (Neuverbinden, Serverwechsel) spart so zwei Meldungen.
+	 */
+	static final long LEAVE_GRACE_MS = 5_000L;
+	static final long ME_INTERVAL_MS = 10 * 60_000L;
+	/** Liste der freigeschalteten Emotes: so oft neu holen (bzw. bei Fehlern erneut versuchen). */
+	static final long EMOTES_INTERVAL_MS = 10 * 60_000L;
+	static final long EMOTES_RETRY_MS = 30_000L;
+	/** Frühestens so bald nach dem letzten Abruf auf Wunsch (Rad geöffnet, Emote gesperrt) erneut. */
+	static final long EMOTES_MIN_REFRESH_MS = 5_000L;
+	static final long[] LOGIN_BACKOFF_MS = {30_000L, 2 * 60_000L, 10 * 60_000L, 30 * 60_000L};
+
+	/** Zustand für das Menü. */
+	public enum Status {
+		OFF("Aus"), LAUNCHER_OFF("Im Launcher abgeschaltet"), NO_ACCOUNT("Kein Online-Konto"),
+		CONNECTING("Verbinde …"), ONLINE("Verbunden"), RETRY("Nicht erreichbar – neuer Versuch später"),
+		BANNED("Konto gesperrt");
+
+		private final String label;
+
+		Status(String label) {
+			this.label = label;
+		}
+
+		public String label() {
+			return label;
+		}
+	}
+
+	private final OnlineConfig config;
+	private final OnlinePlatform platform;
+	private final TrsApi api;
+	private final CapeDiskCache capeCache;
+	/** Kopf-Kosmetik im Format 2 (Modell + Texturen, Cache nach Inhalts-Kennung). */
+	private final dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticV2Cache cosmeticCache;
+	/** Platten-Cache der v2-Kosmetik ({@code config/trsclient/cosmetics}). */
+	private final Path cosmeticDir;
+	/** Fan-Symbole (API.md §35.4), unveränderlich je Prüfsumme. */
+	private final dev.theredstonee.trsclient.core.creator.SymbolCache symbolCache;
+	private final PlayerDirectory directory = new PlayerDirectory();
+	private final ThreadPoolExecutor apiWorker;
+	private final ThreadPoolExecutor capeWorker;
+	/** Ergebnisse der Hintergrund-Threads, abgearbeitet im nächsten {@link #tick}. */
+	private final ConcurrentLinkedQueue<Runnable> results = new ConcurrentLinkedQueue<>();
+	/** Live-Ereignisse über sichtbare Spieler (Emotes), nur solange Emotes sie brauchen. */
+	private final PlayerEventStream events;
+	private final List<PlayerEvent> eventBuffer = new ArrayList<>();
+	private final List<PlayerEvent> emoteEvents = new ArrayList<>();
+
+	// Nur Spiel-Thread:
+	private String sessionUuid;
+	private boolean loginInFlight;
+	private long nextLoginAt;
+	private int loginFailures;
+	private long lastPresence = Long.MIN_VALUE / 2;
+	private boolean presenceInFlight;
+	private long lastMe;
+	private boolean banned;
+	private long lastPrune;
+	private boolean active;
+	private boolean wantEmotes;
+	private boolean wantEvents;
+	private long lastEmoteFetch = Long.MIN_VALUE / 2;
+	private boolean emoteFetchInFlight;
+	private boolean emoteFetchFailed;
+	private long lastEventsUpdate = Long.MIN_VALUE / 2;
+	private boolean observedOnce;
+	/** In einer Welt / auf einem Server (letzter Tick). */
+	private boolean inWorld;
+	/** Seit dem Betreten der Welt hat der Server "in-game" bestätigt (danach alle neu nachschlagen). */
+	private boolean liveConfirmed;
+	/** Geplantes "offline" nach dem Verlassen der Welt (0 = keins). */
+	private long offlineAt;
+	private boolean wantBadges;
+
+	// Aus beiden Threads gelesen:
+	private volatile String token;
+	private volatile Boolean shareServer;
+	private volatile Status status = Status.OFF;
+	private volatile String ownUuid;
+	/** Freigeschaltete Emotes laut API (null = noch unbekannt). */
+	private volatile List<String> unlockedEmotes;
+	/** Der Server hat unsere "in-game"-Meldung (via client) – mit diesem Token; für die Rücknahme. */
+	private volatile String reportedToken;
+	/** Freunde im Spiel (nur abgefragt, solange ein Bildschirm sie braucht). */
+	private final Friends friends;
+	/** Chat, Echtzeit-Stream (/v1/events/me), Benachrichtigungen. */
+	private final dev.theredstonee.trsclient.core.social.Social social;
+	/** Welt-Hosting (API.md §21). */
+	private final dev.theredstonee.trsclient.core.hosting.Hosting hosting;
+	/** Die Verbindung des laufenden Spiels (für Bildschirme ohne eigenen Zugang), null in Tests. */
+	private static volatile TrsOnline current;
+
+	public TrsOnline(OnlineConfig config, OnlinePlatform platform, Http http, Path capeDir) {
+		this(config, platform, http, capeDir, new PlayerEventStream.UrlOpener("TRS-Client"));
+	}
+
+	public TrsOnline(OnlineConfig config, OnlinePlatform platform, Http http, Path capeDir,
+			PlayerEventStream.Opener eventOpener) {
+		this.config = config;
+		this.platform = platform;
+		this.api = new TrsApi(http, config);
+		this.capeCache = new CapeDiskCache(capeDir);
+		Path cosmeticDir = capeDir.getParent() != null ? capeDir.getParent().resolve("cosmetics") : capeDir.resolve("cosmetics");
+		this.cosmeticCache = new dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticV2Cache(cosmeticDir);
+		this.cosmeticDir = cosmeticDir;
+		this.symbolCache = new dev.theredstonee.trsclient.core.creator.SymbolCache(
+				capeDir.getParent() != null ? capeDir.getParent().resolve("symbols") : capeDir.resolve("symbols"));
+		CosmeticModels.install(cosmeticDir.resolve("templates"), config, url -> {
+			try {
+				return api.asset(url, "application/json", CosmeticModels.MAX_BYTES, token);
+			} catch (ApiException e) {
+				throw new IOException(e.code());
+			}
+		}, message -> platform.log(message));
+		this.apiWorker = worker("TRS-Online");
+		this.capeWorker = worker("TRS-Umhaenge");
+		this.events = new PlayerEventStream(eventOpener, config.apiBase());
+		this.friends = new Friends(api, new Friends.Backend() {
+			@Override
+			public boolean submit(Runnable task) {
+				return TrsOnline.this.submit(apiWorker, task);
+			}
+
+			@Override
+			public void post(Runnable onGameThread) {
+				results.add(onGameThread);
+			}
+
+			@Override
+			public void unauthorized(String rejectedToken) {
+				relogin(rejectedToken);
+			}
+		});
+		this.social = new dev.theredstonee.trsclient.core.social.Social(
+				new dev.theredstonee.trsclient.core.social.ChatApi(http, config.apiBase()),
+				new dev.theredstonee.trsclient.core.social.MeStream(eventOpener, config.apiBase()),
+				new dev.theredstonee.trsclient.core.social.Social.Backend() {
+					@Override
+					public void unauthorized(String rejectedToken) {
+						relogin(rejectedToken);
+					}
+
+					@Override
+					public Friends friends() {
+						return friends;
+					}
+
+					@Override
+					public void hosting(dev.theredstonee.trsclient.core.social.MeEvent e) {
+						hosting.event(e);
+					}
+
+					@Override
+					public boolean wantsStream() {
+						return hosting.wantsStream();
+					}
+
+					@Override
+					public void profileStale() {
+						// Nach einem Stream-Resync das Profil neu lesen (events kann sich geändert haben).
+						lastMe = 0L;
+					}
+				});
+		this.hosting = new dev.theredstonee.trsclient.core.hosting.Hosting(
+				new dev.theredstonee.trsclient.core.hosting.HostingApi(http, config.apiBase()),
+				new dev.theredstonee.trsclient.core.hosting.Hosting.Backend() {
+					@Override
+					public dev.theredstonee.trsclient.core.social.Toasts toasts() {
+						return social.toasts();
+					}
+
+					@Override
+					public void unauthorized(String rejectedToken) {
+						tokenRejected(rejectedToken);
+					}
+
+					@Override
+					public java.util.List<dev.theredstonee.trsclient.core.hosting.Hosting.Friend> friends() {
+						FriendsView v = friends.snapshot().view;
+						if (v == null) return null;
+						java.util.List<dev.theredstonee.trsclient.core.hosting.Hosting.Friend> out = new ArrayList<>();
+						for (FriendsView.Friend f : v.friends) {
+							out.add(new dev.theredstonee.trsclient.core.hosting.Hosting.Friend(f.uuid, f.name, f.online(), f.inGame()));
+						}
+						return out;
+					}
+
+					@Override
+					public void wantFriends() {
+						friends.want(Friends.Interest.FOREGROUND, false);
+					}
+				});
+	}
+
+	/** Verbindung des laufenden Spiels (null, solange die Online-Funktionen nicht gestartet sind). */
+	public static TrsOnline current() {
+		return current;
+	}
+
+	/** Freunde im Spiel. */
+	public Friends friends() {
+		return friends;
+	}
+
+	/** Chat und Sozial-Benachrichtigungen. */
+	public dev.theredstonee.trsclient.core.social.Social social() {
+		return social;
+	}
+
+	/** Welt-Hosting. */
+	public dev.theredstonee.trsclient.core.hosting.Hosting hosting() {
+		return hosting;
+	}
+
+	/** Standard: HttpURLConnection, Umhang-Cache unter {@code <configDir>/trsclient/capes}. */
+	public static TrsOnline create(Path configDir, OnlinePlatform platform, String modVersion) {
+		OnlineConfig config = OnlineConfig.load(configDir);
+		dev.theredstonee.trsclient.core.hosting.PublicLink.dir(configDir.resolve("trsclient").resolve("e4mc"));
+		dev.theredstonee.trsclient.core.hosting.Hosting.dirs(configDir);
+		String userAgent = "TRS-Client/" + modVersion + " (Minecraft " + platform.minecraftVersion() + "; "
+				+ platform.loader() + ")";
+		Http http = new Http.UrlConnection(userAgent);
+		dev.theredstonee.trsclient.core.halloween.HalloweenService.get().http(http);
+		dev.theredstonee.trsclient.core.halloween.Miyako.get().http(http);
+		dev.theredstonee.trsclient.core.halloween.Miyako.get().dir(configDir.resolve("trsclient").resolve("miyako"));
+		TrsOnline online = new TrsOnline(config, platform, http, configDir.resolve("trsclient").resolve("capes"),
+				new PlayerEventStream.UrlOpener(userAgent));
+		current = online;
+		try {
+			Runtime.getRuntime().addShutdownHook(new Thread(online::shutdown, "TRS-Offline"));
+		} catch (RuntimeException ignored) {
+			// Schon beim Beenden – dann läuft die Meldung nach 3 min von selbst ab.
+		}
+		return online;
+	}
+
+	private static ThreadPoolExecutor worker(String name) {
+		ThreadPoolExecutor ex = new ThreadPoolExecutor(1, 1, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(32),
+				r -> {
+					Thread t = new Thread(r, name);
+					t.setDaemon(true);
+					t.setPriority(Thread.MIN_PRIORITY + 1);
+					return t;
+				});
+		ex.allowCoreThreadTimeOut(true);
+		return ex;
+	}
+
+	/**
+	 * Aus dem Client-Tick (Spiel-Thread): Ergebnisse übernehmen, bei Bedarf anmelden, Lookup-Stapel und
+	 * Presence verschicken. {@code visible} = UUIDs aus Tabliste und Sichtweite, {@code null} = unverändert
+	 * seit dem letzten Aufruf (der Loader sammelt sie nur einmal je Sekunde).
+	 */
+	public void tick(long now, Collection<UUID> visible, boolean moduleEnabled) {
+		Runnable r;
+		while ((r = results.poll()) != null) r.run();
+		if (!config.launcherEnabled()) {
+			// Keine Einwilligung im Launcher: kein einziger Aufruf.
+			status = Status.LAUNCHER_OFF;
+			events.stop();
+			tickSocial(now, null, null, null, false);
+			return;
+		}
+		if (!moduleEnabled) {
+			status = Status.OFF;
+			active = false;
+			leaveWorld();
+			events.stop();
+			tickSocial(now, null, null, null, false);
+			return;
+		}
+		if (banned) {
+			status = Status.BANNED;
+			events.stop();
+			tickSocial(now, null, null, null, false);
+			return;
+		}
+		GameSession session = platform.session();
+		if (session != null && session.uuid == null && session.name != null && devMock()) {
+			// Nur gegen die lokale Test-Attrappe: Entwicklungsstarts ohne UUID bekommen die Offline-UUID des Namens.
+			session = new GameSession(Uuids.of(UUID.nameUUIDFromBytes(("OfflinePlayer:" + session.name)
+					.getBytes(java.nio.charset.StandardCharsets.UTF_8))), session.name, session.accessToken);
+		}
+		if (session == null || session.uuid == null || !(session.usable() || devMock())) {
+			status = Status.NO_ACCOUNT;
+			events.stop();
+			tickSocial(now, null, null, null, false);
+			return;
+		}
+		if (!session.uuid.equals(sessionUuid)) {
+			// Anderes Konto (oder erster Tick): alles neu – die "in-game"-Meldung des alten Kontos zurücknehmen.
+			leaveWorld();
+			sessionUuid = session.uuid;
+			ownUuid = session.uuid;
+			token = null;
+			shareServer = null;
+			directory.clear();
+			loginFailures = 0;
+			nextLoginAt = 0;
+			unlockedEmotes = null;
+			lastEmoteFetch = Long.MIN_VALUE / 2;
+			lastEventsUpdate = Long.MIN_VALUE / 2;
+			observedOnce = false;
+			events.stop();
+			friends.reset();
+		}
+		active = true;
+		if (token == null) {
+			if (!loginInFlight && now >= nextLoginAt) login(session);
+			if (status != Status.RETRY) status = Status.CONNECTING;
+			events.stop();
+			tickSocial(now, null, null, null, false);
+			return;
+		}
+		status = Status.ONLINE;
+
+		// Sichtbare Spieler meldet der Loader höchstens einmal je Sekunde (null = diesmal nicht).
+		if (visible != null) {
+			List<String> uuids = new ArrayList<>(visible.size() + 1);
+			uuids.add(session.uuid);
+			for (UUID u : visible) {
+				String s = Uuids.of(u);
+				if (s != null) uuids.add(s);
+			}
+			directory.observe(uuids, now);
+		} else if (!observedOnce) {
+			directory.observe(java.util.Collections.singletonList(session.uuid), now);
+		}
+		observedOnce = true;
+		// Erst die eigene "in-game"-Meldung, dann die Lookups (gleicher Hintergrund-Thread, der Reihe nach):
+		// Live-Abzeichen anderer liefert die API nur, wenn man selbst gerade im Spiel ist (API.md §4.1).
+		tickPresence(now);
+		List<String> batch = directory.nextBatch(now);
+		if (!batch.isEmpty()) lookup(batch);
+		if (now - lastMe >= ME_INTERVAL_MS) refreshMe(now);
+		if (now - lastPrune > 60_000L) {
+			lastPrune = now;
+			directory.prune(now);
+		}
+		tickEmotes(now, session.uuid);
+		friends.tick(now, token);
+		tickSocial(now, token, session.uuid, session.name,
+				dev.theredstonee.trsclient.core.social.SocialOverlay.enabled());
+	}
+
+	/** Chat/Toasts und Welt-Hosting takten (auch ohne Anmeldung – dann beenden sie sich sauber). */
+	private void tickSocial(long now, String tok, String uuid, String name, boolean enabled) {
+		social.tick(now, tok, uuid, name, enabled);
+		try {
+			hosting.tick(now, tok, uuid, name);
+		} catch (RuntimeException e) {
+			reportError(e);
+		}
+	}
+
+	// --- Emotes (API.md §12, §13) ---
+
+	/**
+	 * Emote-Liste bei Bedarf holen und den Ereignis-Stream (eigene UUID + sichtbare TRS-Spieler) pflegen –
+	 * beides nur, solange das Emote-Modul es verlangt ({@link #wantEmotes}).
+	 */
+	private void tickEmotes(long now, String self) {
+		if (wantEmotes && !emoteFetchInFlight) {
+			long age = now - lastEmoteFetch;
+			boolean due = unlockedEmotes == null || emoteFetchFailed ? age >= EMOTES_RETRY_MS : age >= EMOTES_INTERVAL_MS;
+			if (due) fetchEmotes(now);
+		}
+		if (!wantEvents && !(wantBadges && inWorld)) {
+			events.stop();
+			return;
+		}
+		// Stream-Verwaltung (Spielerliste, Neuverbinden) einmal je Sekunde; Ereignisse jeden Tick abholen.
+		if (now - lastEventsUpdate >= 1000L || now < lastEventsUpdate) {
+			lastEventsUpdate = now;
+			List<String> watch = new ArrayList<>();
+			watch.add(self);
+			watch.addAll(directory.visibleUsers());
+			events.update(now, token, watch);
+			if (events.takeUnauthorized()) relogin(token);
+		}
+		eventBuffer.clear();
+		events.drain(eventBuffer);
+		for (PlayerEvent e : eventBuffer) {
+			if (e.type.equals("emote")) {
+				if (wantEvents && emoteEvents.size() < 256) emoteEvents.add(e);
+			} else if (e.type.equals("badge")) {
+				// Spielt gerade (nicht mehr) mit TRS → Abzeichen sofort, ohne neue Anfrage.
+				directory.applyBadge(e.uuid, e.badge);
+			} else if (e.type.equals("fan_creator")) {
+				// Ein Creator hat ein neues Symbol: alle seine sichtbaren Fans neu nachschlagen.
+				directory.invalidateFansOf(e.uuid);
+			} else if (e.uuid != null) {
+				// Umhang/Kosmetik/Skin/Fan-Symbol geändert → beim nächsten Stapel neu nachschlagen.
+				directory.invalidate(e.uuid);
+			}
+		}
+	}
+
+	private void fetchEmotes(long now) {
+		String t = token;
+		emoteFetchInFlight = true;
+		lastEmoteFetch = now;
+		if (!submit(apiWorker, () -> {
+			try {
+				List<String> ids = api.emotes(t);
+				results.add(() -> {
+					emoteFetchInFlight = false;
+					emoteFetchFailed = false;
+					unlockedEmotes = java.util.Collections.unmodifiableList(ids);
+				});
+			} catch (ApiException e) {
+				results.add(() -> {
+					emoteFetchInFlight = false;
+					emoteFetchFailed = true;
+					if (e.unauthorized()) relogin(t);
+					else if (e.rateLimited()) lastEmoteFetch = System.currentTimeMillis() + e.retryAfterMs() - EMOTES_RETRY_MS;
+				});
+			} catch (IOException | RuntimeException e) {
+				results.add(() -> {
+					emoteFetchInFlight = false;
+					emoteFetchFailed = true;
+				});
+			}
+		})) emoteFetchInFlight = false;
+	}
+
+	/**
+	 * Vom Emote-Modul in jedem Tick: {@code list} = freigeschaltete Emotes gebraucht, {@code stream} = Ereignisse
+	 * anderer Spieler gebraucht. Ohne beides macht TrsOnline keine Emote-Anfragen.
+	 */
+	public void wantEmotes(boolean list, boolean stream) {
+		wantEmotes = list;
+		wantEvents = stream;
+	}
+
+	/** Werden Abzeichen angezeigt (Tabliste/Namensschild)? Dann hält TrsOnline sie per Ereignis-Stream aktuell. */
+	public void wantBadges(boolean badges) {
+		wantBadges = badges;
+	}
+
+	/** Freigeschaltete Emote-IDs laut API (null = noch unbekannt). */
+	public List<String> unlockedEmotes() {
+		return unlockedEmotes;
+	}
+
+	/**
+	 * Liste bald neu holen (Rad geöffnet, Emote war gesperrt), wenn der letzte Abruf älter als {@code maxAgeMs}
+	 * ist – nie öfter als alle {@link #EMOTES_MIN_REFRESH_MS}.
+	 */
+	public void refreshEmotes(long now, long maxAgeMs) {
+		if (now - lastEmoteFetch < Math.max(EMOTES_MIN_REFRESH_MS, maxAgeMs)) return;
+		lastEmoteFetch = Long.MIN_VALUE / 2;
+	}
+
+	/** Ergebnis von {@link #playEmote} (im Spiel-Thread). */
+	public interface PlayCallback {
+		/** {@code error} null = gespielt ({@code durationMs} laut Server, 0 = keine Angabe). */
+		void done(int durationMs, ApiException error);
+	}
+
+	/**
+	 * {@code POST /v1/emotes/play} im Hintergrund. Ohne Anmeldung sofort Fehler {@code offline}. Die Wartezeit
+	 * zwischen zwei Emotes (1 / 2 s) hält der Aufrufer ein.
+	 */
+	public void playEmote(String emote, PlayCallback callback) {
+		String t = token;
+		if (t == null || !active || !config.launcherEnabled()) {
+			callback.done(0, new ApiException(0, "offline", 0));
+			return;
+		}
+		if (!submit(apiWorker, () -> {
+			try {
+				int duration = api.playEmote(t, emote);
+				results.add(() -> callback.done(duration, null));
+			} catch (ApiException e) {
+				results.add(() -> {
+					if (e.unauthorized()) relogin(t);
+					callback.done(0, e);
+				});
+			} catch (IOException | RuntimeException e) {
+				results.add(() -> callback.done(0, new ApiException(0, "offline", 0)));
+			}
+		})) callback.done(0, new ApiException(0, "busy", 0));
+	}
+
+	/** Seit dem letzten Aufruf empfangene Emote-Ereignisse (älteste zuerst); leert die Liste. */
+	public List<PlayerEvent> pollEmoteEvents() {
+		if (emoteEvents.isEmpty()) return java.util.Collections.emptyList();
+		List<PlayerEvent> out = new ArrayList<>(emoteEvents);
+		emoteEvents.clear();
+		return out;
+	}
+
+	/** Steht der Ereignis-Stream? */
+	public boolean eventsConnected() {
+		return events.connected();
+	}
+
+	/** Hat der Launcher die TRS API erlaubt (Einwilligung)? */
+	public boolean launcherEnabled() {
+		return config.launcherEnabled();
+	}
+
+	private boolean devMock() {
+		return config.apiBase().startsWith("http://");
+	}
+
+	// --- Hintergrund-Aufgaben ---
+
+	private void login(GameSession session) {
+		loginInFlight = true;
+		if (!submit(apiWorker, () -> {
+			try {
+				TrsApi.Session s = api.login(session);
+				results.add(() -> {
+					loginInFlight = false;
+					loginFailures = 0;
+					token = s.token;
+					applyMe(s.me);
+					// Verify alter APIs hat kein events – dann gleich GET /v1/me (vergibt auch das Halloween-Abzeichen).
+					lastMe = s.me != null && s.me.events != null ? System.currentTimeMillis() : 0L;
+					lastPresence = Long.MIN_VALUE / 2;
+					lastEmoteFetch = Long.MIN_VALUE / 2;
+					directory.invalidate(session.uuid);
+					platform.log("TRS API: angemeldet");
+				});
+			} catch (ApiException e) {
+				if (e.banned()) social.loginBanned(e.body());
+				results.add(() -> loginFailed(e.banned(), e.retryAfterMs(), "HTTP " + e.status() + " " + e.code()));
+			} catch (IOException | RuntimeException e) {
+				results.add(() -> loginFailed(false, 0, e.getClass().getSimpleName()));
+			}
+		})) loginInFlight = false;
+	}
+
+	/** Gesperrt: erneut anmelden (Sperre vorbei? sonst neuer Einspruch-Zugang, API.md §22.3). */
+	public void retryBannedLogin() {
+		results.add(() -> {
+			banned = false;
+			loginFailures = 0;
+			nextLoginAt = 0;
+		});
+	}
+
+	private void loginFailed(boolean isBanned, long retryAfterMs, String reason) {
+		loginInFlight = false;
+		if (isBanned) {
+			banned = true;
+			platform.log("TRS API: Konto gesperrt – Online-Funktionen aus");
+			return;
+		}
+		long wait = LOGIN_BACKOFF_MS[Math.min(loginFailures, LOGIN_BACKOFF_MS.length - 1)];
+		loginFailures++;
+		nextLoginAt = System.currentTimeMillis() + Math.max(wait, retryAfterMs);
+		status = Status.RETRY;
+		platform.log("TRS API: Anmeldung fehlgeschlagen (" + reason + "), neuer Versuch in " + wait / 1000 + " s");
+	}
+
+	private void lookup(List<String> batch) {
+		String t = token;
+		if (!submit(apiWorker, () -> {
+			long done;
+			try {
+				Map<String, PlayerInfo> found = api.lookup(t, batch);
+				done = System.currentTimeMillis();
+				long at = done;
+				results.add(() -> directory.complete(batch, found, at));
+			} catch (ApiException e) {
+				done = System.currentTimeMillis();
+				long at = done;
+				if (e.unauthorized()) {
+					results.add(() -> {
+						directory.aborted();
+						relogin(t);
+					});
+				} else {
+					results.add(() -> directory.failed(at, e.retryAfterMs()));
+				}
+			} catch (IOException | RuntimeException e) {
+				long at = System.currentTimeMillis();
+				results.add(() -> directory.failed(at, 0));
+			}
+		})) directory.aborted();
+	}
+
+	private void presence(long now) {
+		String t = token;
+		String server = Boolean.TRUE.equals(shareServer) ? cleanServer(platform.serverAddress()) : null;
+		String version = cleanVersion(platform.minecraftVersion());
+		String loader = platform.loader();
+		presenceInFlight = true;
+		lastPresence = now;
+		if (!submit(apiWorker, () -> {
+			try {
+				api.presence(t, version, loader, server);
+				results.add(() -> {
+					presenceInFlight = false;
+					reportedToken = t;
+					if (!inWorld) {
+						// Inzwischen raus aus der Welt: gleich wieder zurücknehmen.
+						if (offlineAt == 0) offlineAt = System.currentTimeMillis();
+					} else if (!liveConfirmed) {
+						// Jetzt liefert die API auch die Live-Abzeichen der anderen: alle neu nachschlagen.
+						liveConfirmed = true;
+						directory.invalidateAll();
+					}
+				});
+			} catch (ApiException e) {
+				results.add(() -> {
+					presenceInFlight = false;
+					if (e.unauthorized()) relogin(t);
+					else if (e.rateLimited()) lastPresence = System.currentTimeMillis() - PRESENCE_INTERVAL_MS
+							+ Math.max(10_000L, e.retryAfterMs());
+				});
+			} catch (IOException | RuntimeException e) {
+				// Nächster Versuch beim nächsten Intervall (Presence läuft nach 180 s ab – kein Drama).
+				results.add(() -> presenceInFlight = false);
+			}
+		})) presenceInFlight = false;
+	}
+
+	/**
+	 * Presence des TRS Clients (API.md §4.2): "in-game" (via client) alle 60 s, solange man in einer Welt oder auf
+	 * einem Server ist – sofort beim Betreten; nach dem Verlassen (kurz verzögert) "offline" (via client). Die
+	 * Meldung des Launchers für ein von ihm gestartetes Spiel bleibt davon unberührt.
+	 */
+	private void tickPresence(long now) {
+		if (platform.inWorld()) {
+			offlineAt = 0;
+			if (!inWorld) {
+				inWorld = true;
+				liveConfirmed = false;
+				lastPresence = Long.MIN_VALUE / 2;
+			}
+			if (!presenceInFlight && now - lastPresence >= PRESENCE_INTERVAL_MS) presence(now);
+		} else if (inWorld) {
+			inWorld = false;
+			offlineAt = now + LEAVE_GRACE_MS;
+		}
+		if (offlineAt != 0 && now >= offlineAt) {
+			offlineAt = 0;
+			retractPresence();
+		}
+	}
+
+	/** Welt verlassen/Modul aus/Konto gewechselt: "in-game" sofort zurücknehmen. */
+	private void leaveWorld() {
+		inWorld = false;
+		offlineAt = 0;
+		retractPresence();
+	}
+
+	/** "offline" (via client) für die zuletzt bestätigte "in-game"-Meldung – Fehler egal (läuft nach 3 min ab). */
+	private void retractPresence() {
+		if (reportedToken == null) return;
+		// Aktuelles Token bevorzugen (nach einem 401 ist das gemeldete ungültig); beim Kontowechsel ist es noch das alte.
+		String t = token != null ? token : reportedToken;
+		reportedToken = null;
+		submit(apiWorker, () -> {
+			try {
+				api.presenceOffline(t);
+			} catch (IOException | ApiException | RuntimeException ignored) {
+				// läuft nach 3 min von selbst ab
+			}
+		});
+	}
+
+	/** Hat der Server gerade eine "in-game"-Meldung dieses Clients (für Tests)? */
+	boolean reportedInGame() {
+		return reportedToken != null;
+	}
+
+	/** Beim Beenden des Spiels (Shutdown-Hook): "in-game" noch schnell zurücknehmen, höchstens 2 s warten. */
+	void shutdown() {
+		try {
+			hosting.shutdown();
+		} catch (RuntimeException ignored) {
+			// egal – der Raum läuft nach 90 s ab
+		}
+		if (reportedToken == null) return;
+		final String t = token != null ? token : reportedToken;
+		reportedToken = null;
+		Thread thread = new Thread(() -> {
+			try {
+				api.presenceOffline(t);
+			} catch (IOException | ApiException | RuntimeException ignored) {
+				// läuft nach 3 min von selbst ab
+			}
+		}, "TRS-Offline-Meldung");
+		thread.setDaemon(true);
+		thread.start();
+		try {
+			thread.join(2000L);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	private void refreshMe(long now) {
+		String t = token;
+		lastMe = now;
+		submit(apiWorker, () -> {
+			try {
+				TrsApi.Me me = api.me(t);
+				results.add(() -> applyMe(me));
+			} catch (ApiException e) {
+				if (e.unauthorized()) results.add(() -> relogin(t));
+			} catch (IOException | RuntimeException ignored) {
+				// beim nächsten Intervall erneut
+			}
+		});
+	}
+
+	private void applyMe(TrsApi.Me me) {
+		if (me == null) return;
+		// events auch ohne settings (null = Feld fehlt, alte API: Launcher-Datei behalten).
+		dev.theredstonee.trsclient.core.halloween.Halloween.fromApi(me.events);
+		if (me.settings == null) return;
+		shareServer = me.settings.shareServer;
+	}
+
+	/** 401: Token verwerfen und (einmal sofort) neu anmelden. */
+	private void relogin(String rejected) {
+		if (token != null && token.equals(rejected)) {
+			token = null;
+			nextLoginAt = 0;
+		}
+	}
+
+	private boolean submit(ThreadPoolExecutor ex, Runnable task) {
+		try {
+			ex.execute(task);
+			return true;
+		} catch (RejectedExecutionException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Lädt einen Umhang (Platte oder Netz), dekodiert ihn direkt in Bilder (ggf. verkleinert, siehe
+	 * {@link CapeFrames#decode}) – im Textur-Thread. Genau einer der Rückrufe läuft danach im Spiel-Thread (nächster Tick).
+	 */
+	public void loadCape(CapeInfo cape, int downscale, java.util.function.Consumer<CapeFrames> done, Runnable failed) {
+		String t = token;
+		if (!submit(capeWorker, () -> {
+			try {
+				byte[] png = capeCache.load(cape, api, t);
+				CapeFrames frames = CapeFrames.decode(png, cape, downscale);
+				results.add(() -> done.accept(frames));
+			} catch (IOException | ApiException | RuntimeException e) {
+				platform.log("TRS API: Umhang '" + cape.id + "' nicht ladbar (" + e.getMessage() + ")");
+				results.add(failed);
+			}
+		})) failed.run();
+	}
+
+	/**
+	 * Lädt ein Kosmetik-Teil im Format 2 (Platte oder Netz), prüft und zerlegt es – im Textur-Thread. Genau einer der
+	 * Rückrufe läuft danach im Spiel-Thread (nächster Tick).
+	 */
+	public void loadCosmetic(HatInfo hat, java.util.function.Consumer<dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticV2Cache.Loaded> done,
+			Runnable failed) {
+		String t = token;
+		if (!submit(capeWorker, () -> {
+			try {
+				dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticV2Cache.Loaded loaded = cosmeticCache.load(hat, api, t);
+				results.add(() -> done.accept(loaded));
+			} catch (IOException | ApiException | RuntimeException e) {
+				platform.log("TRS API: Kosmetik '" + hat.id + "' nicht ladbar (" + e.getMessage() + ")");
+				results.add(failed);
+			}
+		})) failed.run();
+	}
+
+	/**
+	 * Lädt ein Fan-Symbol (Platte oder Netz) und zerlegt es in Bilder – im Textur-Thread. Genau einer der Rückrufe läuft
+	 * danach im Spiel-Thread (nächster Tick).
+	 */
+	public void loadSymbol(final SymbolInfo symbol,
+			final java.util.function.Consumer<dev.theredstonee.trsclient.core.creator.SymbolFrames> done, final Runnable failed) {
+		final String t = token;
+		if (!submit(capeWorker, () -> {
+			try {
+				byte[] png = symbolCache.load(symbol.sha256, symbol.url, url -> {
+					try {
+						return api.asset(url, "image/png", dev.theredstonee.trsclient.core.creator.SymbolCache.MAX_BYTES, t);
+					} catch (ApiException e) {
+						throw new IOException("HTTP " + e.status() + " " + e.code());
+					}
+				});
+				dev.theredstonee.trsclient.core.creator.SymbolFrames frames =
+						dev.theredstonee.trsclient.core.creator.SymbolFrames.decode(png, symbol);
+				results.add(() -> done.accept(frames));
+			} catch (IOException | RuntimeException e) {
+				platform.log("TRS API: Fan-Symbol " + symbol.sha256.substring(0, 12) + " nicht ladbar (" + e.getMessage() + ")");
+				results.add(failed);
+			}
+		})) failed.run();
+	}
+
+	/**
+	 * Lädt das Bild eines Profil-Abzeichens ({@code GET /v1/badges/{id}.png}, Pixel-PNG) und dekodiert es – im
+	 * Textur-Thread. Genau einer der Rückrufe läuft danach im Spiel-Thread.
+	 */
+	public void loadBadge(final String badgeId, final dev.theredstonee.trsclient.core.creator.EventBadges.Done done,
+			final Runnable failed) {
+		if (badgeId == null || !badgeId.matches("[a-z0-9_]{1,40}")) {
+			failed.run();
+			return;
+		}
+		final String t = token;
+		if (!submit(capeWorker, () -> {
+			try {
+				byte[] png = api.asset(config.apiBase() + "/v1/badges/" + badgeId + ".png", "image/png", 256 * 1024, t);
+				dev.theredstonee.trsclient.core.cape.PngDecoder.Image img =
+						dev.theredstonee.trsclient.core.cape.PngDecoder.decode(png, 256L * 256);
+				results.add(() -> done.image(img.width, img.height, img.argb));
+			} catch (IOException | ApiException | RuntimeException e) {
+				results.add(failed);
+			}
+		})) failed.run();
+	}
+
+	// --- Lesen (jeder Thread) ---
+
+	/** Lookup-Ergebnis eines Spielers ({@link PlayerInfo#NONE} = unbekannt/kein TRS). */
+	public PlayerInfo info(UUID uuid) {
+		if (!active || uuid == null) return PlayerInfo.NONE;
+		return directory.get(uuid);
+	}
+
+	public Status status() {
+		return status;
+	}
+
+	/** Eigene UUID (32 Hex) des angemeldeten Kontos, sonst null. */
+	public String ownUuid() {
+		return ownUuid;
+	}
+
+	public boolean online() {
+		return token != null && active;
+	}
+
+	/**
+	 * TRS-Token für weitere Dienste des Mods (Client-Sync) – nur im Speicher, nie loggen; null = nicht angemeldet
+	 * oder Online-Funktionen aus.
+	 */
+	public String apiToken() {
+		return active ? token : null;
+	}
+
+	/** Ein anderer Dienst hat für {@code rejected} 401 bekommen: im nächsten Tick neu anmelden. */
+	public void tokenRejected(final String rejected) {
+		results.add(new Runnable() {
+			@Override
+			public void run() {
+				relogin(rejected);
+			}
+		});
+	}
+
+	/**
+	 * Token der aktuellen TRS-Anmeldung für weitere Dienste im Hintergrund (Garderobe/Sync) oder null. Nie loggen,
+	 * nie auf Platte schreiben.
+	 */
+	public String token() {
+		return active && config.launcherEnabled() ? token : null;
+	}
+
+	/** Adresse der TRS API (z. B. {@code https://trs-launcher.theredstonee.de}). */
+	public String apiBase() {
+		return config.apiBase();
+	}
+
+	/** Platten-Cache der v2-Kosmetik (Selbsttest-Flügel legen dort ihre Dateien ab). */
+	public Path cosmeticDir() {
+		return cosmeticDir;
+	}
+
+	/** Eigenen Eintrag (Umhang/Abzeichen) beim nächsten Stapel neu nachschlagen (z. B. nach Umhangwechsel). */
+	public void refreshSelf() {
+		results.add(() -> {
+			String self = ownUuid;
+			if (self != null) directory.invalidate(self);
+		});
+	}
+
+	/** Einstellungen der TRS API (Adressen prüfen). */
+	public OnlineConfig config() {
+		return config;
+	}
+
+	PlayerDirectory directory() {
+		return directory;
+	}
+
+	private long lastError;
+
+	/** Fehler aus dem Tick (nie ans Spiel weiterreichen), höchstens einmal pro Minute ins Log. */
+	public void reportError(RuntimeException e) {
+		long now = System.currentTimeMillis();
+		if (now - lastError < 60_000L) return;
+		lastError = now;
+		StackTraceElement[] st = e.getStackTrace();
+		platform.log("TRS Client: Fehler in den Online-Funktionen ignoriert: " + e
+				+ (st.length > 0 ? " bei " + st[0] : ""));
+	}
+
+	// --- Validierung der Presence-Felder (die API prüft ebenso streng) ---
+
+	static String cleanVersion(String v) {
+		if (v == null) return "unknown";
+		String t = v.trim();
+		if (t.length() > 32) t = t.substring(0, 32);
+		return t.matches("[0-9A-Za-z._+ -]{1,32}") ? t : "unknown";
+	}
+
+	/** "Play.Example.net:25565" → "play.example.net:25565"; alles andere (Schema, Pfad, Leerzeichen) → null. */
+	static String cleanServer(String address) {
+		if (address == null) return null;
+		String t = address.trim().toLowerCase(Locale.ROOT);
+		if (t.isEmpty() || t.length() > 253) return null;
+		return t.matches("[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?)*(:[0-9]{1,5})?") ? t : null;
+	}
+}

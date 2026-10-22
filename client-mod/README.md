@@ -1,0 +1,698 @@
+# TRS Client
+
+The in-game client mod of the TRS Launcher (Lunar/Badlion style). Client-only, one jar per loader and
+Minecraft release: **Fabric 1.14.4–26.3**, **Forge 1.7.10–26.3**, **NeoForge 1.20.2–26.3** (see below).
+License: GPL-3.0-only, author: theredstonee.
+
+Chat Heads by dzwdz ([github.com/dzwdz/chat_heads](https://github.com/dzwdz/chat_heads), MPL-2.0): parts of the code reused in `core/chatheads`. The full license is `licenses/chat-heads-MPL-2.0.txt` (also inside the built jars).
+
+Player guide: [TRS Client docs](https://trs-launcher.wiki/en/client/overview) (also reachable in game
+under TRS menu → Help).
+
+## Projects
+
+Each loader family is its own Gradle build (own wrapper, own README with hooks and pitfalls); all of them put
+their jars and a `builds-<project>.json` into `dist/`. `scripts/publish-client-mod.mjs` merges them into the
+signed update channel and into `src-tauri/resources/client-mod/builds.json` (see "Publishing" below).
+
+| Directory | Loader / versions | Tooling | Rebuild |
+| --- | --- | --- | --- |
+| `fabric/` (this build) | Fabric 1.14.4–26.3 (39) | Loom + Stonecutter | `./gradlew collectLauncherJars` |
+| `neoforge/` | NeoForge 1.20.2–26.3 (22, incl. beta-only versions) | ModDevGradle + Stonecutter | `./gradlew collectLauncherJars` |
+| `forge/` | Forge 1.20–26.3 (22) | ForgeGradle 7 + Stonecutter | `./gradlew :collectLauncherJars` |
+| `forge-mojmap-legacy/` | Forge 1.14.4, 1.15.2, 1.16.2, 1.16.4, 1.16.5, 1.17.1, 1.18–1.18.2, 1.19–1.19.4 | Essential Loom + Stonecutter | `./gradlew collectLauncherJars` |
+| `forge-1.13.2/` | Forge 1.13.2 | ForgeGradle 6 (Gradle 8.14) | `./gradlew build` |
+| `legacy/` | Forge 1.8.9, 1.9, 1.9.4, 1.10(.2), 1.11(.2), 1.12–1.12.2 | Essential Loom + Stonecutter | `./gradlew collectLauncherJars` |
+| `legacy-1.7.10/` | Forge 1.7.10 | RetroFuturaGradle | `./gradlew build` |
+
+`common/` is shared by the modern builds as a source folder; the Java-8/MCP builds (`legacy*`, `forge-1.13.2`,
+`forge-mojmap-legacy` ≤1.17.1) keep a copy of it that has to be kept in sync.
+
+## Features
+
+All features can be toggled in the TRS menu. Settings are stored in `config/trsclient.json`.
+
+| Module | What it does |
+| --- | --- |
+| FPS | Frames per second |
+| CPS | Left/right clicks within the last 1000 ms |
+| Keystrokes (Tastenanzeige) | W A S D, left/right mouse button (optional CPS), space bar – lit while pressed |
+| Ping | Latency to the current server from the player list (hidden in singleplayer) |
+| Schnell verbinden | Faster connecting and server switching (see "Schnell verbinden" below): DNS cache + look-up in advance, all addresses of a server raced (Happy Eyeballs), no reverse lookup for IP addresses, status line on the connect screen; *Schneller Serverwechsel* (same resource pack not reloaded, no 60 fps cap while switching, no 2-second wait on 1.18.2–1.19.2); *Server-Ressourcenpakete vorladen*. On by default |
+| Zoom | Hold the key (V; changeable under *Taste* in the TRS menu or in the controls) → FOV divided by the strength (×2–×10, default ×4), smooth zoom in/out (switchable), mouse wheel changes the zoom while held, mouse sensitivity drops proportionally to the zoom, optional *Filmische Kamera* only while zooming. The spyglass (1.17+) wins: the TRS zoom ends at once and the wheel stays with the game |
+| Fullbright | Maximum brightness; only overrides the gamma used for the lightmap, the vanilla brightness option is never changed |
+| Rüstung | Worn armor + held item with durability (number or percent, colored green→red) |
+| Trank-Effekte | Active effects with level and remaining time, in the effect color |
+| Koordinaten | Position, facing direction and biome |
+| Uhrzeit / Speicher | Real-time clock (24 h/12 h, optional seconds) / JVM memory usage |
+| Server-Adresse / Aktive Resourcepacks | Current server (hidden in singleplayer) / enabled packs |
+| Toggle-Sprint / Toggle-Schleichen | Press once to keep sprinting/sneaking (each module on/off). HUD element (movable in the HUD editor) shows `[Sprinting (Toggled)]`, `[Sprinting (Key held)]`, `[Flying (Boost)]`, `[Sneaking (Toggled)]` … Options: *Sprinten nur vorwärts*, *Flug-Boost* in creative flight (×1.5–×5, the previous speed is restored, a speed set by the server is adopted), *Zustand merken* (otherwise death, respawn, dimension and world change reset it; default: sprint remembered, sneak not). Menus never leave a key stuck – Minecraft releases the keys, the toggle resumes when the menu closes. Inactive if vanilla's own toggle option is on |
+| Fadenkreuz | Own crosshair (cross, cross+dot, dot, T, circle, circle+dot; color, size, gap, thickness, outline, attack cooldown) with an editor |
+| Treffer-Farbe | Color/opacity of the hurt tint of entities (recolors the overlay texture) |
+| Freelook | Hold (or, with *Umschalten statt Halten*, toggle) Left Alt to orbit the camera in third person – *Perspektive* behind or in front – while the character keeps walking and looking ahead; releasing restores the previous view. The player is never turned, so the server receives exactly the rotation it would get without freelook. Off by default – some servers forbid it; *Aus auf diesen Servern* (host incl. subdomains, `*.example.net` = only subdomains, empty by default) switches it off there with a hint in the action bar |
+| Reichweite / Combo / Geschwindigkeit | Distance of the last hit (display only – the reach itself is untouched), hits in a row (ends on own damage or a pause) and blocks per second |
+| 1.7-Animationen | Hand stays up during the attack cooldown, swing animation while using an item (visual only, no packet) |
+| Niedriges Feuer / Kein Schadens-Wackeln | Fire overlay pulled down / no camera tilt when taking damage |
+| Block-Umrandung / Hitboxen | Colour + opacity + line width of the block outline / F3+B hitboxes with colour |
+| Chat-Verbesserungen | Timestamps, repeated messages collapsed to "(x3)", Ctrl+click copies a line |
+| Auto-GG | Sends a configurable text after typical end-of-game messages. Off by default, at most once per minute, only triggers on messages that are not player chat |
+| Text-Hotkeys | Four bindable keys send a fixed text or command. Off by default, at most one message per second (3 per 10 s) |
+| Wegpunkte | Own markers per world/server (`config/trsclient-waypoints.json`): name, colour, in-world label with distance and light column, show/hide, automatic death waypoint |
+| Minimap | Top-down map of the loaded chunks (map colours, height shading), rotating or north-up, zoom, waypoints, coordinates. Player dots are off by default and only ever show players the game already knows (normal render range) – no radar, no cave mode |
+| TRS-Online-Funktionen | TRS badge (a pixel redstone block) in front of the names of TRS users in the tab list and on name tags, TRS capes (own and other players', HD and animated), in-game presence for friends. Talks to the TRS API (see below); switchable as a whole, per badge place and for capes |
+| Umhang-Physik | Every rendered cape (Mojang, OptiFine, TRS, own and other players') moves like cloth instead of a rigid plank: swings when walking, turning, jumping and falling, rests on the back and bends at the hips when sneaking. Settings like WaveyCapes: *Stil* (glatt / blockig = vanilla-like steps), *Wind* (aus / Wellen / Böen) + *Windstärke*, *Bewegung* (Vanilla / schwingend / Dungeons = calm and floaty), *Schwerkraft*, *Anhebung beim Laufen*, *Steifheit*, *Detailstufe* (grid size, range and number of simulated capes), *Für* (nur eigener / alle Spieler). The settings page shows a live preview of your own player (turns by itself, drag to turn; alternates standing/walking) and a *Zurücksetzen* button; the settings are part of the HUD profiles. Defaults = the original behaviour. Elytras stay vanilla |
+| Farben | Colour grading of the game image: *Sättigung* (0–200 %), *Kontrast*, *Helligkeit*, *Dynamik* (vibrance) and *Farbtemperatur*, applied right after the world and hand are drawn – HUD and menus keep their colours. Off by default, part of the HUD profiles |
+| Emotes | Hold **G** (rebindable in the vanilla controls) for the emote wheel in the redstone style, point at an emote with the mouse, release to play it – other TRS players see it too. All 11 emotes of the TRS API (Winken, Klatschen, Jubeln, Verbeugen, Facepalm, Schulterzucken, Daumen hoch, Tanzen, Salutieren, Luftgitarre, Redstone-Tanz) are animated; locked ones are shown dark with a lock. Settings: *Kamera beim eigenen Emote* (unverändert / 3. Person von hinten / von vorn), *Emotes anderer Spieler zeigen* |
+| Signalstärke *(Redstone)* | Look at dust, a repeater, comparator, piston, lamp, observer, lever, button, plate, daylight detector, target, door, dispenser, hopper … → HUD panel with the block name, signal strength 0–15 as a 15-segment bar + number, repeater delay (and "locked"), comparator mode and **output** (recomputed from its inputs – the client never receives it), piston extended/retracted, the input strength of consumers, and the comparator output of containers you have opened (the client only knows a chest's content while it is open; otherwise it is left out) |
+| Signal-Overlay *(Redstone)* | Signal strength as a number above every piece of redstone dust within 4–16 blocks, grey (0) → bright red (15), smaller further away. Toggle key **F6** (F8 on Forge 1.7.10/1.8.9, where F6/F7 are the stream keys). Only loaded chunks, by default only dust in sight (line-of-sight check), cached: a budget of 4 096 block reads per tick searches the cube, known dust is re-read every tick |
+| Takt-Messer *(Redstone)* | For the component you look at (keeps measuring after you look away, up to 32 blocks): frequency in Hz, period in redstone ticks (and game ticks), pulse length, and a 5-second oscilloscope. Shown only while the component switches |
+| FPS-Boost (Leistung) | Main switch of the category *Leistung* (off = compare without it). *Niedrig / Mittel / Hoch* set all performance modules and lower (never raise) vanilla video settings in one click; the page shows the FPS right now and before/after every change (own frame counter, 3 s before, 4 s after), a **Leistungs-Check** (VSync, simulation distance ≥ render distance, render distance too high for the measured FPS, Fancy/Fabulous, clouds, particles, mipmaps, entity distance, biome blend, smooth lighting, window vs. fullscreen, onboard GPU although a dedicated one is installed – that one is only a hint, switching is done by the launcher) with *Beheben* per finding and *Alle beheben*, and the detected performance mods. *Rückgängig* restores every vanilla option and module changed by a level or fix – stored in `trsclient.json`, so it also works after a restart |
+| Dynamische FPS | Frame rate limit in the background (1–60, default 15), minimized (default 1) and when AFK (no mouse/key input for N minutes, default 30 FPS after 3 min); optionally quieter in the background (master volume as a factor, the option itself is untouched). Waits in 10 ms slices and asks the OS for focus each slice (GLFW, SDL on 26.3, LWJGL 2 `Display`), so full FPS returns at once |
+| Entity-Culling | Skips mobs hidden behind full opaque blocks (own ray casts to 9 points of the hitbox, 600 rays per tick, result cached 2–4 ticks, never hides wrongly when the budget runs out; glowing entities, your vehicle and giants stay), mobs/chests & signs/dropped items/item frames/name tags beyond a distance. Players are always shown by default |
+| Partikel | Upper limit of particles at once, share of all particles (*Menge*), explosion particles, rain splashes and smoke off |
+| Welt-Details | Sky, stars, distance fog, rain/snow and texture animations (water, lava, fire …) off – each only where the version has a clean hook |
+| Clips & Aufnahme | **F9** saves the last seconds as a clip, **F10** starts/stops a recording (both changeable in the vanilla controls). The TRS Launcher records the game window – the mod only reports the key presses over a local link (see below). HUD element (movable): red dot + time while recording, a subtle ring while the clip buffer runs (*Show buffer indicator*), "Clip saved (30 s)" for a few seconds. Without the TRS Launcher (or with clips off there) the keys only show a hint |
+| Startbildschirm | TRS title screen: animated redstone circuit on deepslate, glowing pixel wordmark, buttons as redstone lamps (Einzelspieler/Mehrspieler/Einstellungen/TRS-Menü/Mods*/Beenden; keyboard: Tab/arrows + Enter, narrated where the version has a narrator); link "Klassischer Titelbildschirm"; setting *Animierter Hintergrund* switches to a still image; disable the module to always get the vanilla one. Servers are only reached through Mehrspieler |
+
+*Mods only if ModMenu is installed. The TRS menu also has a **Resourcepacks** screen (search, filter all/enabled/available,
+toggle, priority ▲/▼, open folder; applied with one reload).
+
+## TRS API: badges, TRS capes, presence
+
+The client talks to the TRS API (`https://trs-launcher.theredstonee.de`, contract: `api/API.md` on the `trs-api`
+branch) on its own; the old address `https://api.theredstonee.de` stays reachable and cape URLs on either host are
+accepted (`OnlineConfig.isApiUrl`), every other host is refused. The logic is version independent in
+`common/core/online` and `common/core/cape`:
+
+- **Login like a Minecraft server:** `POST /v1/auth/challenge` → Mojang `session/minecraft/join` with the game's own
+  access token and UUID (the `serverId` is passed unhashed) → `POST /v1/auth/verify`. The bearer token only lives in
+  memory; a `401` logs in again once. Offline/demo accounts (no real token) never contact Mojang. Failed logins back
+  off (30 s, 2 min, 10 min, 30 min), a `banned` account switches everything off for the session.
+- **Off switch:** the launcher writes `config/trsclient/trs-api.json` (`{"version":1,"enabled":true|false}`) before
+  every start; `false` means the mod makes no API call at all. Without the file the API is on; in game the module
+  *TRS-Online-Funktionen* switches it off as well.
+- **Lookup:** UUIDs from the tab list and the render distance are batched (≤ 100 per call, at most one call every 2 s),
+  cached for 5 minutes (also "not a TRS user"), players who re-join the tab list are asked again after 30 s, and
+  `429`/`Retry-After` pauses all lookups. Fair play: the only information shown is "uses TRS" and the cape.
+- **Presence:** `POST /v1/presence` every 60 s while the game runs (`in-game` with version and loader); the server
+  address is only sent when `GET /v1/me` says `shareServer` is on. Nothing is sent on quit (presence expires).
+- **Capes:** the PNG is downloaded once per URL (the API's `?v=` changes with the content) into
+  `config/trsclient/capes/<id>.png` with its `.etag`; a changed URL asks with `If-None-Match`. Only URLs of the API
+  host are loaded, the PNG is decoded without AWT (`PngDecoder`), split into its vertical frames (64·scale × 32·scale
+  each, scale 1–4) and every frame becomes its own texture, so the cape uses the vanilla UVs (a TRS cape is never used as elytra texture –
+  elytras always show the vanilla elytra); the frame shown
+  is `floor(now / frameTimeMs) % frames` (wall clock – every player sees the same frame). A TRS cape replaces the
+  Mojang/OptiFine cape only when one is set; unused textures are released after 3 minutes.
+- Networking runs in two daemon threads; the game thread only hands over work and reads results. Nothing in these
+  features may crash the game: errors are logged at most once a minute and the vanilla cape is drawn instead.
+- HTTPS works down to Mojang's Java 8u51 (`jre-legacy`, checked against the live API).
+
+Per loader only a thin layer is needed: `online/OnlineHooks` (Fabric, NeoForge, Forge, Forge-Mojmap-legacy – one file,
+Stonecutter branches for 1.14.4–26.3) plus the mixins `CapeTextureMixin` (TRS texture: `getCloakTextureLocation`
+until 1.20.1, `getSkin()` → `PlayerSkin` from 1.20.2, `ClientAsset.ResourceTexture` from 1.21.9), `CapeLayerMixin`
+(physics), `TabBadgeMixin` (`getNameForDisplay`) and `NameTagBadgeMixin` (`renderNameTag` until 1.21.1,
+`extractRenderState` → `nameTag` from 1.21.2). The badge is a glyph of the mod's own bitmap font `trsclient:badge`
+(a private-use character, so no resource pack can collide); before 1.16 (no fonts per text style) it is a dark red
+`■`. Forge 1.8.9–1.12.2 has no mixins: `online/LegacyOnline` writes the TRS cape into the player's tab list entry
+(the cape reads it from there; from 1.9 the elytra entry is set to the vanilla elytra texture, so the TRS
+cape never ends up on the elytra), prefixes the tab list display name and the name tag
+(`PlayerEvent.NameFormat`) and replaces the vanilla `LayerCape` of both player renderers with `ClothCapeLayer`.
+Private fields are found by type there, so the SRG-named release jars need no field names.
+
+**Test against a local mock:** `-PtrsApi=http://127.0.0.1:<port>` on `runClient` points the API *and* the Mojang join at
+a local server (plain HTTP is only accepted for localhost); the autotest then waits for the own TRS cape and takes
+screenshots in third-person view (`cape-stand`, `cape-frame` = next animation frame, `cape-walk`, `cape-jump`,
+`cape-sneak`, `cape-tab` with the badge).
+
+## Emotes
+
+The logic is version independent in `common/core/emote` (definitions, playback, pose maths) and
+`common/core/ui/wheel/EmoteWheel` (the wheel); per loader only the model hook and the screen remain:
+
+- **Wheel:** holding the key opens `EmoteWheelScreen`; the physical key is polled every frame (a screen stops the key
+  bindings) and releasing it plays the emote the mouse points at (direction from the centre, dead zone in the
+  middle). A short tap keeps the wheel open (then click or press again), Esc closes. Unlocked emotes are lamps,
+  locked ones dark stones with a lock; without consent, account or connection the wheel only shows a hint.
+- **API** (contract `api/API.md` §12/§13, same login as the badges): `GET /v1/me/cosmetics` → unlocked emotes
+  (after login, every 10 min, when the wheel opens and the list is older than 60 s), `POST /v1/emotes/play`
+  (the animation starts locally right away; at most one emote every 2 s, `429`/`Retry-After` extends the wait,
+  `403` stops it and reloads the list). Other players' emotes come from the SSE stream
+  `GET /v1/events/players?uuids=` (own UUID + visible TRS users from the lookup, ≤ 200; a new list opens a new stream
+  at most every 10 s and closes the old one after its `hello`; reconnect with backoff 1 s … 60 s, `401` logs in again).
+  The stream only runs while the module and *Emotes anderer Spieler zeigen* are on; the own echo is ignored.
+  `trs-api.json` with `enabled:false` means no emote request at all.
+- **Animation:** keyframes per channel (torso lean/twist/roll around the hips, whole-body offset, head on top of the
+  look direction, arms/legs, shoulders) in `Emotes`, eased in/out; loops repeat their cycle until `durationMs`.
+  `EmoteRig` turns a frame into the six model parts in Minecraft's Z·Y·X order (neck and shoulders follow the torso),
+  limbs an emote does not use keep their vanilla pose. An emote ends when the player moves (> 0.05 blocks/tick after
+  a 250 ms grace), sneaks, attacks or starts another one. During the own emote the camera switches to third person
+  (option) and back afterwards if the player did not change it.
+- **Model hook:** `HumanoidModel#setupAnim` TAIL (`EmoteModelMixin`, player and armor models); until 1.21.1 the
+  entity is known there and the rest pose of a touched model is restored at HEAD (vanilla does not reset every
+  channel), from 1.21.2 the render state is mapped to the player in `extractRenderState` (`EmoteStateMixin`).
+  Forge 1.8.9–1.12.2 (no mixins) replaces the vanilla `ModelPlayer`/armor `ModelBiped` of the player renderers with
+  subclasses whose `setRotationAngles` applies the pose (`LegacyEmotes`, fields found by type).
+
+## Schnell verbinden
+
+Module `fastConnect` (category Leistung, on by default; settings `preResolve`, `fastSwitch`, `prePacks`). The logic is
+version independent in `common/core/connect`:
+
+- **DNS cache** (`DnsCache`): SRV target and A/AAAA addresses per host name, TTL-aware (launcher hints carry the real
+  DNS TTL, own lookups 2 min), never longer than 10 min, plus the address that won last time (tried first). Keys are
+  lower case without trailing dot, but cached `InetAddress`es carry exactly the name vanilla used – Minecraft reads the
+  handshake host from it, so the handshake stays byte-identical (typed name or SRV target incl. trailing dot). IP
+  literals get the typed text as name (no reverse DNS lookup, which can take seconds).
+- **Look-up in advance** (`FastConnect.prefetch`): hovering/selecting a server in the list (Mojmap: `VanillaMenus`
+  via `ServerEntryMixin`; legacy: selected row of `GuiMultiplayer` by reflection), the last server, and the launcher's
+  `join` target resolve SRV (JNDI like vanilla) + all addresses on a daemon thread, at most every 20 s per server.
+- **Address race** (`AddressRacer`, RFC 8305): families interleaved, next attempt after 250 ms or right after a
+  failure, 3 s per attempt while others run, the last one may run until the 12 s cap. Real sockets: `NioDialer`
+  (non-blocking `SocketChannel` + `Selector`). Only in the "Server Connector" thread, only with ≥ 2 addresses, never
+  with a SOCKS/Java proxy. The winning socket is handed to Netty (`FastNioChannel`, swapped in at
+  `Bootstrap#channel`; `doConnect` only confirms) – the server sees exactly one connection. Epoll/KQueue: socket closed,
+  Netty connects to the winning address. A redirect by another mod (proxy handler) pauses Fast Connect for the session.
+- **Hooks** (Mojmap trees, identical files): `FastConnectMixin` (HEAD/`@ModifyArg` on `Connection#connect` resp.
+  `connectToServer`), `FastResolveMixin` (≥ 1.17 `ServerNameResolver#resolveAddress` – same logic incl. Mojang's block
+  list, only when something is cached; < 1.17 `ServerAddress#lookupSrv`). Java 8 versions without connect hook
+  (Forge 1.7.10–1.13.2, legacy) put the best address first into Java's own address cache (`JvmDnsCache`, both 8u
+  cache layouts); with several addresses a short probe race on selection finds it.
+- **Launcher hints** (`ConnectHints`, `config/trsclient/connect-hints.json`, contract in
+  `src-tauri/crates/core/src/connect_hints.rs`): only IP literals, ≤ 64 hosts, expiring; never names to connect to.
+- **Status line** (`FastConnect.STATUS`): after 1 s on the connect screen „Suche Server-Adresse …“ / „Verbinde über
+  IPv6 … (2/3)“ – in the TRS loading screen as detail line, otherwise under vanilla's text. The chosen address and
+  timing are logged ("Fast connect: host:port -> ip (IPv4) in … ms, attempts …").
+- **Server resource packs** (`ServerPacks`, `PackMemory`, `PackDownloader`): pushes are seen before vanilla's handler
+  (Mojmap `PackPushMixin`, status via `PackStatusMixin` on the packet constructor; legacy: Netty handler
+  `net/LegacyPacks` before `packet_handler`). A pack is remembered per server (as typed) only after `ACCEPTED`, with a
+  valid SHA-1; `DECLINED` forgets it. Selecting the server again (or the launcher's `join`) downloads it – throttled to
+  8 MB/s from the list, http/https only, ≤ vanilla's size limit, redirects checked, no private addresses unless the
+  server is private, SHA-1 verified before the move – into vanilla's own cache under vanilla's name
+  (`downloads/<id>/<sha1>` 1.20.3+, `server-resource-packs/<sha1(url)>` 1.14–1.20.2, `server-resource-packs/<sha1>`
+  1.8.9–1.12.2). Own files ≤ 512 MB (oldest deleted). A push of exactly the active pack (same id/URL + SHA-1) is answered
+  with the statuses vanilla would send after reloading (`ACCEPTED`, `DOWNLOADED`, `SUCCESSFULLY_LOADED`) – never for
+  1.20.2 (it drops packs on every switch itself), never for packs without hash.
+- **Server switch** (`FastSwitch`, `FastSwitchMixin`, `FrameCapMixin`, `PackOverlayMixin`, `TerrainScreenMixin`):
+  begin at the configuration phase (≥ 1.20.2) or a new world, end when level + no loading screen/overlay; while
+  switching no vanilla frame cap (60 fps in the config phase, AFK 30/10 fps from 1.21.2), the 1-s minimum of the pack
+  reload overlay is skipped (1.21.9+), 1.18.2–1.19.2 use the 1.19.3 rule for „Lade Gelände“ (MC-249059). The loading
+  screen never closes before vanilla's own condition.
+- Not everywhere: Forge 1.7.10 and 1.13.2 only get look-up in advance, the Java address cache and the status line (no
+  resource-pack or switch features); Forge 1.14.4 (no mixins) gets nothing; the chunk-batch warm start after a switch
+  is not done.
+- Tests: `common/src/test/.../core/connect` (racer with fake network and real sockets, SRV, cache TTL, hints incl. the
+  launcher's JSON, handover to Netty with exactly one connection, handshake name, packs with a local HTTP server).
+  Autotest `-PtrsAutotestOnly=fastconnect` (fabric 1.21.9–1.21.11, legacy 1.8.9) against local servers:
+  `-PtrsAutotestServer=<proxy>`, `-PtrsSys.trsclient.autotest.fc.broken=host:port` (host with a dead first address via
+  `connect-hints.json`), `-PtrsSys.trsclient.autotest.fc.pack=host:port`, `-PtrsSys.trsclient.autotest.fc.switches=N`,
+  `-PtrsSys.trsclient.autotest.fc.afk=true` (each switch after > 60 s without input).
+
+## Clips & Aufnahme
+
+Recording happens in the TRS Launcher (FFmpeg window capture, see the launcher README). The mod part is version
+independent in `common/core/clips`:
+
+- The connection is the shared **TRS Link** (`common/core/link`, see below). `ClipConfig` reads
+  `config/trsclient/clips.json` (≤ 4 KB, Gson 2.2.4-safe DTO): protocol 2 `{"version":2,"enabled":…,"port":…}` (no
+  secret; the port is re-read after a launcher restart), protocol 1 (older launchers) port + 64-character lower-case
+  hex token, or `enabled:false`. Anything else counts as "no launcher".
+- `ClipLink` listens on the link: state lines → `status()`, `saved`/`failed` → notices. A key press while not
+  connected is kept for 4 s, then "launcher not reachable". The game thread only reads `status()`/`pollNotice()` and
+  calls `press`. Every press gets a visible answer: saved, the launcher's reason (`starting`, `ffmpeg` with download
+  progress, `ffmpegFailed`, `encoder`, `noFrames` …), "clips need the TRS Launcher", or "clips are off".
+- **Clips off:** if the launcher announces the feature `clips.enable` in its `challenge`, the first F9/F10 shows an
+  offer (what gets recorded: game window, system sound, microphone – from `audio`/`mic` in the state line) and a
+  second press within 8 s sends `req {op:"clips.enable"}`. The launcher switches clips on like the settings toggle
+  (saved, UI updates, ring buffer starts; only for the verified game process, rate-limited) and answers
+  `res {ok,clipSeconds}`; the mod shows "Clips on – recording is starting …", download progress and finally
+  "Clips on – F9 saves the last 30 s". Older launchers (protocol 1 or no feature) only get the hint to use
+  Settings → Clips. The Clips & Images screen has a "Turn on now" button with the same consent text.
+- `ClipPanel` draws the HUD element through `Canvas`; `Clips` is the facade the loaders call (`init(configDir)`,
+  `saveClip()`, `toggleRecording()`, `tick(hudVisible, actionBar)`). Hints and errors also go to the action bar.
+- Per loader only the two key bindings, one tick block and `hud/ClipHud` (identical in the Mojmap trees). No mixins.
+- Autotest: `-PtrsAutotestOnly=clips` presses F9/F10 through Minecraft's own key handling and takes the screenshots
+  `clips-buffer`, `clips-saved`, `clips-recording`, `clips-recording-saved` (fabric and legacy). Against a
+  launcher attrappe or a real launcher start.
+
+## Screenshot-Werkzeuge (Vorschau, Editor, Essential)
+
+Module `screenshots` (Comfort, `common/core/screenshot`, UI `common/core/ui/screenshot`). Behaviour inspired by
+Essential's screenshot popup – own code, Essential is closed source.
+
+- **Detection** without a mixin in `Screenshot`: `ScreenshotWatcher` (daemon thread, `stat` of `screenshots/` every
+  400 ms, lists only on change; vanilla names only, created after game start, complete = size stable + PNG `IEND`)
+  plus the faster path through the vanilla chat line (`qol/ChatLinks.decorate` → `Screenshots.onVanillaLine`). Works
+  no matter who took the picture (F2, Essential, other mods).
+- **Preview** (`ScreenshotToast`): top right, drawn from `SocialHooks` (HUD, `overScreen`/`afterScreen`/`afterUi`),
+  legacy/1.7.10/1.13.2 from their overlay + `DrawScreenEvent.Post`. With a screen open the mouse is free: hover shows
+  Edit / Favourite / Copy picture / Send to friends. Clicks: Mojmap `MouseHandlerMixin` (now cancellable, before the
+  screen), legacy `MouseInputEvent.Pre`, 1.13.2 `MouseClickedEvent.Pre`, 1.7.10 edge detection (not cancellable).
+- **Chat**: ≥1.16 the vanilla line gets `[Edit] [Copy link] [Copy picture]` (style insertion
+  `trs-shot:<session secret>:<action>:<file>` – a server can't trigger actions without the secret). Without a vanilla
+  line (Essential swallows it) an own line after 1.5 s. Legacy can't extend the vanilla line → compact line below it.
+  Hovering a chat line with a screenshot shows the picture (`ChatLines.lineAt` / `ChatCompat.insertionAt`).
+- **Editor** (`ScreenshotEditorUi`): state = `EditState` (rotation, crop, shapes in rotated image space, immutable →
+  `EditHistory` undo/redo), rendering `EditRender` (Java2D on a `BufferedImage` wrapping the pixel array, works
+  headless; pixelate/rotate/crop on the pixels) – the same code draws the preview (≤ 1600×900, background thread) and
+  the export. Saving writes `Copy of <name>.png` (localised prefix, ASCII only) next to the original via
+  `PanoramaPng`; the original is never written.
+- **Clipboard** (`ImageClipboard`): Windows JNA (`CF_DIB` + registered `PNG`, reflection like `SecretBox`), AWT if not
+  headless, else PowerShell/WinForms (path via environment variable), `osascript` (argv), `wl-copy`/`xclip`.
+- **Essential** (`EssentialInterop`, checked with `javap` on Essential 1.5 Fabric 1.21.11 + Forge 1.12.2): Essential
+  redirects `Screenshot.grab` in `KeyboardHandler#keyPress` to its `ScreenshotManager` (which calls vanilla `grab`
+  again, printing the vanilla chat line only with its option "Screenshot message") and shows its toast from a mixin
+  after `NativeImage.writeTo` when `EssentialConfig.getEssentialScreenshots()` ("Screenshot preview",
+  `essential_screenshots` in `essential/config.toml`) is true. With "Replace Essential's screenshot preview" on, the
+  mod switches that option off through `EssentialConfig.INSTANCE.setEssentialScreenshots(false)` (reflection, game
+  thread, re-checked every 2 s) and remembers it in `config/trsclient/screenshots.json`; switching our option off turns
+  Essential's preview back on – only if we turned it off. Any failure → nothing happens, both popups show.
+- Favourites: `config/trsclient/screenshots.json` (local only, like server pins); tab "Favourites" in Clips & Images.
+- Send to friends: `ScreenshotShare.requestSend` + `SocialPlatform.openSocial()` → `ShareTargetDialog` in image mode
+  (multi-select, `Social.send` with the image per target, missing DMs opened first).
+- Autotest `-PtrsAutotestOnly=screenshots` (fabric: real F2 through `KeyboardHandler`, legacy: vanilla save + chat
+  line): shots `screenshots-toast`, `-toast-hover`, `-toast-tooltip`, `-chat-hover`, `-chat-own` (fabric),
+  `-editor-empty`, `-editor`, `-editor-crop`, `-editor-share`, `-editor-saved`, `-favorites`. "Copy picture" only with
+  `-Dtrsclient.autotest.clipboard=true` (it would overwrite the clipboard of the machine).
+
+## Touch mode (mobile engine)
+
+Only with `-Dtrs.touch=true` (set by the TRS mobile engine); the desktop never takes these paths. Logic in
+`common/core/touch`, per tree only `touch/TouchHooks` (client tick) and the bridges `screen/TrsUiScreen`, which hand
+every input to `UiScreen.input*`. Contract for engine and overlay: [`docs/touch-mode.md`](../docs/touch-mode.md).
+
+- TRS menus are drawn enlarged (`trs.touchScale`, `ScaledCanvas` fixes scissors per version); finger gestures in
+  `TouchGestures`: tap = click on release, drag = wheel steps with momentum (`TouchScroller`), long press = right
+  click or tooltip, drag targets (`Hits.addDrag`, `UiScreen#touchDirect`) get the raw pointer.
+- On-screen keyboard (`TouchKeyboard`): focused TRS text fields and vanilla chat/sign/anvil/book → link line
+  `keyboard.show|hide` (feature `keyboard`) + `config/trsclient/touch-state.json` + log line.
+- Fixed overlay keys F13 (TRS menu), F14 (emote wheel, stays open, finger slide + release), F15 (HUD editor).
+- HUD editor: finger drag, safe-area snapping (`trs.safeInsets`), "Touch layout" profile (`TouchLayout`).
+- Tests: `TouchTest` (scaling, momentum, safe area, gestures, keyboard, layout).
+
+## TRS Link & Kontowechsel
+
+**TRS Link** (`common/core/link`): one daemon thread „TRS-Link“ to the launcher on **127.0.0.1**.
+
+- Protocol 2: the launcher starts the game with the environment variable `TRS_CLIENT_LINK=2:<port>:<sid>:<key>`
+  (never on disk, never on the command line). Handshake: `hello {v:2,sid,nonce}` → `challenge {nonce,proof,features}`
+  – the mod checks the launcher's HMAC-SHA256 proof **before** it proves anything itself – → `auth {proof}` → state
+  lines. Requests `req {id,op}` / `res {id,ok,…}` (`accounts.list`, `accounts.session`, `accounts.add`,
+  `clips.enable`), push
+  `accountsChanged`. Access tokens arrive sealed (HMAC-SHA256 key stream + tag with a per-connection key). Test vectors
+  are shared with the launcher (`TrsLinkTest` ↔ `src-tauri/crates/core/src/link/proto.rs`).
+- Protocol 1 (older launchers): hello with the token from `clips.json`, clips only.
+
+**Accounts** (`common/core/account`, UI `common/core/ui/account/AccountsUi`):
+
+- `AccountManager` (thread „TRS-Accounts“): started by the TRS Launcher → the launcher's accounts over the link;
+  otherwise the startup account plus accounts added in game (`MsAuth`: browser + PKCE on a loopback port or device
+  code, own Azure app only; `AccountVault` = `config/trsclient/accounts.json`, refresh tokens encrypted by `SecretBox`:
+  DPAPI via JNA reflection on Windows, else AES-GCM with a key file in the user folder). Access tokens stay in memory.
+  Switching only without a world; `prepare` (network, account thread) + `apply` (game thread).
+- Mojmap trees: `online/SessionSwap` (identical file) swaps `User` and everything built from the token – profile
+  properties (≤ 1.20.1) / `profileFuture` (1.20.2+), `UserApiService`/`SocialInteractionsService`, `userPropertiesFuture`
+  (1.20.3+), `PlayerSocialManager` (+ friend list 26.2+), `ProfileKeyPairManager` (chat signing, 1.19+),
+  `ReportingContext` (1.19.1+), `ClientTelemetryManager` (1.19.3+), Realms client/`RealmsDataFetcher` (1.19.1+) and the
+  `RealmsAvailability` cache (1.20.2+). Final fields are assigned by reflection over their **type** (names are
+  obfuscated); authlib is called by name. Legacy trees (1.7.10–1.13.2): `core/account/LegacySessionSwap` swaps the
+  `Session` and the profile properties, run from the client tick.
+- Entry points: `screen/AccountsScreen.create(parent)` (all trees), `MenuHost/TitleHost.openAccounts()`, rail entry
+  „Konten“ in the TRS menu.
+- Autotest `-PtrsAutotestOnly=accounts` (fabric, legacy) with the launcher attrappe (`TRS_CLIENT_LINK` from a mock):
+  screenshots `accounts`, `accounts-switched`, `menu-accounts`.
+
+**Wardrobe + skin editor** (`common/core/wardrobe` logic, `common/core/ui/wardrobe` UI):
+
+- `WardrobeService` (thread „TRS-Garderobe“, immutable `State` for the UI): skin library per account in
+  `config/trsclient/wardrobe/<uuid>/` (`SkinLibrary` index + PNGs, offline changes marked and synced later), the
+  `wardrobe` sync document (`WardrobeDoc`: favourites, outfits, emote wheel slots; last writer wins, `409 stale` takes
+  the server state), TRS sync of "My skins" (`WardrobeApi`, API.md §17; PATCH is not possible with `HttpURLConnection`,
+  renames are a PUT), read-only view of the TRS Launcher library (`LauncherLibrary`: `<launcher>/skins/library.json`
+  when the game dir is `<launcher>/instances/<id>/minecraft`), Mojang skin upload / cape select (`MojangServices`,
+  session token from `AccountManager.currentSession()`), imports by file (`FileChooser`: LWJGL TinyFD 1.15.2–26.2 →
+  AWT → OS dialog via PowerShell/zenity/kdialog/osascript), by URL (`SafeFetch`: https only, one DNS lookup with every
+  address checked, pinned IP, redirects re-checked, ≤ 128 KB) and by player name.
+- Editor: `SkinEditor` (tools, mirror via `SkinLayout.mirror`, fill per cube face, undo/redo per stroke, templates),
+  `SkinModel.pick` (texel under the cursor on the 3D figure) and `SkinModelSpec.pose` (emote preview via `EmoteRig`).
+- Entry points: `screen/WardrobeScreen.create(parent)` (all trees; 1.7.10/1.13.2 without TRS features),
+  `TitleHost/MenuHost.openWardrobe()`, rail entry „Garderobe“, key `key.trsclient.wardrobe` (unbound).
+- Autotest `-PtrsAutotestOnly=wardrobe` (fabric, legacy): no world, screenshots `wardrobe`, `-outfits`, `-capes`,
+  `-emotes`, `-add`, `-editor`, `menu-wardrobe`, then quits.
+
+## Umhang-Physik
+
+`core/cape/ClothSim` is a verlet cloth (10 × 16 cells near, 5 × 8 further away) in the player's body frame
+(x left, y down, z back, in model pixels), pinned at the shoulders. Free points keep their momentum in the world: when
+the body moves or turns, they are shifted/rotated the opposite way (spread over 4 sub-steps per tick), so the cape
+trails when starting to run, swings when turning and flutters when jumping or falling (vertical inertia damped, it never
+rises more than 2 px above the shoulders). Gravity is tilted with the torso when sneaking, quadratic air drag (*Wind*)
+lifts it when running, the body and legs are a half-space it cannot enter (the leg that swings back pushes it out),
+and long-range tethers keep it from stretching. It is simulated in the client tick and drawn interpolated.
+
+Level of detail (`CapePhysics`, *Detailstufe* hoch): own player always fine, others fine up to 16 blocks (at most 8),
+coarse up to 40 blocks, at most 24 simulated capes; everyone else keeps the rigid vanilla cape (mittel/niedrig: smaller
+grids, 12/8 and 32/24 blocks, 16/10 capes).
+
+The settings live in `core/cape/CapeSettings` and map onto `ClothSim.Params`: *Wind* switches the flutter/sway
+(Wellen) and adds gusts (Böen: smooth pseudo-random `gust(t)` per player phase that lifts the hem even while
+standing), *Bewegung* sets inertia, turn inertia, damping and wave speed (Vanilla = follows the body closely,
+Dungeons = heavily damped, slow waves, lighter and floatier), *Schwerkraft* scales gravity, *Anhebung beim Laufen*
+scales the quadratic air drag, *Steifheit* scales the bend/shear constraints. *Blockig* simulates one column of
+16 strips and `ClothMesh#emitBlocky` draws every strip as its own flat box with a flat normal, so bends show as
+vanilla-like steps.
+
+The live preview (`MenuHost#drawPlayerPreview`) draws the own player turned around the vertical axis: an own copy of
+`renderEntityInInventory` up to 1.19.3, `InventoryScreen.renderEntityInInventory` with a rotation quaternion
+1.19.4–1.21.10, the extracted render state via `GuiGraphics#submitEntityRenderState` on 1.21.11 and
+`GuiGraphicsExtractor#entity` on 26.x (`online/PlayerPreview`, one file for the Mojmap trees), an own copy of
+`drawEntityOnScreen` with a pre-rotated GL matrix on Forge 1.8.9–1.12.2. While the preview is open the own cape is
+simulated as if walking every other 3 seconds.
+
+## Farben
+
+`core/render/ColorGrade` turns the sliders into one affine 3×4 colour matrix (brightness → contrast around mid grey
+→ saturation with Rec. 709 luma → temperature) plus a vibrance step, and holds the GLSL sources; `apply()` is the
+same maths on the CPU for the unit tests. The pass runs right after `GameRenderer#renderLevel` (world + hand drawn,
+no HUD/menu yet):
+
+- Fabric, NeoForge, Forge 1.15.2–26.3 (`mixin/ColorGradeMixin` + `render/ColorPass`, one file for the Mojmap trees):
+  own raw OpenGL pass – the main target's colour texture (`colorTextureId` ≤1.15, `getColorTextureId()` 1.16–1.21.4,
+  `GlTexture#glId()` from 1.21.5, `com.mojang.renderpearl` on 26.3) is copied into an own texture and written back
+  through an own program (GLSL 1.20 up to 1.16, 1.50 core from 1.17), own VAO/VBO and FBO. Every GL state it touches
+  is queried before and restored after, so Minecraft's state cache stays valid.
+- Forge 1.8.9–1.12.2 (`render/ColorPass`): an own `ShaderGroup` with the program
+  `assets/minecraft/shaders/program/trsclient_color` (before 1.11 programs must be in the minecraft namespace) and
+  vanilla `blit`, run from `RenderGameOverlayEvent.Pre` (ALL) or, with F1, at the end of the render tick. `ClothMesh` emits outer face, inner
+face and all four edges with the vanilla cape UVs (the fractions are the same for every HD scale).
+
+## Leistung (performance)
+
+All logic lives in `common/core/perf` (`Performance` = one object per client, `DynamicFps`, `FramePacer`, `FpsMeter`,
+`ParticleGate`, `Occlusion`, `PerfCheck`, `BoostPreset`, `UndoLog`, `GpuInfo`, `PerfCompat`, the menu page `PerfPanel`);
+the loaders only report the window state per frame and ask from their hooks. The Mojmap trees (Fabric, NeoForge, Forge)
+share `perf/PerfHooks`, `compat/PerfOptions` and the mixins `FramePaceMixin` (`Minecraft#runTick`), `ParticleLimitMixin`
+(`ParticleEngine#createParticle`/`add`), `EntityCullMixin` (`EntityRenderDispatcher#shouldRender`), `BlockEntityCullMixin`,
+`NameTagCullMixin`/`LivingNameTagCullMixin` (`shouldShowName`), `TextureAnimationMixin` (`TextureManager#tick`), `SkyMixin`,
+`StarsMixin`, `WeatherMixin` and `FogMixin` – all `require = 0` with full descriptors. Forge 1.8.9–1.12.2 uses
+`perf/LegacyPerf` (events, Forge `IRenderHandler` for sky/weather, `FogDensity`, particle lists found by type).
+
+**Other performance mods:** Sodium, Embeddium, Rubidium, OptiFine/OptiFabric, Sodium Extra, EntityCulling, Dynamic FPS,
+MoreCulling, Patcher, ImmediatelyFast, Nvidium, BadOptimizations, ModernFix, FerriteCore, Lithium, VintageFix, VanillaFix and
+FoamFix are detected. A mod that brings the same feature takes it over – the TRS variant stays off (on Fabric the world
+detail mixins are not even applied with OptiFabric/Sodium Extra) and the module page says "Übernimmt <Mod>". Missing
+recommended mods are only listed as a hint (the launcher can add them with its "FPS-Boost" preset).
+
+The performance modules are part of the HUD profiles (e.g. a "PvP" profile with *Hoch* and a "Aufnahme" profile with full
+details). Self-test: `runClient -PtrsAutotest -PtrsAutotestOnly=perf` builds a floating test scene (160 mobs in front of,
+behind and far beyond a wall, 300 chests, constant particles, rain), measures the FPS without the category and after
+*Hoch*, checks Dynamic FPS with a faked background window and undoes everything.
+
+## Menu, HUD editor and profiles
+
+The menu (Right Shift) shows every module as a tile with icon, full name (two lines if needed) and switch in a 2–4
+column grid that grows with the window: a search field, the category tabs **HUD / PvP / Chat / Welt / Redstone / Leistung / Sonstiges** (tabs without a module in this version are hidden),
+and a click on a tile (or its gear) opens that module's settings page. Settings are typed and drawn by the same code
+everywhere: switch, slider, colour picker (hue/saturation field, opacity and **Chroma**, plus the brand palette),
+dropdown and key binding.
+
+Everything is drawn in the **redstone style** (`core/ui/Redstone`): deepslate surfaces with pixel edges, redstone
+dust lines whose signal strength fades, lamps that light up (hover, focus, primary buttons), enabled tiles glow like
+powered blocks; the launcher accent tints dust and glow. The title screen lives in `core/ui/title` (`TitleUi` +
+`CircuitScene`, per version only a small `TitleHost`); its background is a procedural circuit (torches, dust,
+repeaters with their delay, lamps, pistons) that is rebuilt only when the window size changes and switches itself to
+a sparser version if drawing it gets expensive (always sparse on Forge 1.8.9–1.12.2). On 1.20–1.21.1 the TRS screens
+draw inside `GuiGraphics#drawManaged`, otherwise every rectangle would be a draw call of its own.
+
+**HUD bearbeiten** drags the modules around: they snap to the screen edges, the screen centre and to the edges and
+centres of the other modules, and the guide line that is being used lights up. Holding Shift moves freely, the mouse
+wheel changes the size and a right click resets a module. A click selects a module and opens a small panel with size,
+background opacity, text shadow, text colour (with chroma) and **Zurücksetzen**.
+
+### Einstellungs-Typen für neue Module
+
+A setting is one of `BoolSetting`, `NumberSetting`, `ColorSetting`, `ChoiceSetting`, `KeySetting` and – new –
+**`TextSetting`** (free text such as the Auto-GG message; stored in the `texts` map of `ModuleConfig`).
+`SettingsPanel` draws it as an inline field: a click opens it, typing writes straight into the setting
+(`typeChar`/`typeKey`, routed from `ModMenu`). Module keys (waypoints, text hotkeys) are `KeySetting`s and are
+read with `core.input.KeyPresses` + `compat.Keys#isDown`, so they need no vanilla key binding.
+
+Positions are stored as anchor + offset relative to the screen size, so they survive resolution/GUI-scale changes.
+
+**HUD profiles** are complete HUD layouts (e.g. PvP, Bauen, Aufnahme): a profile keeps on/off, position, size and
+look of every HUD module, while the other modules stay shared. Profiles are created, renamed, deleted and switched
+under **Profile** in the menu or in the editor's top bar; the key *HUD-Profil wechseln* (unbound by default) cycles
+through them in game.
+
+The colours come from the launcher: before a start it writes `config/trsclient/launcher-theme.json` (theme and accent)
+into the instance, and the menu and the editor use that accent. Without the file the dark theme with Redstone red applies.
+
+## Keys
+
+Listed under **TRS Client** in the vanilla controls menu.
+
+| Key | Action |
+| --- | --- |
+| Right Shift | Open the TRS menu |
+| V (hold) | Zoom (V is free in every vanilla version; C is "save hotbar activator" from 1.12 on) |
+| Left Alt (hold/toggle) | Freelook (module must be enabled) |
+| unbound | Toggle Fullbright (also switchable in the menu) |
+| unbound | Switch the HUD profile (cycles) |
+| G (hold) | Emote wheel (release to play; tap = click mode) |
+| F6 (Forge 1.7.10/1.8.9: F8) | Toggle the redstone signal overlay |
+| F9 | Save a clip (TRS Launcher records; F9/F10 are free in every vanilla version – ShadowPlay uses Alt+F9/Alt+F10) |
+| F10 | Start/stop a recording |
+
+The waypoint keys (**B** create, **N** list) and the four text hotkeys are settings of their modules and are
+rebound in the TRS menu, not in the vanilla controls screen. Zoom and freelook are vanilla bindings: their *Taste*
+row in the TRS menu is linked to the same binding (`KeySetting.link`, stored in `options.txt`), so both places show
+and change one key.
+
+
+## Languages
+
+The whole client (menu, modules, settings, HUD texts, title screen, HUD editor, profiles, packs, waypoints, chat
+messages, key binding names) is translated like the launcher: **English** (default and fallback), **German** and
+**Spanish** complete, **French, Polish, Portuguese (Brazil), Turkish, Dutch** as beta (machine quality).
+
+- Source of truth: flat UTF-8 JSON files `common/src/main/resources/assets/trsclient/i18n/<code>.json`, bundled into
+  every jar (all builds add `common/src/main/resources`). Placeholders are `{0}`, `{1}` …
+- `core/i18n/I18n`: one merged table per language (English + language), lookup is a single map access; module and
+  setting labels cache their text per language (`I18n.generation()`), so drawing a frame allocates nothing extra.
+  Missing key → English → the key itself.
+- Language: `"language"` in `config/trsclient/launcher-theme.json` (written by the launcher before every start);
+  without it the language selected in Minecraft (`lang:` in `options.txt`, all regional variants such as `es_mx`,
+  `de_at`, `fr_ca` map to the base language), otherwise English. Both files are re-checked (timestamps only) when the
+  TRS menu or the title screen opens.
+- Key binding names/category for the vanilla controls screen come from Minecraft's own lang files
+  (`assets/trsclient/lang/*.json`, `.lang` for Forge 1.7.10–1.12.2; `legacy` renames them to `xx_XX.lang` below 1.11).
+  They are generated from the i18n files: `node client-mod/scripts/gen-lang.mjs` (after changing a `key.trsclient.*`
+  text).
+- Tests: `I18nTest` (every language has all keys of English – the coverage is printed like in the launcher –,
+  placeholders match, every key used in the code of all loader trees exists, fallback, language detection) and
+  `TextFitTest` (names fit the menu tiles, rail, title buttons and the HUD-editor panel in the default 854×480
+  window, measured with Minecraft's glyph widths; beta languages are only reported).
+
+## Redstone-Werkzeuge
+
+Category **Redstone** in the menu. The logic is version independent in `common/core/redstone`: `RedstoneTools`
+(one call per client tick), `RedstoneReadout` (what the panel shows), `ComparatorMath` (container signal
+`⌊fill·14⌋+1`, compare/subtract, rear input through a solid block, comparator chains), `FrequencyMeter` (rising
+edges → Hz/period, averaged pulse length, 200-tick history), `SignalCache` + `LineOfSight` (overlay), `SignalColors`,
+`RedstonePanels`/`SignalOverlay` (drawn through `Canvas`, the overlay with the same own projection as the waypoints –
+no world rendering, no mixin). Per loader only a small adapter `compat/RedstoneProbe` (`RedstoneWorld`: probe a block,
+dust power, vanilla `getSignal`/direct signal, comparator input override, conductor/opaque) and `hud/RedstoneHuds`:
+one identical file for the Mojmap trees (1.14.4–26.3; the only branch is `getAnalogOutputSignal` with a direction from
+1.21.9), block IDs + state property names for Forge 1.8.9–1.12.2, block + metadata for 1.7.10, MCP names for 1.13.2.
+Fair on every server: only block states the client already has are read, nothing is sent.
+
+## Fair play
+
+The client never automates anything and never shows more than the game already knows:
+reach/combo/speed only *display* what happened, hitboxes and the block outline are the vanilla
+shapes (only colour/width change), the minimap reads loaded chunks only (no cave mode, no
+entity radar; player dots are off by default), Auto-GG and text hotkeys are off by default and
+rate limited so they can never flood a chat. Freelook and Auto-GG are forbidden on some servers –
+they stay off until you turn them on, and freelook has its own server list on which it switches itself off.
+Freelook never turns the player (no extra rotation packets), the fly boost only works in creative flight.
+
+The logic of the comfort modules is version independent in `common`: `core/input/MovementToggles` (toggle state
+machine, death/world reset, fly boost via `FlyBoost`, HUD status `ToggleStatus`), `core/camera/FreelookState`
+(hold/toggle, pitch clamp, perspective) + `ServerList`, `core/zoom/ZoomState#frame` (curve `1 - e^(-14·t)`,
+spyglass, proportional mouse) and `core/util/FlagOverride` (cinematic camera). Per loader only the key state,
+the camera/FOV hooks that already existed and the fly speed are touched.
+
+Configs written before the key moved are migrated once: if zoom is still on the old default C, it moves to V –
+a key the player bound themselves is never touched.
+
+## Supported versions
+
+1.14.4, 1.15.2, 1.16.2–1.16.5, 1.17, 1.17.1, 1.18–1.18.2, 1.19–1.19.4, 1.20.1–1.20.6, 1.21–1.21.11,
+26.1, 26.1.1, 26.1.2, 26.2, 26.3 (checked against Mojang's version manifest and meta.fabricmc.net).
+
+Not built: 1.14–1.14.3 (no official Mojang mappings), 1.15, 1.15.1 and 1.16 (their newest Fabric API on Modrinth,
+which the launcher installs, has no `fabric-lifecycle-events-v1`) and 1.16.1 (rendering/text API predates 1.16.2).
+On older versions some features degrade: 1.14 has no hit color, the pack search hint is a suggestion text before 1.19.3,
+vanilla toggle sprint/sneak only exists from 1.15.
+
+### What is missing where
+
+| Feature | Not available on | Why |
+| --- | --- | --- |
+| Niedriges Feuer, Block-Umrandung, Hitbox-Farbe | Fabric 1.14.4 | no `ScreenEffectRenderer`, the outline is drawn with fixed GL calls |
+| Linienstärke der Umrandung | Fabric/Forge 1.14.4 and 1.21.11+ | `RenderSystem.lineWidth` does not exist there |
+| Hitboxen (an/aus + Farbe) | 1.21.9+ | the toggle moved into the debug-screen entries and a separate renderer |
+| Hitbox-**Farbe** | Forge 1.15.2–1.16.5 | there `renderHitbox` only routes the eye line through `renderLineBox`, the box itself goes through a private method |
+| 1.7-Animationen: Schlag beim Benutzen | 26.3 | the swing state is no longer a public field |
+| 1.7-Animationen: Hand bleibt oben | Forge 1.8.9–1.12.2 | `ItemRenderer.equippedProgress` is private and there is no hook |
+| Wegpunkte je Dimension | 1.14.4, 1.15.2 | no `Level#dimension()`; waypoints are then valid in every dimension of that world |
+| Treffer-Farbe, niedriges Feuer, Reichweite/Combo, Chat-Tools, Auto-GG, Kein Schadens-Wackeln, Block-Umrandung | Forge 1.14.4 | that build has no Mixin at all – the modules are hidden in the menu |
+| TRS-Startbildschirm | Forge 1.13.2 and 1.7.10 | not ported – the vanilla title screen stays; the menu has the redstone style there too |
+| Alle neuen Module | Forge 1.13.2 and 1.7.10 | not ported yet (see "Open") |
+| Freelook | Forge 1.7.10, 1.13.2, 1.14.4 | no camera hook (no Mixin there) – hidden in the menu; zoom and toggle sprint/sneak incl. fly boost work |
+| TRS-Online-Funktionen, Umhang-Physik | Forge 1.13.2 and 1.7.10 | not ported – hidden in the menu |
+| Umhang-Physik (incl. settings and live preview) | Fabric/Forge 1.14.4 | the cape is still drawn with fixed GL calls there – the cape stays rigid (TRS capes and badges work on Fabric 1.14.4) |
+| TRS-Umhang, TRS-Abzeichen | Forge 1.14.4 | no Mixin in that build – only login and presence |
+| Emotes | Forge 1.14.4, 1.13.2 and 1.7.10 | no model hook there (no Mixin / not ported) – hidden in the menu |
+| Farben | Forge 1.14.4, 1.13.2 and 1.7.10 | no hook after the world pass (no Mixin / not ported) – hidden in the menu |
+| Farben | 26.2+ with the Vulkan backend | the pass is OpenGL; with Vulkan there is no GL texture – hidden in the menu (OpenGL is the default) |
+| Abzeichen als Pixel-Redstone-Block | 1.14.4, 1.15.2, Forge 1.8.9–1.12.2 | no per-text font – a dark red `■` instead |
+| TRS-Umhang über OptiFine | Forge 1.8.9–1.12.2 with OptiFine | OptiFine's own cape getter wins there |
+| Signalstärke: Türen, Falltüren, Zauntore, Notenblöcke | Forge 1.7.10 | no "powered" bit in their metadata – not recognised as components |
+| Signal-Overlay: FOV of sprint/speed | Forge 1.7.10 | the FOV modifier is private there – numbers sit slightly off while sprinting |
+| Leistung: Sterne einzeln, Block-Entity-/Item-/Rahmen-Distanz, Partikel-Menge | Forge 1.8.9–1.12.2 | no hook without mixins (sky off still hides the stars) – listed as "nicht verfügbar" on the module page |
+| Leistung: Nebel aus | Fabric/Forge 1.14.4–1.16.5 and 1.21.6+ | fixed GL fog before 1.17, fog values in a GPU buffer from 1.21.6 |
+| Leistung: Regen/Schnee aus | Fabric 1.14.4 | weather is still drawn in the GameRenderer there |
+| Leistung: leiser im Hintergrund | 1.21.9, 1.21.10 | master volume only through the option itself there |
+| Leistung (Culling, Partikel, Welt-Details) | Forge 1.14.4 | no Mixin – only Dynamic FPS and FPS-Boost |
+| Leistung (ganze Kategorie) | Forge 1.13.2 and 1.7.10 | not ported – hidden |
+| Screenshot-Werkzeuge: Chat-Aktionen, Bild über der Chatzeile | Fabric/Forge 1.14.4–1.15.2, Forge 1.13.2 and 1.7.10 | no style insertion hook (<1.16) / not ported; preview, editor, favourites work |
+| Screenshot-Vorschau: Klick | Forge 1.14.4 | no Mixin – the preview shows, open the editor from Clips & Images |
+| Screenshot-Werkzeuge: Link kopieren, An Freunde senden | Forge 1.13.2 and 1.7.10 | no TRS Online there – buttons say "not available in this version" |
+| Bewegungsunschärfe | all | not implemented (see "Open") – copying the frame needs a different path per render era |
+
+### Open
+
+- **Bewegungsunschärfe** (motion blur): needs a copy of the previous frame. Up to 1.21.4 that is a framebuffer
+  blit, from 1.21.5 it goes through the new `GpuDevice`/`CommandEncoder` and in 26.x again differently, so it needs
+  three separate implementations; vanilla's own `phosphor` post effect only exists up to 1.20.6. Not built yet.
+- **Forge 1.13.2 and 1.7.10**: the new modules are not ported. Both builds still compile and run with everything
+  that existed before.
+
+Each version gets its **own jar** whose `fabric.mod.json` depends on exactly that Minecraft version
+(`trsclient-fabric-<minecraft>.jar`, requires the Fabric API modules it uses). Bytecode: Java 8 for 1.14–1.16,
+16 for 1.17, 17 for 1.18–1.20.4, 21 for 1.20.5–1.21.11, 25 for 26.x. `common` is plain Java 8 for that reason.
+
+## Build
+
+Requires a JDK 21+ to run Gradle (Gradle toolchains download JDK 17/21/25 for compiling/running if missing).
+
+```sh
+./gradlew build                      # builds every version + runs the unit tests of common/
+./gradlew collectLauncherJars        # builds everything, writes dist/*.jar + dist/builds.json for the launcher
+./gradlew :fabric:1.21.1:build       # a single version
+./gradlew -PtrsVersions=1.21.11 :fabric:1.21.11:compileJava   # set up only these versions (+ 1.21.1) – fast, used by the CI
+./gradlew :fabric:1.21.1:runClient   # starts that Minecraft version with the mod (game dir: client-mod/run)
+./gradlew :fabric:26.3:runClient -PtrsAutotest   # self-test: menu, test world, screenshots, quits
+./gradlew :fabric:1.21.11:runProdClient -PtrsAutotest -PtrsAutotestOnly=comfort   # same, but like a player's instance
+```
+
+Self-test screenshots: `run/screenshots/trsclient-<minecraft>-*.png` (one test world per version).
+
+`runProdClient` starts the real (not dev-mapped) game with Fabric Loader, the finished mod jar exactly as the
+launcher installs it (built-in optimization mods nested unchanged) and the full Fabric API – game dir
+`run/prod-<minecraft>`. Use it when something might only break (or only work) outside the dev environment.
+In `runClient` Loom strips the jar-in-jar list of the built-in mods; the build puts their nested jars (e.g. Reflect
+inside ImmediatelyFast) on the dev classpath itself, otherwise maps crash there with
+`NoClassDefFoundError: net/lenni0451/reflect/Objects`.
+
+### Launcher contract: `dist/`
+
+`collectLauncherJars` writes (git-ignored) `dist/trsclient-fabric-<minecraft>.jar` and `dist/builds.json`:
+
+```json
+[{ "loader": "fabric", "minecraft": ["1.21.1"], "file": "trsclient-fabric-1.21.1.jar", "requires": ["fabric-api"] }, ...]
+```
+
+`minecraft` lists every exact game version the jar supports. Entries of other projects/loaders already present
+in `builds.json` are kept (only Fabric entries for the built versions are replaced).
+
+### Publishing (update channel)
+
+The launcher updates the TRS Client on its own, without a launcher release: it polls the GitHub release
+`client-mod` (at start and at most every 30 minutes before a game starts), verifies the signed
+`client-mod.json` and downloads only the jar an instance needs. To ship a new version:
+
+```sh
+node scripts/publish-client-mod.mjs --bump patch   # raises mod_version in every gradle.properties
+# rebuild: collectLauncherJars in each project, one after another (they share dist/)
+node scripts/publish-client-mod.mjs --dry-run      # writes + signs + verifies dist/channel/client-mod.json
+node scripts/publish-client-mod.mjs                # the same, then uploads to the client-mod release
+```
+
+The manifest is `{ "version": "0.3.0", "builds": [{ loader, minecraft[], file, requires[], sha256, size }] }`,
+signed with the Tauri updater key (`tauri signer sign`). The same file, unsigned, plus the jars are written to
+`src-tauri/resources/client-mod/`, so the next launcher release bundles that state (commit it). Launchers only
+accept a channel version that is newer than the bundled one.
+
+## Adding modules and settings
+
+New modules are registered in `common` (`core/module/TrsModules`) and rendered per version; the menu picks them up
+automatically. The API for that:
+
+| Piece | What it does |
+| --- | --- |
+| `registry.register(new Module(id, name, description, defaultOn))` | a module; `.category(Category.PVP)` and `.icon("sword")` set its tab and tile icon (icons: `core/ui/Icons`) |
+| `new HudModule(id, name, description, defaultOn, position)` | a module drawn in the HUD; brings text colour, text shadow, background, background opacity and size |
+| `module.add(new BoolSetting(key, label, default))` | switch |
+| `… new NumberSetting(key, label, default, min, max, step, prefix[, suffix])` | slider |
+| `… new ColorSetting(key, label, defaultArgb[, alphaEditable])` | colour picker; `argb()` already includes chroma |
+| `… new ChoiceSetting<>(key, label, EnumType.class, default)` | dropdown (enum implements `ChoiceSetting.Option`) |
+| `… new KeySetting(key, label[, "key.keyboard.v"])` | key binding, stored as the version-neutral vanilla key name |
+
+Names and labels in the code are only English fallbacks: every module, setting and choice option also needs its
+translation keys (`module.<id>`, `module.<id>.desc`, `setting.<module>.<key>`, `setting.<module>.<key>.<option>`,
+text placeholders `….hint`) in the language files – see "Languages" below. `I18nTest` fails if a key is missing.
+
+The version-specific side only implements `core/ui/Canvas` (see `ui/GfxCanvas`) and `core/ui/menu/MenuHost`
+(open screens, sounds, key names, HUD elements for the editor); menu, settings pages, profiles and the HUD editor
+live in `core/ui` and are shared by every loader and Minecraft version.
+
+## Layout
+
+```
+common/                   version-independent Java (modules, settings, config, HUD layout math, CPS, zoom,
+                          the whole interface in core/ui) + unit tests
+fabric/                   Minecraft code, ONE source tree for all versions (Stonecutter)
+  src/                    sources, checked in for the 1.21.1 state
+  versions/<mc>/          per-version gradle.properties (Fabric API version) + build output
+  build.gradle            build script run for every version (Loom, Java level, dependencies)
+  stonecutter.gradle      Stonecutter controller + collectLauncherJars
+```
+
+### Multi-version with Stonecutter
+
+[Stonecutter](https://stonecutter.kikugie.dev/) preprocesses `fabric/src` per version. Differences are written as
+comments that Stonecutter toggles:
+
+```java
+//? if >=1.21.6 {
+/*g.pose().pushMatrix();
+*///?} else
+g.pose().pushPose();
+```
+
+The version-specific code is kept in a few places:
+
+- `ui/Gfx` – drawing (GuiGraphics → GuiGraphicsExtractor in 26.1, PoseStack → Matrix3x2fStack in 1.21.6)
+- `compat/Mc` – screen/overlay/HUD access (moved to `Minecraft.gui` in 26.2)
+- screens – render/input entry points (input events changed in 1.21.9, scroll in 1.20.2) delegate to shared logic
+- mixins – FOV (`GameRenderer#getFov`, double until 1.21.1, float after; `Camera#calculateFov` in 26.x),
+  lightmap (`LightTexture` → `LightmapRenderStateExtractor` in 26.x), mouse (`onPress` → `onButton` in 1.21.9)
+- HUD registration – `HudRenderCallback` until 1.21.5, Fabric's `HudElementRegistry` from 1.21.6
+
+`common/src/main/java` is compiled into every version jar with that version's Java level.
+To edit code for another version in the IDE: `./gradlew "Set active project to 26.3"`, and switch back to 1.21.1
+before committing. Minecraft 26.x is not obfuscated, so those versions use Loom without remapping/mappings.
+
+Adding a version: add it to `settings.gradle` (`stonecutter { ... }`) and create `fabric/versions/<mc>/gradle.properties`
+with `fabric_api_version=...`.

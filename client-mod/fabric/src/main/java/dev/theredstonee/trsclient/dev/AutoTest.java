@@ -1,0 +1,1211 @@
+package dev.theredstonee.trsclient.dev;
+
+import dev.theredstonee.trsclient.compat.Mc;
+import dev.theredstonee.trsclient.TrsClient;
+import dev.theredstonee.trsclient.core.config.TrsConfig;
+import dev.theredstonee.trsclient.core.hud.Crosshair;
+import dev.theredstonee.trsclient.core.module.TrsModules;
+import dev.theredstonee.trsclient.screen.CrosshairEditorScreen;
+import dev.theredstonee.trsclient.screen.HudEditorScreen;
+import dev.theredstonee.trsclient.screen.PackScreen;
+import dev.theredstonee.trsclient.screen.TrsMenuScreen;
+import dev.theredstonee.trsclient.screen.TrsTitleScreen;
+import dev.theredstonee.trsclient.screen.WaypointListScreen;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.ServerList;
+import net.minecraft.client.tutorial.TutorialSteps;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.LevelSettings;
+//? if >=1.19.3 {
+import net.minecraft.world.level.WorldDataConfiguration;
+import net.minecraft.world.level.levelgen.WorldOptions;
+import net.minecraft.world.level.levelgen.presets.WorldPresets;
+//?} elif >=1.19 {
+/*import net.minecraft.core.RegistryAccess;
+import net.minecraft.world.level.DataPackConfig;
+import net.minecraft.world.level.levelgen.presets.WorldPresets;
+*///?} elif >=1.16 {
+/*import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.world.level.DataPackConfig;
+import net.minecraft.world.level.levelgen.WorldGenSettings;
+*///?} else
+/*import net.minecraft.world.level.LevelType;*/
+
+import java.util.function.Supplier;
+//? if >=1.21.11 && <26.1 {
+/*import net.minecraft.world.level.gamerules.GameRules;
+*///?} elif <1.21.11 && >=1.16
+import net.minecraft.world.level.GameRules;
+
+/**
+ * Entwickler-Selbsttest, nur aktiv mit {@code -Dtrsclient.autotest=true}
+ * ({@code ./gradlew :fabric:<version>:runClient -PtrsAutotest}): TRS-Startbildschirm und Menü, Testwelt laden,
+ * Screenshots von HUD (inkl. Rüstung/Effekte/Koordinaten/…, eigenes Fadenkreuz), Zoom, Nacht ohne/mit
+ * Fullbright, Treffer-Farbe, Freelook, Menü, Fadenkreuz-Editor, Resourcepacks und HUD-Editor, dann beenden.
+ * Screenshots landen in {@code run/screenshots/trsclient-<minecraft>-*.png}.
+ */
+public final class AutoTest {
+	/** Minecraft-Version für Dateinamen: Screenshots/Testwelten mehrerer Versionen kommen sich nicht in die Quere. */
+	static final String MC_VERSION = FabricLoader.getInstance().getModContainer("minecraft")
+			.map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("mc");
+	/** Eigene Testwelt je Version (kein Öffnen einer neueren Welt in einer älteren Version). */
+	private static final String WORLD = "trs-autotest-" + MC_VERSION;
+
+	private int step;
+	private int wait;
+	private int reopenCount;
+	/** Echte Eingaben (Klick, Taste): 0..2 laufen, 3 = fertig. */
+	private int inputPhase;
+	private boolean inputClick;
+	private int titlePhase;
+	private float sceneFrameMs;
+	private int titleScaleBefore;
+	private boolean figureTurned;
+	/** Modul-Zustand vor dem Test – wird am Ende wiederhergestellt (die Config bleibt sauber). */
+	private TrsConfig before;
+	/** Vom Test angelegter Wegpunkt – am Ende wieder entfernt. */
+	private dev.theredstonee.trsclient.core.waypoint.Waypoint testWaypoint;
+
+	private AutoTest() {
+	}
+
+	public static void installIfRequested() {
+		if (!Boolean.getBoolean("trsclient.autotest")) return;
+		// -PtrsAutotestOnly=realbench: nur der realistische Benchmark (eigener Ablauf, ohne Menü-Tests)
+		if (RealBenchRunner.installIfRequested()) return;
+		TrsClient.LOGGER.info("[Autotest] aktiv");
+		if ("accounts".equals(System.getProperty("trsclient.autotest.only"))) {
+			AccountsTest.install();
+			return;
+		}
+		if ("intro".equals(System.getProperty("trsclient.autotest.only"))) {
+			IntroTest.install();
+			return;
+		}
+		if ("wardrobe".equals(System.getProperty("trsclient.autotest.only"))) {
+			WardrobeTest.install();
+			return;
+		}
+		if ("menus".equals(System.getProperty("trsclient.autotest.only"))) {
+			MenusTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=winter: Design „Winternacht“ (Startbildschirm Nacht/Polarlicht/Pinguin/Tag, TRS-Menü, Laden, Pause)
+		if ("winter".equals(System.getProperty("trsclient.autotest.only"))) {
+			WinterTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=halloween: Halloween 2026 (Startbildschirm, Seite Halloween, Mondlauf, Spuk-Effekte, Jumpscares)
+		if ("halloween".equals(System.getProperty("trsclient.autotest.only"))) {
+			HalloweenTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=addserver: Formulare der Serverliste im breiten Fenster mit fremdem Eck-Knopf
+		if ("addserver".equals(System.getProperty("trsclient.autotest.only"))) {
+			MenusTest.installAddServer();
+			return;
+		}
+		// -PtrsAutotestOnly=typing: Tippen im TRS-Menü über echte Tastatur-Nachrichten (26.3: SDL-Texteingabe)
+		if ("typing".equals(System.getProperty("trsclient.autotest.only"))) {
+			TypingTest.install();
+			return;
+		}
+		if ("reload".equals(System.getProperty("trsclient.autotest.only"))) {
+			ReloadTest.install();
+			return;
+		}
+		if ("maps".equals(System.getProperty("trsclient.autotest.only"))) {
+			MapsTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=roof: Karten – Dach ausblenden (Innenansicht) und Barriere-Decken
+		if ("roof".equals(System.getProperty("trsclient.autotest.only"))) {
+			RoofMapTest.install();
+			return;
+		}
+		if ("social".equals(System.getProperty("trsclient.autotest.only"))) {
+			SocialTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=share: Wegpunkte teilen, Koordinaten im Chat, Bildschirmfoto als Link (gegen lokale API)
+		if ("share".equals(System.getProperty("trsclient.autotest.only"))) {
+			ShareTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=sanctions: „Meine Strafen“ + Einspruch (Moderation v2) gegen eine API-Attrappe
+		if ("sanctions".equals(System.getProperty("trsclient.autotest.only"))) {
+			SanctionsTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=hosting: Welt-Hosting mit zwei Spielen (Host/Gast, siehe HostingTest)
+		if ("hosting".equals(System.getProperty("trsclient.autotest.only"))) {
+			HostingTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=ping: Ping-Test der Serverliste, Ping-HUD auf einem Test-Server, niedrige Eingabeverzögerung
+		if ("ping".equals(System.getProperty("trsclient.autotest.only"))) {
+			PingTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=fastconnect: Schnell verbinden – Adressen-Rennen, Paket vorladen, Serverwechsel (lokale Server)
+		if ("fastconnect".equals(System.getProperty("trsclient.autotest.only"))) {
+			FastConnectTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=socialtoasts: nur Sozial-Toasts neben Vanilla-Toasts (Ausweichen) und über einem Menü
+		if ("socialtoasts".equals(System.getProperty("trsclient.autotest.only"))) {
+			SocialTest.installToasts();
+			return;
+		}
+		// -PtrsAutotestOnly=bugreport: „Bug melden“ – Formular, Vorschau, Senden an die Attrappe, Fehlerfall
+		if ("bugreport".equals(System.getProperty("trsclient.autotest.only"))) {
+			BugReportTest.install();
+			return;
+		}
+		AutoTest test = new AutoTest();
+		ClientTickEvents.END_CLIENT_TICK.register(test::tick);
+	}
+
+	private void tick(Minecraft mc) {
+		// Verliert das Fenster den Fokus oder drückt jemand Esc, öffnet Vanilla das Pausenmenü –
+		// für saubere Screenshots wieder schließen und hängende Tasten lösen.
+		if ((step >= 3 && step < 25 || step == 28 || step == 35 || step == 37) && Mc.screen() instanceof PauseScreen) {
+			Mc.setScreen(null);
+			KeyMapping.releaseAll();
+		}
+		if (wait > 0) {
+			wait--;
+			return;
+		}
+		TrsModules modules = TrsClient.get().modules();
+		switch (step) {
+			case 0:
+				if (Mc.overlay() != null || Mc.screen() == null) return; // Ressourcen laden noch
+				mc.options.pauseOnLostFocus = false;
+				//? if >=1.19.4
+				mc.options.onboardAccessibility = false;
+				before = modules.registry.capture();
+				modules.titleScreen.setEnabled(true);
+				mc.getTutorial().setStep(TutorialSteps.NONE);
+				seedServers(mc);
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm erreicht: {}", Mc.screen().getClass().getSimpleName());
+				if (!(Mc.screen() instanceof TrsTitleScreen)) Mc.setScreen(new TrsTitleScreen());
+				next(20);
+				break;
+			case 1:
+				// Zuerst echte Eingaben: Klick und Taste über Minecrafts Maus-/Tastatur-Verarbeitung.
+				if (inputPhase < 3) {
+					realInput(mc);
+					return;
+				}
+				if (!ensureScreen(TrsTitleScreen.class, TrsTitleScreen::new)) return;
+				if (titleStep(mc, (TrsTitleScreen) Mc.screen())) return;
+				Mc.setScreen(new TrsMenuScreen(Mc.screen()));
+				next(20);
+				break;
+			case 2:
+				shot(mc, "trsclient-menu-title");
+				Mc.setScreen(null);
+				startWorld(mc);
+				next(0);
+				break;
+			case 3:
+				if (mc.level == null || mc.player == null) return;
+				if (Mc.screen() != null) return; // Ladebildschirm
+				TrsClient.LOGGER.info("[Autotest] Welt geladen");
+				KeyMapping.releaseAll();
+				// Echte Rüstung/Effekte für die neuen HUD-Module
+				//? if >=1.17 {
+				command(mc, "item replace entity @p armor.head with iron_helmet");
+				command(mc, "item replace entity @p armor.chest with diamond_chestplate");
+				command(mc, "item replace entity @p armor.feet with golden_boots");
+				command(mc, "item replace entity @p weapon.mainhand with diamond_sword");
+				//?} else {
+				/*command(mc, "replaceitem entity @p armor.head iron_helmet");
+				command(mc, "replaceitem entity @p armor.chest diamond_chestplate");
+				command(mc, "replaceitem entity @p armor.feet golden_boots");
+				command(mc, "replaceitem entity @p weapon.mainhand diamond_sword");
+				command(mc, "difficulty peaceful");
+				*///?}
+				command(mc, "effect give @p speed 300 1 true");
+				command(mc, "effect give @p night_vision 120 0 true");
+				command(mc, "time set day");
+				for (dev.theredstonee.trsclient.core.module.Module m : new dev.theredstonee.trsclient.core.module.Module[]{modules.armor, modules.effects, modules.coords,
+						modules.clock, modules.memory, modules.packs, modules.toggleSprint, modules.crosshair}) {
+					m.setEnabled(true);
+				}
+				TrsClient.get().sprintToggle().set(true);
+				// Toggle-Schleichen nur für das HUD-Bild: beide Anzeigen "[… (umgeschaltet)]".
+				modules.toggleSneak.setEnabled(true);
+				TrsClient.get().sneakToggle().set(true);
+				modules.crosshairShape.set(Crosshair.Shape.CROSS_DOT);
+				modules.crosshairColor.set(0xFFB84D);
+				// Chat-Meldungen und Toasts der Befehle ausblenden lassen (Chat verblasst nach 10 s)
+				next(230);
+				break;
+			case 4:
+				// -PtrsAutotestOnly=redstone: nur den Redstone-Teil prüfen (schneller Durchlauf)
+				// -PtrsAutotestOnly=clips: nur Clips (F9/F10, mit Launcher-Attrappe auch „Clips einschalten“)
+				if ("redstone".equals(System.getProperty("trsclient.autotest.only"))
+						|| "perf".equals(System.getProperty("trsclient.autotest.only"))
+						|| "clips".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 22;
+					break;
+				}
+				// -PtrsAutotestOnly=cape: nur TRS-Umhang, Vanilla-Elytra (trotz TRS-Umhang) und Abzeichen (braucht -PtrsApi mit Umhang-Attrappe)
+				if ("cape".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 21;
+					break;
+				}
+				// -PtrsAutotestOnly=capecolor: nur Umhang-Einstellungen/Vorschau und Farben
+				if ("capecolor".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 23;
+					break;
+				}
+				// -PtrsAutotestOnly=shield: nur die Schild-Position (Seitlich, Vanilla, Blocken, durchsichtig, Menü)
+				if ("shield".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 28;
+					break;
+				}
+				// -PtrsAutotestOnly=qol: Komfort & PvP (Chat, Zähler, Warnungen, Hitmarker, Titel, Scoreboard, Streamer, Reconnect)
+				if ("qol".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 30;
+					break;
+				}
+				// -PtrsAutotestOnly=comfort: Tooltips, Server-Profil, Panorama (Komfort-Paket 2)
+				if ("comfort".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 31;
+					break;
+				}
+				// -PtrsAutotestOnly=circuits: Schaltungs-Bibliothek (Liste, Vorschau, Geisterblöcke, Platzieren)
+				if ("circuits".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 32;
+					break;
+				}
+				// -PtrsAutotestOnly=screenshots: Screenshot-Werkzeuge (Vorschau, Chat, Editor, Favoriten)
+				if ("screenshots".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 35;
+					break;
+				}
+				// -PtrsAutotestOnly=keysearch: Suche in der Tastenbelegung
+				if ("keysearch".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 33;
+					break;
+				}
+				// -PtrsAutotestOnly=disconnect: Fehlerbildschirm (Neu anmelden, kopieren, Server-Status)
+				if ("disconnect".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 34;
+					break;
+				}
+				// -PtrsAutotestOnly=notes: Notizen je Welt (HUD, Liste, Lesen, Bearbeiten, Suche, Koordinaten, Wegpunkt, Karte)
+				if ("notes".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 36;
+					break;
+				}
+				// -PtrsAutotestOnly=cosmetics2: Kopf-Kosmetik v2 (braucht -PtrsApi mit scratchpad/cos2mod/mock-api.mjs)
+				// -PtrsAutotestOnly=crowntime: nur die Redstone-Krone – Bildfolge alle 100 ms + Protokoll der Leucht-Bilder (3 s)
+				if ("cosmetics2".equals(System.getProperty("trsclient.autotest.only"))
+						|| "crowntime".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 37;
+					break;
+				}
+				// -PtrsAutotestOnly=hunger: Hunger-Anzeige (Vorschau mit Essen, Sättigung, Erschöpfung)
+				if ("hunger".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 38;
+					break;
+				}
+				// -PtrsAutotestOnly=creator: Fan-Symbole + Creator-Sterne (braucht -PtrsApi mit scripts/mock-creator-api.mjs)
+				if ("creator".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 40;
+					break;
+				}
+				// -PtrsAutotestOnly=cinematic: Kamera-Fahrt (Keyframes, Abspielen, HUD, Kamera)
+				if ("cinematic".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 41;
+					break;
+				}
+				// -PtrsAutotestOnly=freecam: freie Kamera (Fair Play an Stein, durch Glas/Tür, ohne Fair Play durch Stein)
+				if ("freecam".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 42;
+					break;
+				}
+				// -PtrsAutotestOnly=chatheads: Köpfe vor ein paar Chat-Zeilen
+				if ("chatheads".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 39;
+					break;
+				}
+				// -PtrsAutotestOnly=gammarefill: Gamma (dunkel/300 %/1000 %, Hinweis) und Automatisch nachlegen (Block, Werkzeug)
+				if ("gammarefill".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 43;
+					break;
+				}
+				// -PtrsAutotestOnly=duck: nur die Quietscheente (braucht -PtrsApi mit Enten-Attrappe)
+				if ("duck".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 29;
+					break;
+				}
+				// -PtrsAutotestOnly=bench: nur der FPS-Benchmark (Durchschnitt und 1 %-Low)
+				if ("bench".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 27;
+					break;
+				}
+				shot(mc, "trsclient-hud");
+				TrsClient.LOGGER.info("[Autotest] Toggle-Anzeige: {} {}", TrsClient.get().pvp().toggles().sprintStatus().text(),
+						TrsClient.get().pvp().toggles().sneakStatus().text());
+				TrsClient.get().sneakToggle().set(false);
+				TrsClient.get().setForceZoom(true);
+				next(30);
+				break;
+			case 5:
+				shot(mc, "trsclient-zoom");
+				TrsClient.get().setForceZoom(false);
+				command(mc, "effect clear @p night_vision");
+				command(mc, "time set midnight");
+				modules.fullbright.setEnabled(false);
+				next(40);
+				break;
+			case 6:
+				shot(mc, "trsclient-night");
+				modules.fullbright.setEnabled(true);
+				next(20);
+				break;
+			case 7:
+				shot(mc, "trsclient-fullbright");
+				modules.fullbright.setEnabled(false);
+				// Treffer-Farbe: Schwein vor den Spieler setzen (friedlich → keine Monster) und treffen
+				modules.hitColor.setEnabled(true);
+				command(mc, "time set day");
+				command(mc, "execute at @p rotated ~ 0 run summon pig ^ ^ ^3 {NoAI:1b,Invulnerable:0b}");
+				next(30);
+				break;
+			case 8:
+				//? if >=1.19.4 {
+				command(mc, "damage @e[type=pig,limit=1,sort=nearest] 1");
+				//?} else
+				//command(mc, "effect give @e[type=pig,limit=1,sort=nearest] instant_damage 1 0 true");
+				next(2);
+				break;
+			case 9:
+				shot(mc, "trsclient-hitcolor");
+				TrsClient.get().pvp().forceFreelook(150F);
+				next(20);
+				break;
+			case 10:
+				shot(mc, "trsclient-freelook");
+				TrsClient.get().pvp().forceFreelook(Float.NaN);
+				Mc.setScreen(new TrsMenuScreen(null).select(modules.freelook));
+				next(20);
+				break;
+			case 11:
+				if (!ensureScreen(TrsMenuScreen.class, () -> new TrsMenuScreen(null).select(modules.freelook))) return;
+				shot(mc, "trsclient-menu");
+				Mc.setScreen(new CrosshairEditorScreen(null));
+				next(20);
+				break;
+			case 12:
+				if (!ensureScreen(CrosshairEditorScreen.class, () -> new CrosshairEditorScreen(null))) return;
+				shot(mc, "trsclient-crosshair-editor");
+				Mc.setScreen(new PackScreen(null));
+				next(20);
+				break;
+			case 13:
+				if (!ensureScreen(PackScreen.class, () -> new PackScreen(null))) return;
+				shot(mc, "trsclient-packs");
+				Mc.setScreen(new TrsMenuScreen(null).showProfiles());
+				next(20);
+				break;
+			case 14:
+				if (!ensureScreen(TrsMenuScreen.class, () -> new TrsMenuScreen(null).showProfiles())) return;
+				shot(mc, "trsclient-profiles");
+				Mc.setScreen(new HudEditorScreen(null).selectFirst());
+				next(20);
+				break;
+			case 15:
+				if (!ensureScreen(HudEditorScreen.class, () -> new HudEditorScreen(null).selectFirst())) return;
+				shot(mc, "trsclient-hud-editor");
+				Mc.setScreen(null);
+				// Wegpunkte, Minimap und die PvP-Anzeigen einschalten, einen Wegpunkt anlegen
+				modules.waypoints.setEnabled(true);
+				modules.minimap.setEnabled(true);
+				modules.reach.setEnabled(true);
+				modules.combo.setEnabled(true);
+				modules.speed.setEnabled(true);
+				testWaypoint = TrsClient.get().waypoints().create("Basis", 0x3DDC84);
+				TrsClient.LOGGER.info("[Autotest] Wegpunkt bei {}/{}/{}, Spieler bei {}/{}/{}", testWaypoint.x, testWaypoint.y,
+						testWaypoint.z, (int) Mc.x(mc.player), (int) Mc.y(mc.player), (int) Mc.z(mc.player));
+				// 20 Blöcke nach Norden und nach Süden schauen (yaw 0) → Wegpunkt im Blick.
+				// "execute as/at @p": ~ bezieht sich sonst auf den Weltspawn, nicht auf den Spieler.
+				command(mc, "execute as @p at @s run tp @s ~ ~ ~-20 0 0");
+				next(40);
+				break;
+			case 16:
+				shot(mc, "trsclient-waypoints");
+				Mc.setScreen(new WaypointListScreen(null));
+				next(20);
+				break;
+			case 17:
+				if (!ensureScreen(WaypointListScreen.class, () -> new WaypointListScreen(null))) return;
+				shot(mc, "trsclient-waypoint-liste");
+				// Menü mit Text-Einstellungen (Auto-GG)
+				Mc.setScreen(new TrsMenuScreen(null).select(modules.autoGg));
+				next(20);
+				break;
+			case 18:
+				if (!ensureScreen(TrsMenuScreen.class, () -> new TrsMenuScreen(null).select(modules.autoGg))) return;
+				shot(mc, "trsclient-menu-text");
+				Mc.setScreen(null);
+				// Chat: Zeitstempel an, dreimal dieselbe Nachricht → wird zusammengefasst
+				modules.chat.setEnabled(true);
+				modules.chatTimestamps.set(true);
+				modules.chatStack.set(true);
+				chat(mc, "TRS Client: Chat-Test");
+				chat(mc, "Wiederholte Nachricht");
+				chat(mc, "Wiederholte Nachricht");
+				chat(mc, "Wiederholte Nachricht");
+				next(10);
+				break;
+			case 19:
+				shot(mc, "trsclient-chat");
+				// Auto-GG und Text-Hotkey senden echten Chat (prüft den Sende-Weg je Version)
+				modules.autoGg.setEnabled(true);
+				modules.autoGgText.set("gg (TRS-Autotest)");
+				modules.autoGgDelay.set(0.5);
+				modules.textHotkeys.setEnabled(true);
+				modules.hotkeyTexts[0].set("Text-Hotkey 1 (TRS-Autotest)");
+				chat(mc, "Winner: TRS Client");
+				TrsClient.get().chat().onHotkey(0);
+				next(30);
+				break;
+			case 20:
+				shot(mc, "trsclient-autogg");
+				modules.autoGg.setEnabled(false);
+				modules.textHotkeys.setEnabled(false);
+				copyChatLine(mc);
+				next(5);
+				break;
+			case 21:
+				// TRS-Umhang, Umhang-Physik und Abzeichen (mit lokaler API-Attrappe, siehe -PtrsApi)
+				CapeTest.Actions actions = new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				};
+				if (capeTest.step(mc, modules, actions)) return;
+				if ("cape".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 24;
+					wait = 5;
+					break;
+				}
+				// Emote-Rad und Emotes (gleiche Attrappe)
+				if (emoteTest.step(mc, modules, actions)) return;
+				next(5);
+				break;
+			case 22:
+				// Clips & Aufnahme (nur mit -PtrsAutotestOnly=clips)
+				if ("clips".equals(System.getProperty("trsclient.autotest.only"))) {
+					if (clipsTest.step(mc, modules, new CapeTest.Actions() {
+						@Override
+						public void shot(String name) {
+							AutoTest.shot(mc, name);
+						}
+
+						@Override
+						public void command(String command) {
+							AutoTest.command(mc, command);
+						}
+					})) return;
+					next(5);
+					break;
+				}
+				// Redstone-Werkzeuge: Signalstärke, Komparator, Overlay, Takt
+				if (!"perf".equals(System.getProperty("trsclient.autotest.only")) && redstoneTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				// Leistung: Testszene, FPS ohne/mit FPS-Boost, Dynamische FPS, Menü, Rückgängig
+				if (!"redstone".equals(System.getProperty("trsclient.autotest.only")) && perfTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				next(5);
+				break;
+			case 23:
+				// Umhang-Physik-Einstellungen (Vorschau, Wind, Stufen) und Farben (Sättigung 0 %/200 %)
+				if (capeColorTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				next(5);
+				break;
+			case 24:
+				TrsClient.LOGGER.info("[Autotest] Hook-Aufrufe: {}", HookStats.summary());
+				TrsClient.LOGGER.info("[Autotest] Leistungs-Hooks: {}", dev.theredstonee.trsclient.perf.PerfHooks.stats());
+				TrsClient.LOGGER.info("[Autotest] fertig, verlasse Welt und beende das Spiel");
+				TrsClient.get().sprintToggle().set(false);
+				if (testWaypoint != null) TrsClient.get().waypoints().remove(testWaypoint);
+				if (before != null) modules.registry.apply(before);
+				TrsClient.get().saveConfig();
+				disconnect(mc);
+				next(20);
+				break;
+			case 27:
+				// FPS-Benchmark: feste Szene, drehende Kamera, Bildzeiten → Ø und 1 %-Low
+				if (benchmark.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 28:
+				// Schild-Position: Screenshots in der 1. Person, Blocken, durchsichtig, Einstellungsseite
+				if (shieldTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 29:
+				// Quietscheente: 3. Person vorne/hinten, Quaken, Flügel, Trägheit
+				if (duckTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 30:
+				// Komfort & PvP: Screenshots trsclient-<mc>-qol-*.png
+				if (qolTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 31:
+				// Komfort-Paket 2: Screenshots trsclient-<mc>-comfort-*.png
+				if (comfortTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 32:
+				// Schaltungs-Bibliothek: Screenshots trsclient-<mc>-circuits-*.png
+				if (circuitTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 35:
+				// Screenshot-Werkzeuge: Screenshots trsclient-<mc>-screenshots-*.png
+				if (screenshotTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 34:
+				if (disconnectTest.step(mc, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 36:
+				// Notizen je Welt: Screenshots trsclient-<mc>-notes-*.png
+				if (notesTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 37:
+				// Kopf-Kosmetik v2: Screenshots trsclient-<mc>-cos2-*.png (6 Teile × vorne/schräg/hinten × Tag/Nacht, Garderobe)
+				if (cosmetics2Test.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 38:
+				// Hunger-Anzeige: Screenshots trsclient-<mc>-hunger-*.png
+				if (hungerTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 39:
+				// Chat-Köpfe: Screenshots trsclient-<mc>-chatheads-*.png
+				if (chatHeadsTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 40:
+			case 41:
+			case 42: {
+				// Creator-Programm bzw. Kamera-Fahrten: Screenshots trsclient-<mc>-creator-*.png / -cinematic-*.png
+				CapeTest.Actions creatorActions = new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				};
+				if (step == 40 ? creatorTest.step(mc, modules, creatorActions)
+						: step == 41 ? cinematicTest.step(mc, modules, creatorActions) : freecamTest.step(mc, modules, creatorActions)) return;
+				step = 24;
+				wait = 5;
+				break;
+			}
+			case 43:
+				// Gamma + Automatisch nachlegen: Screenshots trsclient-<mc>-gamma-*.png / -refill-*.png
+				if (gammaRefillTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			case 33:
+				// Suche in der Tastenbelegung: Screenshots trsclient-<mc>-keysearch-*.png
+				if (keySearchTest.step(mc, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 24;
+				wait = 5;
+				break;
+			default:
+				if (step == 25) mc.stop();
+				step = 26;
+				break;
+		}
+	}
+
+	private final CapeTest capeTest = new CapeTest();
+	private final CreatorTest creatorTest = new CreatorTest();
+	private final CinematicTest cinematicTest = new CinematicTest();
+	private final FreecamTest freecamTest = new FreecamTest();
+	private final EmoteTest emoteTest = new EmoteTest();
+	private final RedstoneTest redstoneTest = new RedstoneTest();
+	private final CapeColorTest capeColorTest = new CapeColorTest();
+	private final PerfTest perfTest = new PerfTest();
+	private final ClipsTest clipsTest = new ClipsTest();
+	private final Benchmark benchmark = new Benchmark();
+	private final ShieldTest shieldTest = new ShieldTest();
+	private final DuckTest duckTest = new DuckTest();
+	private final Cosmetics2Test cosmetics2Test = new Cosmetics2Test();
+	private final KeySearchTest keySearchTest = new KeySearchTest();
+	private final DisconnectTest disconnectTest = new DisconnectTest();
+	private final QolTest qolTest = new QolTest();
+	private final ComfortTest comfortTest = new ComfortTest();
+	private final HungerOverlayTest hungerTest = new HungerOverlayTest();
+	private final ChatHeadsTest chatHeadsTest = new ChatHeadsTest();
+	private final CircuitTest circuitTest = new CircuitTest();
+	private final ScreenshotTest screenshotTest = new ScreenshotTest();
+	private final NotesTest notesTest = new NotesTest();
+	private final GammaRefillTest gammaRefillTest = new GammaRefillTest();
+
+	/** Legt für den Test zwei Server in servers.dat an, falls die Liste leer ist (Schnellbeitritt-Leiste). */
+	private static void seedServers(Minecraft mc) {
+		ServerList list = new ServerList(mc);
+		list.load();
+		if (list.size() > 0) return;
+		//? if >=1.20.2 {
+		list.add(new ServerData("TRS Testserver", "localhost:25565", ServerData.Type.OTHER), false);
+		list.add(new ServerData("Hypixel", "mc.hypixel.net", ServerData.Type.OTHER), false);
+		//?} elif >=1.19 {
+		/*list.add(new ServerData("TRS Testserver", "localhost:25565", false), false);
+		list.add(new ServerData("Hypixel", "mc.hypixel.net", false), false);
+		*///?} else {
+		/*list.add(new ServerData("TRS Testserver", "localhost:25565", false));
+		list.add(new ServerData("Hypixel", "mc.hypixel.net", false));
+		*///?}
+		list.save();
+	}
+
+	/**
+	 * Prüft das Kopieren per Strg+Klick: klickt rechnerisch auf die unterste Chat-Zeile
+	 * und schreibt das Ergebnis der Zwischenablage ins Log.
+	 */
+	private static void copyChatLine(Minecraft mc) {
+		double scale = Mc.chatScale();
+		int lineHeight = Mc.chatLineHeight();
+		double mouseY = Mc.window().getGuiScaledHeight() - 40 - scale * lineHeight / 2.0;
+		boolean copied = TrsClient.get().chat().onChatClick(20, mouseY, true);
+		String clipboard = copied ? mc.keyboardHandler.getClipboard() : "(nicht kopiert)";
+		TrsClient.LOGGER.info("[Autotest] Strg+Klick auf Chat-Zeile: {}", clipboard);
+	}
+
+	/** Schreibt eine Nachricht in den Chat (wie eine Servernachricht – geht durch die TRS-Chat-Hooks). */
+	private static void chat(Minecraft mc, String text) {
+		dev.theredstonee.trsclient.compat.ChatLines.addMessage(Mc.text(text));
+	}
+
+	/** Führt einen Befehl als Server (Berechtigungsstufe 4) aus. */
+	static void command(Minecraft mc, String command) {
+		MinecraftServer server = mc.getSingleplayerServer();
+		if (server == null) return;
+		//? if >=1.19 {
+		server.execute(() -> server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command));
+		//?} else
+		//server.execute(() -> server.getCommands().performCommand(server.createCommandSourceStack(), command));
+	}
+
+	/**
+	 * Tastatureingaben des Benutzers können das Spielfenster erreichen und einen Bildschirm schließen.
+	 * Ist der erwartete Bildschirm nicht offen, wird er (höchstens 5-mal) neu geöffnet und kurz gewartet.
+	 */
+	/**
+	 * Startbildschirm: Ruhe-Screenshot, eine Lampe per Tastatur-Auswahl an (wie Hover), dann die
+	 * Kosten der Hintergrund-Animation messen (mit und ohne Schaltung). true = noch nicht fertig.
+	 */
+	private boolean titleStep(Minecraft mc, TrsTitleScreen screen) {
+		dev.theredstonee.trsclient.core.ui.title.TitleUi title = screen.title();
+		switch (titlePhase++) {
+			case 0:
+				if (!figureTurned) {
+					// Figur fast von vorn für den Screenshot (ein paar Bilder vorher setzen).
+					figureTurned = true;
+					title.setFigureAngle(20f);
+					titlePhase--;
+					wait = 2;
+					return true;
+				}
+				shot(mc, "trsclient-title");
+				title.focus(0);
+				wait = 10;
+				return true;
+			case 1:
+				shot(mc, "trsclient-title-hover");
+				title.focus(-1);
+				wait = 100;
+				return true;
+			case 2:
+				sceneFrameMs = title.frameMillis();
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm: Szene {} µs, Bildschirm {} µs (CPU), Bildzeit {} ms, {} fps, sparsam={}",
+						Math.round(title.sceneMicros()), Math.round(title.frameMicros()), String.format(java.util.Locale.ROOT, "%.2f", sceneFrameMs), Mc.fps(), title.sparseScene());
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm: Figur+Drehscheibe {} µs, {} Flächen, Figur={}, Leiste={}",
+						Math.round(title.modelMicros()), title.modelFaces(), title.figureShown(), title.sideMode());
+				title.setSceneEnabled(false);
+				wait = 100;
+				return true;
+			case 3:
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm ohne Schaltung: Bildschirm {} µs (CPU), Bildzeit {} ms, {} fps",
+						Math.round(title.frameMicros()), String.format(java.util.Locale.ROOT, "%.2f", title.frameMillis()), Mc.fps());
+				title.setSceneEnabled(true);
+				if (!"title".equals(System.getProperty("trsclient.autotest.only"))) return false;
+				wait = 10;
+				return true;
+			case 4:
+				// Nur -PtrsAutotestOnly=title: große und kleine GUI, „Kommt bald“, dann beenden.
+				titleScaleBefore = guiScale(mc, 1);
+				wait = 30;
+				return true;
+			case 5:
+				shot(mc, "trsclient-title-wide");
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm groß: Figur={}, Leiste={}, {} Flächen", screen.title().figureShown(),
+						screen.title().sideMode(), screen.title().modelFaces());
+				guiScale(mc, 4);
+				wait = 30;
+				return true;
+			case 6:
+				shot(mc, "trsclient-title-narrow");
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm schmal: Figur={}, Leiste={}", screen.title().figureShown(), screen.title().sideMode());
+				guiScale(mc, titleScaleBefore);
+				wait = 30;
+				return true;
+			case 7: {
+				int[] r = screen.spot("wardrobe");
+				if (r != null) click(mc, r[0] + r[2] / 2.0, r[1] + r[3] / 2.0);
+				wait = 12;
+				return true;
+			}
+			case 8:
+				shot(mc, "trsclient-title-soon");
+				TrsClient.LOGGER.info("[Autotest] Garderobe-Knopf: Hinweis \"{}\"", screen.title().toast());
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm-Test fertig");
+				if (before != null) TrsClient.get().modules().registry.apply(before);
+				mc.stop();
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	/** Setzt die GUI-Größe (0 = automatisch) und liefert die vorherige. */
+	private static int guiScale(Minecraft mc, int scale) {
+		//? if >=1.19 {
+		int old = mc.options.guiScale().get();
+		mc.options.guiScale().set(scale);
+		//?} else {
+		/*int old = mc.options.guiScale;
+		mc.options.guiScale = scale;
+		*///?}
+		//? if >=26.1 {
+		/*mc.resizeGui();
+		*///?} else
+		mc.resizeDisplay();
+		return old;
+	}
+
+	private boolean ensureScreen(Class<? extends Screen> type, Supplier<Screen> factory) {
+		if (type.isInstance(Mc.screen()) || reopenCount >= 5) return true;
+		reopenCount++;
+		TrsClient.LOGGER.warn("[Autotest] {} wurde geschlossen (Eingabe?) – öffne erneut", type.getSimpleName());
+		KeyMapping.releaseAll();
+		Mc.setScreen(factory.get());
+		wait = 10;
+		return false;
+	}
+
+	/**
+	 * Klickt "TRS-Menü" auf dem Startbildschirm und schließt das Menü mit Esc – beides über
+	 * MouseHandler/KeyboardHandler, also genau den Weg echter Eingaben (Maustasten-Zählung je
+	 * Version, Ereignis-Objekte ab 1.21.9, SDL ab 26.3).
+	 */
+	private void realInput(Minecraft mc) {
+		switch (inputPhase) {
+			case 0: {
+				if (!(Mc.screen() instanceof TrsTitleScreen)) {
+					Mc.setScreen(new TrsTitleScreen());
+					wait = 10;
+					return;
+				}
+				int[] r = ((TrsTitleScreen) Mc.screen()).spot("trsMenu");
+				if (r == null) {
+					wait = 2;
+					return;
+				}
+				click(mc, r[0] + r[2] / 2.0, r[1] + r[3] / 2.0);
+				inputPhase = 1;
+				wait = 10;
+				return;
+			}
+			case 1: {
+				inputClick = Mc.screen() instanceof TrsMenuScreen;
+				if (inputClick) {
+					key(mc, dev.theredstonee.trsclient.compat.Keys.code("key.keyboard.escape"));
+					inputPhase = 2;
+					wait = 25;
+				} else {
+					report(false, false);
+					inputPhase = 3;
+				}
+				return;
+			}
+			case 2: {
+				report(true, Mc.screen() instanceof TrsTitleScreen);
+				inputPhase = 3;
+				return;
+			}
+			default:
+				return;
+		}
+	}
+
+	private void report(boolean click, boolean key) {
+		String line = "[Autotest] Echte Eingabe über MouseHandler/KeyboardHandler: Klick " + (click ? "OK" : "FEHLER")
+				+ ", Taste " + (key ? "OK" : "FEHLER") + " (Bildschirm: " + (Mc.screen() == null ? "-" : Mc.screen().getClass().getSimpleName()) + ")";
+		if (click && key) TrsClient.LOGGER.info(line);
+		else TrsClient.LOGGER.error(line);
+		if (!(Mc.screen() instanceof TrsTitleScreen)) Mc.setScreen(new TrsTitleScreen());
+		wait = 10;
+	}
+
+	/** Linksklick an einer GUI-Position – wie ein echter Klick des Fensters. */
+	static void click(Minecraft mc, double guiX, double guiY) {
+		com.mojang.blaze3d.platform.Window w = Mc.window();
+		dev.theredstonee.trsclient.mixin.MouseHandlerAccessor mouse = (dev.theredstonee.trsclient.mixin.MouseHandlerAccessor) mc.mouseHandler;
+		mouse.trsclient$setXpos(guiX * w.getScreenWidth() / (double) w.getGuiScaledWidth());
+		mouse.trsclient$setYpos(guiY * w.getScreenHeight() / (double) w.getGuiScaledHeight());
+		int left = dev.theredstonee.trsclient.compat.Keys.MOUSE_LEFT;
+		//? if >=1.21.9 {
+		/*mouse.trsclient$onButton(windowHandle(), new net.minecraft.client.input.MouseButtonInfo(left, 0), dev.theredstonee.trsclient.compat.Keys.PRESS);
+		mouse.trsclient$onButton(windowHandle(), new net.minecraft.client.input.MouseButtonInfo(left, 0), 0);
+		*///?} else {
+		mouse.trsclient$onPress(windowHandle(), left, dev.theredstonee.trsclient.compat.Keys.PRESS, 0);
+		mouse.trsclient$onPress(windowHandle(), left, 0, 0);
+		//?}
+		// Maus danach aus dem Weg (sonst leuchtet der Knopf in späteren Screenshots als Hover).
+		mouse.trsclient$setXpos(0);
+		mouse.trsclient$setYpos(0);
+	}
+
+	/** Mauszeiger an eine GUI-Position setzen (ohne Klick) – für Hover-Bilder. */
+	static void moveMouse(Minecraft mc, double guiX, double guiY) {
+		com.mojang.blaze3d.platform.Window w = Mc.window();
+		dev.theredstonee.trsclient.mixin.MouseHandlerAccessor mouse = (dev.theredstonee.trsclient.mixin.MouseHandlerAccessor) mc.mouseHandler;
+		mouse.trsclient$setXpos(guiX * w.getScreenWidth() / (double) w.getGuiScaledWidth());
+		mouse.trsclient$setYpos(guiY * w.getScreenHeight() / (double) w.getGuiScaledHeight());
+	}
+
+	/** Taste drücken und loslassen – wie ein echter Tastendruck des Fensters. */
+	static void key(Minecraft mc, int code) {
+		dev.theredstonee.trsclient.mixin.KeyboardHandlerAccessor keyboard = (dev.theredstonee.trsclient.mixin.KeyboardHandlerAccessor) mc.keyboardHandler;
+		//? if >=1.21.9 {
+		/*keyboard.trsclient$keyPress(windowHandle(), dev.theredstonee.trsclient.compat.Keys.PRESS, new net.minecraft.client.input.KeyEvent(code, 0, 0));
+		keyboard.trsclient$keyPress(windowHandle(), 0, new net.minecraft.client.input.KeyEvent(code, 0, 0));
+		*///?} else {
+		keyboard.trsclient$keyPress(windowHandle(), code, 0, dev.theredstonee.trsclient.compat.Keys.PRESS, 0);
+		keyboard.trsclient$keyPress(windowHandle(), code, 0, 0, 0);
+		//?}
+	}
+
+	private static long windowHandle() {
+		//? if >=1.21.9 {
+		/*return Mc.window().handle();
+		*///?} else
+		return Mc.window().getWindow();
+	}
+
+	private void next(int ticks) {
+		step++;
+		wait = ticks;
+	}
+
+	static void startWorld(Minecraft mc) {
+		startWorld(mc, WORLD, null);
+	}
+
+	/** Welt öffnen oder neu anlegen (Kreativ, friedlich); {@code seed} null = zufällig. */
+	static void startWorld(Minecraft mc, String world, Long seed) {
+		if (mc.getLevelSource().levelExists(world)) {
+			TrsClient.LOGGER.info("[Autotest] öffne Testwelt '{}'", world);
+			//? if >=1.20.5 {
+			mc.createWorldOpenFlows().openWorld(world, () -> Mc.setScreen(new TitleScreen()));
+			//?} elif >=1.20.3 {
+			/*mc.createWorldOpenFlows().checkForBackupAndLoad(world, () -> Mc.setScreen(new TitleScreen()));
+			*///?} elif >=1.19 {
+			/*mc.createWorldOpenFlows().loadLevel(new TitleScreen(), world);
+			*///?} elif >=1.16 {
+			/*mc.loadLevel(world);
+			*///?} else
+			/*mc.selectLevel(world, world, null);*/
+		} else {
+			TrsClient.LOGGER.info("[Autotest] erstelle Testwelt '{}'", world);
+			//? if >=26.1 {
+			/*LevelSettings settings = new LevelSettings(world, GameType.CREATIVE,
+					new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
+			*///?} elif >=1.21.2 {
+			/*LevelSettings settings = new LevelSettings(world, GameType.CREATIVE, false, Difficulty.PEACEFUL, true,
+					new GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures()), WorldDataConfiguration.DEFAULT);
+			*///?} elif >=1.19.3 {
+			LevelSettings settings = new LevelSettings(world, GameType.CREATIVE, false, Difficulty.PEACEFUL, true,
+					new GameRules(), WorldDataConfiguration.DEFAULT);
+			//?} elif >=1.16 {
+			/*LevelSettings settings = new LevelSettings(world, GameType.CREATIVE, false, Difficulty.PEACEFUL, true,
+					new GameRules(), DataPackConfig.DEFAULT);
+			*///?}
+			//? if >=1.19.3 {
+			mc.createWorldOpenFlows().createFreshLevel(world, settings, seed == null ? WorldOptions.defaultWithRandomSeed() : new WorldOptions(seed, true, false),
+					//? if >=1.20.3 {
+					WorldPresets::createNormalWorldDimensions, new TitleScreen());
+					//?} else
+					//WorldPresets::createNormalWorldDimensions);
+			//?} elif >=1.19 {
+			/*RegistryAccess registries = RegistryAccess.builtinCopy().freeze();
+			mc.createWorldOpenFlows().createFreshLevel(world, settings, registries, WorldPresets.createNormalWorldFromPreset(registries).withSeed(false, seedOf(seed)));
+			*///?} elif >=1.18.2 {
+			/*RegistryAccess registries = RegistryAccess.builtinCopy();
+			mc.createLevel(world, settings, registries, WorldGenSettings.makeDefault(registries).withSeed(false, seedOf(seed)));
+			*///?} elif >=1.18 {
+			/*RegistryAccess.RegistryHolder registries = RegistryAccess.builtin();
+			mc.createLevel(world, settings, registries, WorldGenSettings.makeDefault(registries).withSeed(false, seedOf(seed)));
+			*///?} elif >=1.16 {
+			/*RegistryAccess.RegistryHolder registries = RegistryAccess.builtin();
+			mc.createLevel(world, settings, registries, WorldGenSettings.makeDefault(registries.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY),
+					registries.registryOrThrow(Registry.BIOME_REGISTRY), registries.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY)).withSeed(false, seedOf(seed)));
+			*///?} else {
+			/*LevelSettings settings = new LevelSettings(seed != null ? seed : new java.util.Random().nextLong(), GameType.CREATIVE, true, false, LevelType.NORMAL)
+					.enableSinglePlayerCommands();
+			mc.selectLevel(world, world, settings);
+			*///?}
+		}
+	}
+
+	private static java.util.OptionalLong seedOf(Long seed) {
+		return seed == null ? java.util.OptionalLong.empty() : java.util.OptionalLong.of(seed);
+	}
+
+	static void disconnect(Minecraft mc) {
+		//? if >=1.21.6 {
+		/*if (mc.level != null) mc.level.disconnect(Mc.text("TRS-Autotest"));
+		mc.disconnectWithSavingScreen();
+		*///?} elif >=1.20.2 {
+		if (mc.level != null) mc.level.disconnect();
+		mc.disconnect();
+		//?} else {
+		/*if (mc.level != null) mc.level.disconnect();
+		mc.clearLevel();
+		*///?}
+	}
+
+
+	static void shot(Minecraft mc, String name) {
+		// run/screenshots/trsclient-<minecraft>-<name>.png
+		Screenshot.grab(mc.gameDirectory, name.replace("trsclient-", "trsclient-" + MC_VERSION + "-") + ".png",
+				//? if <1.17.1
+				//Mc.window().getWidth(), Mc.window().getHeight(),
+				Mc.mainRenderTarget(),
+				//? if >=1.21.6
+				//1,
+				msg -> TrsClient.LOGGER.info("[Autotest] {}", msg.getString()));
+	}
+}

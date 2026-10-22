@@ -1,0 +1,16 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "dev.theredstonee.trsclient.mixin",
+	"plugin": "dev.theredstonee.trsclient.TrsMixinPlugin",
+	"compatibilityLevel": "${mixinJava}",
+	"client": [
+		${mixins}
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

@@ -1,0 +1,136 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TRS Launcher",
+  "version": "0.27.1",
+  "identifier": "dev.theredstonee.trslauncher",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm generate",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../.output/public"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "TRS Launcher",
+        "width": 1180,
+        "height": 720,
+        "minWidth": 940,
+        "minHeight": 600,
+        "center": true,
+        "decorations": false,
+        "backgroundColor": "#0b0c0f"
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: https: asset: http://asset.localhost trsclip: http://trsclip.localhost trschat: http://trschat.localhost",
+        "media-src": "'self' asset: http://asset.localhost trsclip: http://trsclip.localhost",
+        "font-src": "'self' data:",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'none'",
+        "frame-ancestors": "'none'"
+      },
+      "devCsp": {
+        "default-src": "'self' http://localhost:3000",
+        "script-src": "'self' 'unsafe-inline' 'unsafe-eval' http://localhost:3000",
+        "style-src": "'self' 'unsafe-inline' http://localhost:3000",
+        "img-src": "'self' data: https: asset: http://asset.localhost trsclip: http://trsclip.localhost trschat: http://trschat.localhost http://localhost:3000 http://127.0.0.1:8787",
+        "media-src": "'self' asset: http://asset.localhost trsclip: http://trsclip.localhost http://localhost:3000",
+        "font-src": "'self' data: http://localhost:3000",
+        "connect-src": "'self' ipc: http://ipc.localhost http://localhost:3000 ws://localhost:3000"
+      },
+      "freezePrototype": false,
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "publisher": "Theredstonee",
+    "copyright": "© 2026 Theredstonee",
+    "shortDescription": "Minecraft-Launcher",
+    "longDescription": "Minecraft launcher for every version and mod loader (Fabric, Quilt, Forge, NeoForge) with Modrinth, modpacks and the TRS Client.",
+    "category": "Game",
+    "homepage": "https://github.com/theredstonee/TRS-Launcher",
+    "license": "GPL-3.0-only",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English",
+          "German",
+          "Spanish",
+          "French",
+          "Polish",
+          "PortugueseBR",
+          "Turkish",
+          "Dutch"
+        ],
+        "displayLanguageSelector": true,
+        "customLanguageFiles": {
+          "Polish": "nsis/Polish.nsh"
+        },
+        "installerHooks": "nsis/hooks.nsh"
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      },
+      "deb": {
+        "section": "games",
+        "recommends": ["x11-xserver-utils", "xdg-utils"]
+      },
+      "rpm": {
+        "recommends": ["xrandr", "xdg-utils"]
+      }
+    },
+    "createUpdaterArtifacts": true,
+    "resources": {
+      "resources/client-mod/": "client-mod/"
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["trs-launcher"]
+      },
+      "mobile": [
+        {
+          "scheme": ["trs-launcher"],
+          "appLink": false
+        }
+      ]
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQxOEQ3OUEwNjk2NTQxRjkKUldUNVFXVnBvSG1OUVRQZk5iYnpLcVdXbndGbVhxbDZaa1F2VnYrNm1rUzVzTG1NTmcyQWpiYVkK",
+      "endpoints": [
+        "https://github.com/theredstonee/TRS-Launcher/releases/download/updater/latest.json"
+      ],
+      "windows": {
+        "installMode": "quiet"
+      }
+    }
+  }
+}

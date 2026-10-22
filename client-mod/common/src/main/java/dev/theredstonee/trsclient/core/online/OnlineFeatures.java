@@ -1,0 +1,413 @@
+package dev.theredstonee.trsclient.core.online;
+
+import dev.theredstonee.trsclient.core.cape.CapePhysics;
+import dev.theredstonee.trsclient.core.cape.CapeSettings;
+import dev.theredstonee.trsclient.core.cape.CapeTextures;
+import dev.theredstonee.trsclient.core.cape.ClothMesh;
+import dev.theredstonee.trsclient.core.cape.ClothSim;
+import dev.theredstonee.trsclient.core.module.TrsModules;
+import dev.theredstonee.trsclient.core.skin.LocalSkin;
+import dev.theredstonee.trsclient.core.skin.PlayerLook;
+import dev.theredstonee.trsclient.core.ui.TextureRef;
+
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Alles rund um TRS-Abzeichen, TRS-Umhänge und Umhang-Physik an einer Stelle – versionsunabhängig.
+ * Jede Minecraft-Version liefert nur: Konto/Server ({@link OnlinePlatform}), das Hochladen von Texturen
+ * ({@link CapeTextures.Backend}), einmal pro Tick die sichtbaren Spieler, und die Hooks zum Zeichnen.
+ *
+ * @param <T> Textur-Kennung der Version (z. B. ResourceLocation)
+ */
+public final class OnlineFeatures<T> {
+	private final TrsModules modules;
+	private final TrsOnline online;
+	private final CapeTextures<T> textures;
+	private final CapePhysics physics = new CapePhysics();
+	private final ClothMesh mesh = new ClothMesh();
+	/** Kopf-Kosmetik (Quietscheente): Rig-Zustände je Träger und Mesh-Baukasten (nur Render-Thread). */
+	private final dev.theredstonee.trsclient.core.cosmetic.DuckRig hatRig = new dev.theredstonee.trsclient.core.cosmetic.DuckRig();
+	private final dev.theredstonee.trsclient.core.cosmetic.CosmeticMesh hatMesh = new dev.theredstonee.trsclient.core.cosmetic.CosmeticMesh();
+	/** Kopf-Kosmetik im Format 2: Texturen je Teil und der Renderer (nur Render-Thread). */
+	private final dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticAssets<T> cosmetics;
+	private final dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticV2Renderer v2Renderer =
+			new dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticV2Renderer();
+	private final dev.theredstonee.trsclient.core.emote.EmoteController emotes;
+	/** Fan-Symbole vor Namen (Creator-Programm, nur Render-Thread). */
+	private final dev.theredstonee.trsclient.core.creator.FanSymbols<T> fanSymbols;
+	/** Profil-Abzeichen vor dem Namen (Halloween 2026). */
+	private final dev.theredstonee.trsclient.core.creator.EventBadges<T> eventBadges;
+	private volatile Thread gameThread;
+	/** Wiederverwendet: Umhang-Einstellungen je Tick (keine Allokation). */
+	private final CapeSettings capeSettings = new CapeSettings();
+
+	/** Eigener Skin für Menüs (null in Tests ohne Konfig-Ordner). */
+	private final LocalSkin localSkin;
+	/** Zuletzt gelieferter TRS-Umhang als {@link TextureRef} (keine Allokation je Bild). */
+	private TextureRef lastCapeRef;
+
+	public OnlineFeatures(TrsModules modules, TrsOnline online, CapeTextures.Backend<T> backend) {
+		this(modules, online, backend, null);
+	}
+
+	public OnlineFeatures(TrsModules modules, TrsOnline online, CapeTextures.Backend<T> backend, LocalSkin localSkin) {
+		this.modules = modules;
+		this.online = online;
+		this.textures = new CapeTextures<>(backend, online::loadCape);
+		this.cosmetics = new dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticAssets<>(backend, online::loadCosmetic);
+		this.emotes = new dev.theredstonee.trsclient.core.emote.EmoteController(modules, online);
+		this.fanSymbols = new dev.theredstonee.trsclient.core.creator.FanSymbols<>(backend, online::loadSymbol);
+		this.eventBadges = new dev.theredstonee.trsclient.core.creator.EventBadges<>(backend, online::loadBadge);
+		this.localSkin = localSkin;
+	}
+
+	/** Standard-Aufbau: Konfiguration aus {@code configDir}, HTTP über HttpURLConnection. */
+	public static <T> OnlineFeatures<T> create(TrsModules modules, Path configDir, OnlinePlatform platform,
+			String modVersion, CapeTextures.Backend<T> backend) {
+		String userAgent = "TRS-Client/" + modVersion + " (Minecraft " + platform.minecraftVersion() + "; " + platform.loader() + ")";
+		java.util.concurrent.ThreadPoolExecutor skinWorker = new java.util.concurrent.ThreadPoolExecutor(1, 1, 30,
+				java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<Runnable>(4), r -> {
+					Thread t = new Thread(r, "TRS-Skin");
+					t.setDaemon(true);
+					t.setPriority(Thread.MIN_PRIORITY + 1);
+					return t;
+				});
+		skinWorker.allowCoreThreadTimeOut(true);
+		LocalSkin skin = new LocalSkin(configDir.resolve("trsclient").resolve("skins"), platform::session,
+				new Http.UrlConnection(userAgent), skinWorker, platform::log);
+		TrsOnline online = TrsOnline.create(configDir, platform, modVersion);
+		OnlineFeatures<T> features = new OnlineFeatures<>(modules, online, backend, skin);
+		// Client-Sync (Einstellungen je TRS-Konto, Launcher-Aussehen live) – läuft über die Anmeldung von TrsOnline.
+		features.sync = dev.theredstonee.trsclient.core.sync.ClientSync.create(modules, online, configDir, userAgent, modVersion,
+				platform::log);
+		// Notizen je Welt: eigener Sync (Notiz für Notiz), läuft über dieselbe TRS-Anmeldung.
+		features.notesSync = dev.theredstonee.trsclient.core.notes.NotesSync.create(modules, online, configDir, userAgent, platform::log);
+		return features;
+	}
+
+	/** Client-Sync (null in Tests ohne Konfig-Ordner). */
+	private dev.theredstonee.trsclient.core.sync.ClientSync sync;
+
+	/** Notiz-Sync (null in Tests ohne Konfig-Ordner). */
+	private dev.theredstonee.trsclient.core.notes.NotesSync notesSync;
+
+	public dev.theredstonee.trsclient.core.sync.ClientSync sync() {
+		return sync;
+	}
+
+	/**
+	 * Aussehen des eigenen Spielers für Menüs (Startbildschirm, Garderobe): Name, Skin (eigener oder Standard),
+	 * Umhang – der TRS-Umhang (aktuelles Bild) hat Vorrang vor dem Mojang-Umhang. Nur Render-Thread; null ohne Skin-Quelle.
+	 */
+	public PlayerLook look() {
+		if (localSkin == null) return null;
+		long now = System.currentTimeMillis();
+		PlayerLook look;
+		try {
+			look = localSkin.look(now);
+		} catch (RuntimeException e) {
+			online.reportError(e);
+			return null;
+		}
+		UUID self = localSkin.uuid();
+		TextureRef trs = self == null ? null : capeRef(self);
+		if (trs != null) {
+			look.cape = trs;
+			look.trsCape = true;
+		}
+		return look;
+	}
+
+	/** Eigener Skin für Menüs (null in Tests). */
+	public LocalSkin localSkin() {
+		return localSkin;
+	}
+
+	/** TRS-Umhang eines Spielers (aktuelles Animationsbild) als zeichenbare Textur, sonst null. */
+	public TextureRef capeRef(UUID uuid) {
+		T tex = capeTexture(uuid);
+		if (tex == null) return null;
+		CapeInfo info = online.info(uuid).cape;
+		int w = textures.width(info);
+		int h = textures.height(info);
+		if (w <= 0 || h <= 0) return null;
+		TextureRef last = lastCapeRef;
+		if (last != null && last.id.equals(tex) && last.width == w && last.height == h) return last;
+		lastCapeRef = new TextureRef(tex, w, h);
+		return lastCapeRef;
+	}
+
+	/**
+	 * Einmal pro Client-Tick (Spiel-Thread): API-Verkehr anstoßen, Texturen aufräumen, Umhänge simulieren.
+	 *
+	 * @param visible UUIDs der Spieler in Tabliste und Sichtweite ({@code null} = unverändert, siehe {@link TrsOnline#tick})
+	 * @param samples Zustand der Spieler für die Physik (darf leer sein)
+	 */
+	public void tick(Collection<UUID> visible, List<CapePhysics.Sample> samples) {
+		gameThread = Thread.currentThread();
+		long now = System.currentTimeMillis();
+		// Nichts hiervon darf je das Spiel abstürzen lassen.
+		try {
+			online.wantBadges(modules.badgeTab.get() || modules.badgeNametag.get() || modules.fanSymbolTab.get()
+					|| modules.fanSymbolNametag.get());
+			online.tick(now, visible, modules.trsOnline.isEnabled());
+			textures.cleanup(now);
+			fanSymbols.cleanup(now);
+			cosmetics.cleanup(now);
+			if (sync != null) sync.tick(now);
+			if (notesSync != null) notesSync.tick(now);
+		} catch (RuntimeException e) {
+			online.reportError(e);
+		}
+		try {
+			physics.tick(samples, modules.capePhysics.isEnabled(),
+					modules.capeScope.get() == TrsModules.CapeScope.OWN, modules.capeSettings(capeSettings));
+		} catch (RuntimeException e) {
+			physics.clear();
+			online.reportError(e);
+		}
+	}
+
+	/**
+	 * Textur des TRS-Umhangs eines Spielers (aktuelles Animationsbild) oder null (dann Vanilla/OptiFine).
+	 * Nur im Spiel-/Render-Thread wirksam – aus anderen Threads immer null.
+	 */
+	public T capeTexture(UUID uuid) {
+		if (Thread.currentThread() != gameThread) return null;
+		if (!modules.trsOnline.isEnabled() || !modules.trsCapes.get()) return null;
+		PlayerInfo info = online.info(uuid);
+		if (info.cape == null) return null;
+		try {
+			return textures.texture(info.cape, System.currentTimeMillis(), isOwn(uuid));
+		} catch (RuntimeException e) {
+			online.reportError(e);
+			return null;
+		}
+	}
+
+	/** Zuletzt umgerechnete eigene UUID (32 Hex aus {@link TrsOnline#ownUuid()}) – keine Allokation je Bild. */
+	private String ownHex;
+	private UUID ownParsed;
+
+	/** Ist das der eigene Spieler (angemeldetes Konto)? Dessen Umhang bleibt beim Textur-Budget in voller Qualität. */
+	private boolean isOwn(UUID uuid) {
+		String hex = online.ownUuid();
+		if (hex == null || uuid == null) return false;
+		if (!hex.equals(ownHex)) {
+			ownHex = hex;
+			ownParsed = null;
+			String h = hex.replace("-", "");
+			if (h.length() == 32) {
+				try {
+					ownParsed = new UUID(Long.parseUnsignedLong(h.substring(0, 16), 16), Long.parseUnsignedLong(h.substring(16), 16));
+				} catch (NumberFormatException ignored) {
+					// keine gültige UUID → nie „eigener“ Umhang
+				}
+			}
+		}
+		return uuid.equals(ownParsed);
+	}
+
+	/**
+	 * Textur der Kopf-Kosmetik eines Spielers oder null (nichts tragen, Modul/Einstellung aus, noch nicht geladen,
+	 * Vorlage unbekannt). Nur im Spiel-/Render-Thread wirksam.
+	 */
+	public T hatTexture(UUID uuid) {
+		if (Thread.currentThread() != gameThread) return null;
+		if (!modules.trsOnline.isEnabled() || !modules.trsCosmetics.get()) return null;
+		PlayerInfo info = online.info(uuid);
+		if (info.hat == null || info.hat.v2() || dev.theredstonee.trsclient.core.cosmetic.CosmeticModels.get(info.hat) == null) return null;
+		try {
+			return textures.texture(info.hat.texture, System.currentTimeMillis());
+		} catch (RuntimeException e) {
+			online.reportError(e);
+			return null;
+		}
+	}
+
+	/**
+	 * Zeichnet die Kopf-Kosmetik (nach {@link #hatTexture}) in den Kopf-Raum des Modells; Tier-Vorlagen bewegen
+	 * sich nach {@code wearer}. Fehler landen im Fehlerbericht, nie im Spiel.
+	 */
+	public void emitHat(UUID uuid, dev.theredstonee.trsclient.core.cosmetic.Wearer wearer, ClothMesh.QuadSink sink) {
+		PlayerInfo info = online.info(uuid);
+		if (info.hat == null) return;
+		dev.theredstonee.trsclient.core.cosmetic.CosmeticModel model =
+				dev.theredstonee.trsclient.core.cosmetic.CosmeticModels.get(info.hat);
+		if (model == null) return;
+		try {
+			wearer.emote = emotes.animating(uuid);
+			dev.theredstonee.trsclient.core.cosmetic.DuckRig.Pose pose = model.rig != null
+					? hatRig.update(wearer, System.nanoTime()) : null;
+			hatMesh.emit(model, pose, System.currentTimeMillis(), wearer.helmet, sink);
+		} catch (RuntimeException e) {
+			online.reportError(e);
+		}
+	}
+
+	/**
+	 * Kopf-Kosmetik im Format 2 (Studio-Modell) für dieses Bild oder null (nichts/v1 tragen, Modul aus, noch nicht
+	 * geladen). Kopf-Kosmetik bleibt immer sichtbar: Mit Helm ({@code helmet}) wird sie auf den Helm gesetzt – waagerecht
+	 * gestreckt und angehoben ({@code CosmeticV2Renderer#HELMET_SCALE}), wie die Ente (v1) sich mit Helm anhebt.
+	 * Nur im Spiel-/Render-Thread wirksam.
+	 */
+	public dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<T> hatV2(UUID uuid, boolean helmet) {
+		if (Thread.currentThread() != gameThread) return null;
+		if (!modules.trsOnline.isEnabled() || !modules.trsCosmetics.get()) return null;
+		return v2(online.info(uuid).hat, helmet);
+	}
+
+	/**
+	 * Begleiter (Slot {@code companion}, Format 2) neben dem Hut. Gleiche Regeln wie {@link #hatV2}: nur Spiel-Thread,
+	 * Module an, mit Helm auf den Helm gesetzt. null = nichts.
+	 */
+	public dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<T> companionV2(UUID uuid, boolean helmet) {
+		if (Thread.currentThread() != gameThread) return null;
+		if (!modules.trsOnline.isEnabled() || !modules.trsCosmetics.get()) return null;
+		return v2(online.info(uuid).companion, helmet);
+	}
+
+	/** Zustand der Flügel je Spieler (idle/air/sneak mit Überblendung). */
+	private final dev.theredstonee.trsclient.core.cosmetic.v2.WingState wingStates = new dev.theredstonee.trsclient.core.cosmetic.v2.WingState();
+
+	/**
+	 * Flügel (Slot {@code wings}, Format 2, {@code attach: "body"}) für dieses Bild oder null: nichts getragen, Module
+	 * aus, noch nicht geladen, oder der Spieler trägt eine Elytra ({@code elytra}). {@code state} = {@code WingState}
+	 * IDLE/AIR/SNEAK aus der Bewegung (überblendet 250 ms). {@code self} = eigener Spieler (für die Selbsttest-Flügel
+	 * {@code -Dtrsclient.devWings}). Nur im Spiel-/Render-Thread wirksam.
+	 */
+	public dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<T> wingsV2(UUID uuid, boolean self, boolean elytra, int state) {
+		if (Thread.currentThread() != gameThread || elytra) return null;
+		if (!modules.trsOnline.isEnabled() || !modules.trsCosmetics.get()) return null;
+		HatInfo piece = online.info(uuid).wings;
+		if (piece == null && self) piece = dev.theredstonee.trsclient.core.cosmetic.v2.DevWings.info(online);
+		dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<T> hat = v2(piece, false);
+		if (hat == null) return null;
+		dev.theredstonee.trsclient.core.cosmetic.v2.WingState.Snapshot s = wingStates.update(uuid, state, hat.now);
+		return hat.withState(s.driver, s.prevDriver, s.blend);
+	}
+
+	private dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<T> v2(HatInfo piece, boolean helmet) {
+		if (piece == null || !piece.v2()) return null;
+		try {
+			java.util.function.LongSupplier clock = v2Clock;
+			long wall = System.currentTimeMillis();
+			long now = clock != null ? clock.getAsLong() : wall;
+			dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticAssets.Entry<T> e = cosmetics.get(piece, wall);
+			if (e == null) return null;
+			T halo = e.model.halos.isEmpty() ? null : cosmetics.halo();
+			return new dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<T>(e.model, e.base(now), e.glow(now), halo, now, helmet, e);
+		} catch (RuntimeException ex) {
+			online.reportError(ex);
+			return null;
+		}
+	}
+
+	/** Nur für Selbsttests: feste Uhrzeit für v2-Kosmetik (wie {@code ?t=} der Studio-Werkbank); null = Wanduhr. */
+	public static volatile java.util.function.LongSupplier v2Clock;
+
+	/** Nur für Selbsttests: bekommt jeden gezeichneten v2-Durchgang (Tempo der Animation belegen). */
+	public static volatile java.util.function.BiConsumer<dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<?>, Integer> v2Trace;
+
+	/**
+	 * Einen Durchgang der v2-Kosmetik in den Kopf-Raum des Modells ausgeben (siehe {@code CosmeticV2Renderer.PASS_*}).
+	 * {@code eye} = Kamera im Anhängepunkt-Raum (nur für Höfe, null = keine). Fehler landen im Fehlerbericht, nie im Spiel.
+	 */
+	public void emitV2(dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<T> hat, int pass, double[] eye,
+			dev.theredstonee.trsclient.core.cosmetic.v2.CosmeticV2Renderer.VertexSink sink) {
+		if (hat == null) return;
+		java.util.function.BiConsumer<dev.theredstonee.trsclient.core.cosmetic.v2.V2Hat<?>, Integer> trace = v2Trace;
+		if (trace != null) trace.accept(hat, pass);
+		try {
+			v2Renderer.pose(hat.model, hat.now, true, hat.helmet, hat.driver, hat.prevDriver, hat.blend);
+			v2Renderer.emit(hat.model, pass, hat.now, eye, sink);
+		} catch (RuntimeException e) {
+			online.reportError(e);
+		}
+	}
+
+	/** Zeigt der Spieler das TRS-Abzeichen? {@code tab}: Tabliste, sonst Namensschild. */
+	public boolean badge(UUID uuid, boolean tab) {
+		if (!modules.trsOnline.isEnabled()) return false;
+		if (tab ? !modules.badgeTab.get() : !modules.badgeNametag.get()) return false;
+		return online.info(uuid).badge;
+	}
+
+	/**
+	 * Profil-Abzeichen vor dem Namen (Halloween 2026: Kürbisjäger vor Mond-Fledermaus) oder null: keins, Abzeichen-Schalter
+	 * aus, Modul aus. Gleiche Schalter wie das TRS-Abzeichen ({@code tab}: Tabliste, sonst Namensschild). Nur Spiel-Thread.
+	 */
+	public TextureRef eventBadge(UUID uuid, boolean tab) {
+		if (Thread.currentThread() != gameThread) return null;
+		if (!modules.trsOnline.isEnabled()) return null;
+		if (tab ? !modules.badgeTab.get() : !modules.badgeNametag.get()) return null;
+		String id = dev.theredstonee.trsclient.core.creator.EventBadges.pick(online.info(uuid).badges);
+		if (id == null) return null;
+		try {
+			return eventBadges.texture(id, System.currentTimeMillis());
+		} catch (RuntimeException e) {
+			online.reportError(e);
+			return null;
+		}
+	}
+
+	/**
+	 * Fan-Symbol vor dem Namen (aktuelles Bild, Meilenstein-Rahmen eingezeichnet) oder null: kein Fan, Einstellung aus,
+	 * noch nicht geladen. {@code tab}: Tabliste, sonst Namensschild. Nur im Spiel-/Render-Thread wirksam.
+	 */
+	public TextureRef fanSymbol(UUID uuid, boolean tab) {
+		if (Thread.currentThread() != gameThread) return null;
+		if (!modules.trsOnline.isEnabled() || !(tab ? modules.fanSymbolTab.get() : modules.fanSymbolNametag.get())) return null;
+		FanInfo fan = online.info(uuid).fan;
+		if (fan == null) return null;
+		try {
+			return fanSymbols.texture(fan, System.currentTimeMillis());
+		} catch (RuntimeException e) {
+			online.reportError(e);
+			return null;
+		}
+	}
+
+	/**
+	 * Creator-Stern vor dem Namen (Stufe = Farbe) oder null. Hängt an denselben Schaltern wie die Fan-Symbole
+	 * ({@code tab}: Tabliste, sonst Namensschild).
+	 */
+	public dev.theredstonee.trsclient.core.creator.CreatorTier creatorStar(UUID uuid, boolean tab) {
+		if (!modules.trsOnline.isEnabled() || !(tab ? modules.fanSymbolTab.get() : modules.fanSymbolNametag.get())) return null;
+		return online.info(uuid).creator;
+	}
+
+	/** Umhang-Simulation einer Entity (null = starr/Vanilla zeichnen). */
+	public ClothSim sim(int entityId) {
+		if (!modules.capePhysics.isEnabled()) return null;
+		return physics.sim(entityId);
+	}
+
+	/**
+	 * Zeichnet den simulierten Umhang im eingestellten Stil (glatt oder Stufen) – für alle Loader gleich.
+	 */
+	public void emitCape(ClothSim sim, float partial, ClothMesh.QuadSink sink) {
+		mesh.emit(sim, partial, physics.blocky(), sink);
+	}
+
+	/** Gemeinsamer Mesh-Baukasten (nur Render-Thread). */
+	public ClothMesh mesh() {
+		return mesh;
+	}
+
+	/** Emotes (Rad, Animationen, Ereignisse anderer Spieler). */
+	public dev.theredstonee.trsclient.core.emote.EmoteController emotes() {
+		return emotes;
+	}
+
+	public TrsOnline online() {
+		return online;
+	}
+
+	public CapePhysics physics() {
+		return physics;
+	}
+}

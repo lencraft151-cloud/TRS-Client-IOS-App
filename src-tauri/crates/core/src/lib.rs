@@ -1,0 +1,1601 @@
+//! UI-unabhängiger Kern des TRS Launchers.
+//!
+//! Alles, was nicht Tauri-spezifisch ist, lebt hier: Verzeichnisstruktur,
+//! Einstellungen, Instanzen, Mojang-Metadaten, Downloads, Accounts und der
+//! Spielstart. Die Tauri-App ist nur eine dünne Command-Schicht darüber.
+
+pub mod auth;
+pub mod bedrock;
+pub mod boost;
+pub mod client_mod;
+pub mod clips;
+pub mod connect_hints;
+pub mod client_mod_update;
+pub mod bisect;
+pub mod content;
+pub mod content_groups;
+pub mod controls;
+pub mod crash;
+pub mod data_location;
+pub mod duplicates;
+pub mod curseforge;
+mod default_skin;
+pub mod depcheck;
+pub mod discord;
+pub mod download;
+pub mod error;
+pub mod event_icon;
+pub mod extras;
+pub mod featured;
+pub mod firewall;
+pub mod forge;
+pub mod fsutil;
+pub mod gamelog;
+pub mod gpu;
+pub mod history;
+pub mod hooks;
+pub mod hosting_mods;
+pub mod icon;
+pub mod icon_editor;
+pub mod import;
+pub mod instance;
+pub mod instance_files;
+pub mod java;
+pub mod launch;
+pub mod link;
+pub mod loaders;
+pub mod local_servers;
+pub mod logfiles;
+pub mod meta;
+pub mod mobile_launch;
+pub mod modcompat;
+pub mod modpack;
+pub mod mobile_update;
+pub mod modpack_export;
+pub mod net;
+pub mod pack_share;
+pub mod modrinth;
+pub mod news;
+pub mod nbt;
+pub mod paths;
+pub mod platform;
+pub mod prepare;
+pub mod relocate;
+pub mod preset_tools;
+pub mod presets;
+pub mod process;
+pub mod screenshots;
+pub mod server_export;
+pub mod server_share;
+pub mod servers;
+pub mod settings;
+pub mod shared_folders;
+pub mod skin_import;
+pub mod skin_packs;
+pub mod skin_sync;
+pub mod skins;
+pub mod storage;
+pub mod sync;
+pub mod system;
+pub mod task;
+pub mod task_history;
+pub mod trs_api;
+pub mod trs_choice;
+pub mod upload;
+pub mod worlds;
+
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use tokio::sync::RwLock;
+
+use auth::AccountStore;
+pub use error::{Error, Result};
+use history::{HistoryEntry, HistoryKind};
+use hooks::{HookContext, HookKind};
+use instance::{Instance, InstanceStore, Loader, LoaderKind, NewInstance, UpdateInstance};
+use launch::{EventSink, GameEvent, GameManager, Session};
+use paths::Paths;
+use servers::ServerStore;
+use prepare::{ProgressFn, Stage, StageProgress};
+use settings::Settings;
+
+pub const LAUNCHER_NAME: &str = "TRS-Launcher";
+pub const LAUNCHER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Modrinth & Co. blocken generische User-Agents – immer diesen verwenden.
+pub const USER_AGENT: &str = concat!("theredstonee/TRS-Launcher/", env!("CARGO_PKG_VERSION"));
+
+pub struct Launcher {
+    paths: Paths,
+    http: reqwest::Client,
+    settings: RwLock<Settings>,
+    instances: InstanceStore,
+    accounts: AccountStore,
+    games: GameManager,
+    servers: ServerStore,
+    /// Lokale Minecraft-Server (Server-Export „lokal anlegen und starten“).
+    local_servers: Arc<local_servers::LocalServers>,
+    /// Lokale Server teilen (TRS Relay, e4mc).
+    server_shares: Arc<server_share::ServerShares>,
+    /// Von Hand gewählte Import-Ordner (nur für diese Sitzung).
+    import_folders: Mutex<Vec<PathBuf>>,
+    /// Mitgelieferte TRS-Client-Jars (Tauri-Ressourcen).
+    client_mod_dir: std::sync::RwLock<Option<PathBuf>>,
+    /// Update-Kanal für den TRS Client (GitHub-Release `client-mod`).
+    client_mod_updates: client_mod_update::ClientModUpdater,
+    /// Instanzen, die gerade vorbereitet werden (Schutz vor Doppelklicks).
+    preparing: Mutex<HashSet<String>>,
+    /// Instanzen, deren nächster Start nach einem Speicherfehler sichere Werte nimmt.
+    safe_memory: Mutex<HashSet<String>>,
+    /// Warteschlange für Skin-/Umhang-Änderungen.
+    skin_sync: skin_sync::SkinSync,
+    /// Geprüfte Skins, die auf „Übernehmen“ im Import-Dialog warten.
+    skin_imports: skin_import::Staging,
+    /// TRS API (Umhänge, Freunde, Präsenz) – nur mit Einwilligung.
+    trs: trs_api::TrsApi,
+    /// CurseForge – nur, wenn der Build einen API-Schlüssel hat.
+    curseforge: Option<curseforge::CurseForge>,
+    /// Clips & Aufnahme (nimmt das Spielfenster auf, die Mod meldet nur Tasten).
+    clips: Arc<clips::ClipService>,
+    /// Discord-Status („Spielt TRS Launcher“) über die lokale Discord-App.
+    discord: Arc<discord::DiscordPresence>,
+    /// Kanal zur Mod (Clips, Kontowechsel im Spiel) – nur 127.0.0.1.
+    link: Arc<link::TrsLink>,
+    /// Öffnet Links im Browser (setzt die App; Konto aus dem Spiel hinzufügen).
+    url_opener: std::sync::RwLock<Option<UrlOpener>>,
+    /// Meldet der Oberfläche geänderte Accounts (Tauri: `accounts-changed`).
+    accounts_sink: std::sync::RwLock<Option<AccountsSink>>,
+    /// „Im Launcher öffnen“ aus dem Spiel: Fenster nach vorn + Player (Tauri: `clip-open`).
+    clip_open_sink: std::sync::RwLock<Option<clips::api::ClipOpenSink>>,
+    /// Welt mit Mods aus dem Spiel im Launcher öffnen (Tauri: `hosting-open`).
+    hosting_open_sink: std::sync::RwLock<Option<HostingOpenSink>>,
+    /// Gemeinsame Ordner: Zusammenführen/Lösen nie gleichzeitig (siehe [`shared_folders`]).
+    shared_folders_lock: tokio::sync::Mutex<()>,
+}
+
+/// „Im Launcher öffnen“ einer gehosteten Welt mit Mods (Raum-ID) – die App holt das Fenster nach vorn.
+pub type HostingOpenSink = Arc<dyn Fn(String) + Send + Sync>;
+
+/// Öffnet eine URL im Standardbrowser.
+pub type UrlOpener = Arc<dyn Fn(&str) + Send + Sync>;
+/// Accounts wurden außerhalb der Oberfläche geändert (z. B. aus dem Spiel).
+pub type AccountsSink = Arc<dyn Fn() + Send + Sync>;
+
+impl Launcher {
+    /// Legt die Verzeichnisstruktur unter `root` an und lädt die Einstellungen.
+    /// Über `events` meldet der Kern Spielstart, Logs und Spielende.
+    pub async fn init(root: impl Into<PathBuf>, events: EventSink) -> Result<Self> {
+        let paths = Paths::new(root);
+        paths.ensure().await?;
+        // Schlüssel für die Token-Verschlüsselung (Linux: Schlüsselbund, ggf. mit
+        // dessen Entsperr-Dialog – deshalb blockierend abseits der Runtime).
+        let key_root = paths.root().to_owned();
+        tokio::task::spawn_blocking(move || auth::crypto::init(&key_root))
+            .await
+            .map_err(|e| Error::Internal(e.to_string()))?;
+
+        let http = crate::net::client_builder()
+            .user_agent(USER_AGENT)
+            .connect_timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(60))
+            .build()?;
+
+        let settings = Settings::load(&paths.settings_file()).await?;
+
+        // Spielende landet zusätzlich im Verlauf der Instanz.
+        let history_paths = paths.clone();
+        let events: EventSink = Arc::new(move |event: GameEvent| {
+            if let GameEvent::Exited { instance_id, crashed, play_seconds, diagnosis, exit_code, crash, .. } = &event {
+                // Absturz-Helfer: analysiert im Hintergrund, schreibt den Verlauf und meldet `crashAnalyzed`.
+                let helped = *crashed
+                    && crash
+                        .as_ref()
+                        .is_some_and(|c| crash::analyze_after_exit(&history_paths, events.clone(), instance_id, (**c).clone()));
+                let entry = if helped {
+                    None
+                } else if *crashed {
+                    let detail = diagnosis
+                        .as_ref()
+                        .and_then(|d| serde_json::to_value(d.kind).ok())
+                        .and_then(|v| v.as_str().map(str::to_owned))
+                        .or_else(|| exit_code.map(|c| format!("exit:{c}")));
+                    let entry = HistoryEntry::new(HistoryKind::Crashed).seconds(*play_seconds);
+                    Some(match detail {
+                        Some(d) => entry.detail(d),
+                        None => entry,
+                    })
+                } else {
+                    Some(HistoryEntry::new(HistoryKind::Stopped).seconds(*play_seconds))
+                };
+                if let Some(entry) = entry {
+                    history::record_detached(&history_paths, instance_id, entry);
+                }
+            }
+            events(event);
+        });
+
+        let link = Arc::new(link::TrsLink::new(Some(paths.root().join("link-sessions.json"))));
+        let clips = Arc::new(clips::ClipService::new(&paths, link.clone()));
+        let discord = Arc::new(discord::DiscordPresence::from_build());
+        discord.configure(settings.discord_presence, settings.ui.language);
+        let launcher = Self {
+            clips: clips.clone(),
+            discord: discord.clone(),
+            link: link.clone(),
+            url_opener: std::sync::RwLock::default(),
+            accounts_sink: std::sync::RwLock::default(),
+            clip_open_sink: std::sync::RwLock::default(),
+            hosting_open_sink: std::sync::RwLock::default(),
+            shared_folders_lock: tokio::sync::Mutex::default(),
+            instances: InstanceStore::new(paths.clone()),
+            accounts: AccountStore::new(paths.clone(), http.clone()),
+            games: GameManager::new(events, paths.root().join("running.json")),
+            servers: ServerStore::new(paths.clone()),
+            local_servers: Arc::default(),
+            server_shares: Arc::default(),
+            import_folders: Mutex::default(),
+            client_mod_dir: std::sync::RwLock::default(),
+            client_mod_updates: client_mod_update::ClientModUpdater::new(&paths)?,
+            preparing: Mutex::default(),
+            safe_memory: Mutex::default(),
+            skin_sync: skin_sync::SkinSync::default(),
+            skin_imports: skin_import::Staging::default(),
+            trs: trs_api::TrsApi::new(paths.clone())?,
+            curseforge: curseforge::CurseForge::from_build()?,
+            settings: RwLock::new(settings),
+            paths,
+            http,
+        };
+
+        // Spiele, die beim letzten Schließen noch liefen, wieder übernehmen –
+        // nach ihrem Ende auch synchronisieren und den Nach-Beenden-Hook ausführen.
+        let paths = launcher.paths.clone();
+        let sink = launcher.games.sink();
+        let presence = Arc::clone(&launcher.trs.presence);
+        launcher.games.recover(|id, extra| {
+            // Mit welchem Account das Spiel lief, ist nach dem Neustart unbekannt.
+            // Zusätzliche Prozesse derselben Instanz melden sich nirgends an (siehe `launch_inner`).
+            if !extra {
+                presence.game_started(id, None, None);
+            }
+            let (paths, id, sink, presence, clips, discord, link) =
+                (paths.clone(), id.to_owned(), sink.clone(), presence.clone(), clips.clone(), discord.clone(), link.clone());
+            let still_running = launcher.games.running_probe();
+            Box::new(move |seconds| {
+                if !extra {
+                    presence.game_exited(&id);
+                    clips.game_exited(&id);
+                    discord.game_exited(&id);
+                    link_game_exited(&link, &paths, &id);
+                }
+                tokio::spawn(async move {
+                    let store = InstanceStore::new(paths.clone());
+                    if let Err(e) = store.add_play_time(&id, seconds).await {
+                        tracing::warn!("Spielzeit für '{id}' konnte nicht gespeichert werden: {e}");
+                    }
+                    // Nach-Beenden-Hook und Synchronisieren erst, wenn der letzte Prozess der Instanz zu ist.
+                    if still_running(&id) {
+                        return;
+                    }
+                    let Ok(instance) = store.get(&id).await else { return };
+                    let settings = Settings::load(&paths.settings_file()).await.unwrap_or_default();
+                    let plan = ExitPlan::new(&paths, &instance, &settings, None);
+                    plan.run(sink).await;
+                });
+            })
+        });
+        if !platform::MOBILE {
+            launcher.discord_recovered_games().await;
+        }
+        Ok(launcher)
+    }
+
+    /// Übernommene Spiele auch im Discord-Status zeigen (mit ihrer echten Startzeit).
+    async fn discord_recovered_games(&self) {
+        let mut games = self.games.running();
+        games.sort_by_key(|g| g.started_at);
+        for game in games {
+            let Ok(instance) = self.instances.get(&game.instance_id).await else { continue };
+            self.discord.game_started(discord::GameInfo {
+                instance_id: instance.id.clone(),
+                game_version: instance.game_version.clone(),
+                loader: instance.loader.kind,
+                started_at: game.started_at.timestamp(),
+            });
+            // Inzwischen beendet? Dann kam die Abmeldung schon – wieder entfernen.
+            if !self.games.is_running(&instance.id) {
+                self.discord.game_exited(&instance.id);
+            }
+        }
+    }
+
+    /// Hintergrund-Schleife für den Discord-Status (still, solange Discord nicht läuft).
+    pub async fn run_discord(self: Arc<Self>) {
+        self.discord.run(discord::ipc::IpcConnector).await;
+    }
+
+    /// Beim Beenden des Launchers: Discord-Status löschen (höchstens ~1,5 s).
+    pub async fn discord_shutdown(&self) {
+        self.discord.shutdown().await;
+    }
+
+    pub fn paths(&self) -> &Paths {
+        &self.paths
+    }
+
+    pub fn http(&self) -> &reqwest::Client {
+        &self.http
+    }
+
+    pub fn instances(&self) -> &InstanceStore {
+        &self.instances
+    }
+
+    pub fn accounts(&self) -> &AccountStore {
+        &self.accounts
+    }
+
+    pub fn games(&self) -> &GameManager {
+        &self.games
+    }
+
+    /// CurseForge-Zugang; Fehler, wenn dieser Build keinen API-Schlüssel hat.
+    pub fn curseforge(&self) -> Result<&curseforge::CurseForge> {
+        self.curseforge.as_ref().ok_or_else(curseforge::disabled)
+    }
+
+    /// Ob CurseForge in diesem Build verfügbar ist (ohne Schlüssel preiszugeben).
+    pub fn curseforge_status(&self) -> curseforge::CurseForgeStatus {
+        curseforge::CurseForgeStatus { available: self.curseforge.is_some() }
+    }
+
+    /// Ordner mit den mitgelieferten TRS-Client-Jars.
+    pub fn set_client_mod_dir(&self, dir: PathBuf) {
+        *self.client_mod_dir.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(dir);
+    }
+
+    fn bundled_client_mod_dir(&self) -> Option<PathBuf> {
+        self.client_mod_dir.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+    }
+
+    /// Sieht im Update-Kanal des TRS Clients nach (beim Launcher-Start und vor
+    /// jedem Spielstart, höchstens alle 30 Minuten). Offline passiert nichts.
+    pub async fn check_client_mod_updates(&self) -> client_mod_update::CheckOutcome {
+        let bundled = self.bundled_client_mod_dir().as_deref().map(client_mod::load_manifest).unwrap_or_default();
+        let bundled_version = Some(bundled.version.as_str()).filter(|v| !v.is_empty());
+        self.client_mod_updates.check_if_due(bundled_version).await
+    }
+
+    /// Welche TRS-Client-Version gerade gilt (für die Einstellungen).
+    pub async fn client_mod_status(&self) -> client_mod::ClientModStatus {
+        let dir = self.bundled_client_mod_dir();
+        client_mod::Catalog::load(dir.as_deref(), Some(&self.client_mod_updates)).await.status()
+    }
+
+    /// Grafik-Modus des TRS Clients einer Instanz (`None` = noch nicht gewählt).
+    pub async fn fps_mode(&self, id: &str) -> Result<Option<client_mod::FpsMode>> {
+        let instance = self.instances.get(id).await?;
+        Ok(client_mod::fps_mode(&self.paths, &instance.id).await)
+    }
+
+    /// Grafik-Modus setzen – der TRS Client wendet ihn beim nächsten Start an.
+    pub async fn set_fps_mode(&self, id: &str, mode: client_mod::FpsMode) -> Result<()> {
+        let instance = self.instances.get(id).await?;
+        client_mod::set_fps_mode(&self.paths, &instance.id, mode).await
+    }
+
+    /// TRS-Client-Builds, die gerade gelten (Update-Kanal oder Launcher-Paket) –
+    /// z. B. damit Presets die im TRS Client eingebauten Mods weglassen.
+    pub async fn client_mod_builds(&self) -> Vec<client_mod::Build> {
+        self.client_mod_catalog().await.1.builds().to_vec()
+    }
+
+    /// „Mit oder ohne TRS Client?“ für ein Pack bzw. eine Instanz mit diesem
+    /// Loader, dieser Version und diesen Dateien (siehe [`trs_choice`]).
+    pub async fn trs_client_offer(
+        &self,
+        loader: &instance::Loader,
+        game_version: &str,
+        hints: &[trs_choice::ModHint],
+    ) -> trs_choice::TrsOffer {
+        let (_, catalog) = self.client_mod_catalog().await;
+        let policy = self.settings().await.modpack_trs_client;
+        trs_choice::offer(catalog.builds(), loader, game_version, hints, policy)
+    }
+
+    async fn client_mod_catalog(&self) -> (Option<PathBuf>, client_mod::Catalog) {
+        let dir = self.bundled_client_mod_dir();
+        let catalog = client_mod::Catalog::load(dir.as_deref(), Some(&self.client_mod_updates)).await;
+        (dir, catalog)
+    }
+
+    pub fn servers(&self) -> &ServerStore {
+        &self.servers
+    }
+
+    pub async fn settings(&self) -> Settings {
+        self.settings.read().await.clone()
+    }
+
+    pub async fn update_settings(&self, new: Settings) -> Result<Settings> {
+        let new = new.normalized();
+        new.validate()?;
+        let mut guard = self.settings.write().await;
+        new.save(&self.paths.settings_file()).await?;
+        if guard.prefer_dedicated_gpu && !new.prefer_dedicated_gpu {
+            // Abgeschaltet: unsere GPU-Einträge in Windows wieder entfernen.
+            let java_dir = self.paths.java_dir();
+            let removed = tokio::task::spawn_blocking(move || {
+                gpu::revert(&gpu::WindowsGpuPreferences, &java_dir, &gpu::own_runtimes(&java_dir))
+            })
+            .await
+            .unwrap_or_default();
+            tracing::info!("GPU-Präferenz für {removed} Java-Runtimes entfernt");
+        }
+        let clips_changed = guard.clips != new.clips;
+        let old_ui = guard.ui.clone();
+        let sync_switched_on = !guard.trs_sync && new.trs_sync;
+        *guard = new.clone();
+        drop(guard);
+        self.discord.configure(new.discord_presence, new.ui.language);
+        if clips_changed {
+            let running = self.running_for_clips().await;
+            self.clips.settings_changed(&new.clips, running).await;
+        }
+        // TRS-Synchronisation: Theme/Akzent/Sprache merken, Schalter an → gleich abgleichen.
+        self.trs_ui_changed(&old_ui, &new.ui).await;
+        if sync_switched_on {
+            self.trs_sync_kick();
+        }
+        Ok(new)
+    }
+
+    /// Theme, Akzentfarbe und Sprache vom TRS-Konto übernehmen (ohne sie als
+    /// lokale Änderung zu zählen). Die Oberfläche lädt danach neu.
+    pub(crate) async fn apply_synced_ui(
+        &self,
+        theme: settings::Theme,
+        accent: settings::Accent,
+        language: settings::Language,
+        design: settings::Design,
+    ) -> Result<()> {
+        let mut guard = self.settings.write().await;
+        let mut new = guard.clone();
+        new.ui.theme = theme;
+        new.ui.accent = accent;
+        new.ui.language = language;
+        new.ui.design = design;
+        if new == *guard {
+            return Ok(());
+        }
+        new.save(&self.paths.settings_file()).await?;
+        *guard = new.clone();
+        drop(guard);
+        self.discord.configure(new.discord_presence, new.ui.language);
+        Ok(())
+    }
+
+    /// Clips & Aufnahme.
+    pub fn clips(&self) -> &clips::ClipService {
+        &self.clips
+    }
+
+    /// Laufende Spiele mit Name und Spielordner (für die Aufnahme).
+    async fn running_for_clips(&self) -> Vec<clips::RunningGame> {
+        let mut games = Vec::new();
+        for game in self.games.running() {
+            let name = self.instances.get(&game.instance_id).await.map(|i| i.name).unwrap_or_else(|_| game.instance_id.clone());
+            games.push(clips::RunningGame {
+                game_dir: self.paths.instance_game_dir(&game.instance_id),
+                instance_name: name,
+                pid: game.pid,
+                instance_id: game.instance_id,
+            });
+        }
+        games
+    }
+
+    /// Nach einem Launcher-Neustart: TRS-Link-Sitzungen übernommener Spiele
+    /// wiederherstellen (neuer Port in clips.json – die Mod liest ihn beim
+    /// nächsten Verbindungsversuch) und die Aufnahme wieder aufnehmen.
+    pub async fn resume_clips(self: Arc<Self>) {
+        let settings = self.settings().await.clips;
+        let running = self.running_for_clips().await;
+        if running.is_empty() {
+            // Nichts läuft: alte Sicherungen verwerfen.
+            if let Err(e) = self.link.restore(&[]).await {
+                tracing::warn!("TRS-Link-Sitzungen konnten nicht gelesen werden: {e}");
+            }
+            return;
+        }
+        self.link_attach_accounts();
+        let pairs: Vec<(String, u32)> = running.iter().map(|g| (g.instance_id.clone(), g.pid)).collect();
+        if let Err(e) = self.link.restore(&pairs).await {
+            tracing::warn!("TRS-Link-Sitzungen konnten nicht übernommen werden: {e}");
+        }
+        for game in &running {
+            // Ohne gesicherte Sitzung hilft ein neuer Schlüssel nur alten Mods (Token in clips.json).
+            if !self.link.has_session(&game.instance_id)
+                && client_mod::installed_is_legacy(&self.paths, &game.instance_id).await
+                && self.link.open_session(&game.instance_id, true).await.is_ok()
+            {
+                self.link.set_pid(&game.instance_id, game.pid);
+            }
+            if self.link.has_session(&game.instance_id) {
+                self.clips.prepare(&game.instance_id, &game.game_dir, &settings).await;
+            }
+        }
+        if settings.enabled {
+            self.clips.settings_changed(&settings, running).await;
+        }
+    }
+
+    /// Browser-Öffner der App (für „Konto hinzufügen“ aus dem Spiel).
+    pub fn set_url_opener(&self, opener: UrlOpener) {
+        *self.url_opener.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(opener);
+    }
+
+    pub(crate) fn url_opener(&self) -> Option<UrlOpener> {
+        self.url_opener.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+    }
+
+    /// Oberfläche über Account-Änderungen informieren (Tauri: `accounts-changed`).
+    pub fn set_accounts_sink(&self, sink: AccountsSink) {
+        *self.accounts_sink.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(sink);
+    }
+
+    /// Account aus dem Spiel hinzugefügt: Oberfläche neu laden lassen.
+    pub(crate) fn emit_accounts_changed(&self) {
+        let sink = self.accounts_sink.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+        if let Some(sink) = sink {
+            sink();
+        }
+    }
+
+    /// Instanzen, in denen gerade ein Spiel mit verbundenem TRS Client läuft, der
+    /// Sozial-Hinweise selbst zeigt – dann schweigt der Launcher dazu.
+    pub async fn social_game_clients(&self) -> Vec<String> {
+        let mut clients = Vec::new();
+        for id in self.link.linked() {
+            let version = client_mod::installed_version(&self.paths, &id).await;
+            if client_mod::shows_social_in_game(version.as_deref()) {
+                clients.push(id);
+            }
+        }
+        clients
+    }
+
+    /// Meldet jede Änderung von [`Self::social_game_clients`] (Link steht/bricht ab,
+    /// Spielende) – Tauri: `trs-client-linked`. Läuft, solange die App läuft.
+    pub async fn run_social_game_clients(self: Arc<Self>, sink: Arc<dyn Fn(Vec<String>) + Send + Sync>) {
+        let mut rx = self.link.subscribe_linked();
+        let mut last = Vec::new();
+        while rx.changed().await.is_ok() {
+            let clients = self.social_game_clients().await;
+            if clients != last {
+                sink(clients.clone());
+                last = clients;
+            }
+        }
+    }
+
+    /// Accounts im Launcher geändert (hinzugefügt, entfernt, aktiver gewechselt):
+    /// laufende Spiele mit TRS Client laden ihre Kontenliste neu.
+    pub fn link_accounts_changed(&self) {
+        self.link.notify_accounts_changed();
+    }
+
+    /// Kontowechsel im Spiel an die Accounts dieses Launchers anbinden – und
+    /// „Clips einschalten“ aus dem Spiel an die Einstellungen.
+    fn link_attach_accounts(self: &Arc<Self>) {
+        self.link.set_handler(Arc::new(link::bridge::AccountsBridge { launcher: Arc::downgrade(self) }));
+        self.link.set_clips_enabler(link::bridge::clips_enabler(Arc::downgrade(self)));
+        self.link.set_clips_handler(Arc::new(link::bridge::ClipsBridge { launcher: Arc::downgrade(self) }));
+        self.link.set_hosting_handler(Arc::new(link::bridge::HostingBridge { launcher: Arc::downgrade(self) }));
+    }
+
+    /// Die App holt das Fenster nach vorn und öffnet den Mod-Dialog der Welt.
+    pub fn set_hosting_open_sink(&self, sink: HostingOpenSink) {
+        *self.hosting_open_sink.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(sink);
+    }
+
+    /// `hosting.open` aus dem Spiel: nur ein laufendes Spiel darf fragen.
+    pub(crate) fn open_world_from_game(&self, instance_id: &str, room_id: &str) -> std::result::Result<(), &'static str> {
+        if !self.games.is_running(instance_id) {
+            return Err("not_allowed");
+        }
+        let sink = self.hosting_open_sink.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+        let sink = sink.ok_or("unsupported")?;
+        tracing::info!("Welt mit Mods aus dem Spiel im Launcher öffnen ('{instance_id}')");
+        sink(room_id.to_owned());
+        Ok(())
+    }
+
+    /// Clips auf Wunsch des Spiels einschalten (`clips.enable` über den TRS-Link):
+    /// wie der Schalter in den Einstellungen – gespeichert, die Oberfläche lädt
+    /// neu, und die Aufnahme des laufenden Spiels startet sofort (Ringpuffer).
+    /// Liefert die Länge eines Sofort-Clips in Sekunden bzw. einen Fehlercode.
+    pub(crate) async fn enable_clips_from_game(&self, instance_id: &str) -> std::result::Result<u32, &'static str> {
+        if !cfg!(windows) {
+            return Err("unsupported");
+        }
+        if !self.games.is_running(instance_id) {
+            return Err("not_allowed");
+        }
+        let current = self.settings().await;
+        let seconds = current.clips.buffer_seconds;
+        if current.clips.enabled {
+            // Schon an (z. B. gerade im Launcher eingeschaltet): nur sicherstellen, dass die Aufnahme läuft.
+            let running = self.running_for_clips().await;
+            self.clips.settings_changed(&current.clips, running).await;
+            return Ok(seconds);
+        }
+        let mut new = current;
+        new.clips.enabled = true;
+        match self.update_settings(new).await {
+            Ok(saved) => {
+                tracing::info!("Clips aus dem Spiel eingeschaltet ('{instance_id}')");
+                self.clips.announce_enabled(instance_id);
+                Ok(saved.clips.buffer_seconds)
+            }
+            Err(e) => {
+                tracing::warn!("Clips ließen sich aus dem Spiel nicht einschalten: {e}");
+                Err("error")
+            }
+        }
+    }
+
+    /// Beim Beenden des Launchers: laufende Aufnahmen sichern und FFmpeg beenden.
+    pub async fn clips_shutdown(&self) {
+        self.clips.shutdown().await;
+    }
+
+    pub async fn version_manifest(&self, force_refresh: bool) -> Result<meta::VersionManifest> {
+        meta::manifest::fetch(&self.http, &self.paths, force_refresh).await
+    }
+
+    /// Wie [`InstanceStore::create`], prüft aber vorher gegen das Manifest,
+    /// dass es die Spielversion wirklich gibt.
+    ///
+    /// Neue Instanzen bekommen gleich die Standard-`options.txt`
+    /// ([`instance::DEFAULT_GAME_OPTIONS`]: unbegrenzte Bildrate, kein VSync).
+    /// Import, Modpacks und Kopien bringen eigene Optionen mit – dort greift das
+    /// erst beim ersten Start, und nur, wenn dann noch keine da ist.
+    pub async fn create_instance(&self, new: NewInstance) -> Result<Instance> {
+        let instance = self.create_instance_as(new, HistoryEntry::new(HistoryKind::Created)).await?;
+        if let Err(e) = instance::seed_game_options(&self.paths.instance_game_dir(&instance.id), None).await {
+            tracing::warn!("Standard-Optionen für '{}' nicht geschrieben: {e}", instance.id);
+        }
+        // Leere Instanz: gemeinsame Ordner gleich verlinken (Import/Modpack: beim ersten Start,
+        // dann werden ihre mitgebrachten Dateien vorher zusammengeführt).
+        self.ensure_shared_folders(&instance).await;
+        Ok(instance)
+    }
+
+    /// Wie [`Self::create_instance`] mit eigenem ersten Verlaufseintrag
+    /// (Import, Modpack, Kopie).
+    pub(crate) async fn create_instance_as(&self, new: NewInstance, first: HistoryEntry) -> Result<Instance> {
+        self.create_instance_with(new, first, None).await
+    }
+
+    /// Wie [`Self::create_instance_as`]; `trs_client` landet gleich in den
+    /// Überschreibungen (Wahl beim Modpack bzw. Import, siehe [`trs_choice`]).
+    pub(crate) async fn create_instance_with(
+        &self,
+        new: NewInstance,
+        first: HistoryEntry,
+        trs_client: Option<bool>,
+    ) -> Result<Instance> {
+        let manifest = self.version_manifest(false).await?;
+        if manifest.find(&new.game_version).is_none() {
+            return Err(Error::UnknownGameVersion(new.game_version));
+        }
+        // Neue Instanzen teilen die in den Einstellungen gewählten Ordner.
+        let shared_folders = self.settings().await.shared_folders;
+        let overrides = instance::InstanceOverrides { trs_client, shared_folders, ..Default::default() };
+        let instance = self.instances.create_with(new, overrides).await?;
+        let first = first.to(describe_version(&instance.game_version, &instance.loader));
+        history::record(&self.paths, &instance.id, first).await;
+        Ok(instance)
+    }
+
+    pub async fn delete_instance(&self, id: &str) -> Result<()> {
+        if self.games.is_running(id) || self.is_preparing(id) {
+            return Err(Error::launch(crate::msg!("launcher.instanceRunningNoDelete", "Die Instanz läuft gerade und kann nicht gelöscht werden.")));
+        }
+        self.instances.delete(id).await
+    }
+
+    /// Wechselt Minecraft-Version und/oder Modloader einer Instanz. Welten und
+    /// Mods bleiben liegen; passende Mod-Versionen findet danach
+    /// [`modrinth::plan_migration`].
+    pub async fn change_instance_version(&self, id: &str, game_version: &str, loader: Loader) -> Result<Instance> {
+        let instance = self.instances.get(id).await?;
+        if self.games.is_running(&instance.id) || self.is_preparing(&instance.id) {
+            return Err(Error::launch(crate::msg!("launcher.instanceRunningStopFirst", "Die Instanz läuft gerade – bitte erst beenden.")));
+        }
+        loader.validate()?;
+        if instance.game_version == game_version && instance.loader == loader {
+            return Ok(instance);
+        }
+        let manifest = self.version_manifest(false).await?;
+        if manifest.find(game_version).is_none() {
+            return Err(Error::UnknownGameVersion(game_version.to_owned()));
+        }
+        let updated = self.instances.set_version(&instance.id, game_version, loader).await?;
+        history::record(
+            &self.paths,
+            &updated.id,
+            HistoryEntry::new(HistoryKind::VersionSwitched)
+                .from(describe_version(&instance.game_version, &instance.loader))
+                .to(describe_version(&updated.game_version, &updated.loader)),
+        )
+        .await;
+        Ok(updated)
+    }
+
+    /// Name und Einstellungen einer Instanz ändern; Umbenennen und geänderte
+    /// Start-Hooks landen im Verlauf.
+    pub async fn update_instance(&self, id: &str, update: UpdateInstance) -> Result<Instance> {
+        let before = self.instances.get(id).await?;
+        let updated = self.instances.update(&before.id, update).await?;
+        if before.name != updated.name {
+            let entry = HistoryEntry::new(HistoryKind::Renamed).from(&before.name).to(&updated.name);
+            history::record(&self.paths, &updated.id, entry).await;
+        }
+        if before.overrides.hooks != updated.overrides.hooks {
+            let detail = if updated.overrides.hooks.is_some() { "custom" } else { "global" };
+            history::record(&self.paths, &updated.id, HistoryEntry::new(HistoryKind::HooksChanged).detail(detail)).await;
+        }
+        Ok(updated)
+    }
+
+    /// Instanz in eine eigene Gruppe verschieben (`None` = aus der Gruppe nehmen).
+    pub async fn set_instance_group(&self, id: &str, group: Option<&str>) -> Result<Instance> {
+        let before = self.instances.get(id).await?;
+        let updated = self.instances.set_group(&before.id, group).await?;
+        if before.group != updated.group {
+            let mut entry = HistoryEntry::new(HistoryKind::GroupChanged);
+            if let Some(from) = &before.group {
+                entry = entry.from(from);
+            }
+            if let Some(to) = &updated.group {
+                entry = entry.to(to);
+            }
+            history::record(&self.paths, &updated.id, entry).await;
+        }
+        Ok(updated)
+    }
+
+    pub async fn instance_history(&self, id: &str) -> Result<Vec<history::HistoryEntry>> {
+        let instance = self.instances.get(id).await?;
+        history::list(&self.paths, &instance.id).await
+    }
+
+    pub(crate) fn is_preparing(&self, id: &str) -> bool {
+        self.preparing.lock().unwrap_or_else(std::sync::PoisonError::into_inner).contains(id)
+    }
+
+    /// Lädt alles Nötige herunter und startet das Spiel. Liefert die PID.
+    ///
+    /// `join`: Server, auf den direkt verbunden werden soll – aus der
+    /// Launcher-Liste oder eine Adresse (z. B. der geteilte Server eines Freundes).
+    pub async fn launch(
+        self: &Arc<Self>,
+        instance_id: &str,
+        join: Option<Join<'_>>,
+        on_progress: &ProgressFn,
+    ) -> Result<u32> {
+        self.launch_with(instance_id, join, LaunchOptions::default(), on_progress).await
+    }
+
+    /// Wie [`Self::launch`], aber mit Optionen: `extra` startet die Instanz noch einmal, obwohl sie
+    /// schon läuft (eigener Prozess, eigene Log-Dateien, kein TRS-Link/Clips/Discord/Online-Status –
+    /// die gehören dem ersten Prozess); `account_id` startet mit einem anderen Konto als dem aktiven.
+    pub async fn launch_with(
+        self: &Arc<Self>,
+        instance_id: &str,
+        join: Option<Join<'_>>,
+        options: LaunchOptions,
+        on_progress: &ProgressFn,
+    ) -> Result<u32> {
+        // Android/iOS: kein Java-Spielstart (die Spiel-Engine kommt später als eigenes Plugin).
+        platform::desktop_only()?;
+        let instance = self.instances.get(instance_id).await?;
+        if let Some(Join::World(world)) = join {
+            check_world_instance(&instance, world)?;
+        }
+        let extra = options.extra && self.games.is_running(&instance.id);
+        if extra && matches!(join, Some(Join::World(_))) {
+            return Err(Error::launch(crate::msg!("launcher.alreadyRunning", "Diese Instanz läuft bereits.")));
+        }
+        if !extra && self.games.is_running(&instance.id) {
+            // Welt beitreten, während das Spiel schon läuft: die Anweisung geht direkt ans Spiel.
+            if let Some(Join::World(world)) = join {
+                return self.hand_world_to_running_game(&instance.id, world);
+            }
+            return Err(Error::launch(crate::msg!("launcher.alreadyRunning", "Diese Instanz läuft bereits.")));
+        }
+        // Datenordner verschoben: bis zum Neustart startet nichts mehr aus dem alten Ordner.
+        if self.is_preparing(relocate::DATA_MOVE_GUARD) {
+            return Err(relocate::data_moving());
+        }
+        {
+            let mut preparing = self.preparing.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            if !preparing.insert(instance.id.clone()) {
+                return Err(Error::launch(crate::msg!("launcher.alreadyStarting", "Diese Instanz wird bereits gestartet.")));
+            }
+        }
+
+        let result =
+            self.launch_inner(&instance, join, extra, options.account_id.as_deref(), options.skip_mod_check, on_progress).await;
+        self.preparing.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&instance.id);
+        result
+    }
+
+    async fn launch_inner(
+        self: &Arc<Self>,
+        instance: &Instance,
+        join_request: Option<Join<'_>>,
+        extra: bool,
+        account_id: Option<&str>,
+        skip_mod_check: bool,
+        on_progress: &ProgressFn,
+    ) -> Result<u32> {
+        let world = match join_request {
+            Some(Join::World(world)) => Some(world),
+            _ => None,
+        };
+        // „Schnell verbinden“: parallel zur Vorbereitung auflösen und messen (begrenzt, nie ein Startfehler).
+        let mut hints_join = None;
+        let mut hints_task = None;
+        let (join, join_label) = match join_request {
+            Some(Join::World(world)) => {
+                (None, Some(if world.name.is_empty() { world.room_id.clone() } else { world.name.clone() }))
+            }
+            Some(Join::Server(id)) => {
+                let server = self.servers.get(id).await?;
+                hints_join = connect_join(join_request, Some(&server.address));
+                hints_task = Some(self.servers.hints().spawn_launch(&server.address));
+                (Some(servers::join_target(&server.address).await?), Some(server.name))
+            }
+            Some(Join::Address(address)) => {
+                hints_join = connect_join(join_request, None);
+                hints_task = Some(self.servers.hints().spawn_launch(address));
+                let target = servers::join_target(address).await?;
+                let label = target.address.clone();
+                (Some(target), Some(label))
+            }
+            None => (None, None),
+        };
+        let session = match account_id {
+            Some(id) => self
+                .accounts
+                .session_for(id, false)
+                .await?
+                .ok_or_else(|| Error::launch(crate::msg!("launcher.accountMissing", "Das gewählte Konto gibt es nicht mehr.")))?,
+            None => match self.accounts.active_session().await? {
+                Some(session) => session,
+                None => demo_session()?,
+            },
+        };
+        let settings = self.settings().await;
+        // Für Discord zählt, was der Nutzer gewählt hat (Vanilla bleibt Vanilla,
+        // auch wenn die TRS-Optimierung unter der Haube Fabric nutzt).
+        let discord_game = discord::GameInfo {
+            instance_id: instance.id.clone(),
+            game_version: instance.game_version.clone(),
+            loader: instance.loader.kind,
+            started_at: 0,
+        };
+
+        // Neuer TRS Client im Update-Kanal? (kurzer Timeout, offline egal)
+        self.check_client_mod_updates().await;
+        // Vanilla mit TRS-Optimierung läuft unter der Haube als Fabric.
+        let (client_mod_dir, catalog) = self.client_mod_catalog().await;
+        let effective = boost::effective_instance(&self.http, &self.paths, catalog.builds(), instance).await;
+        // Mods laden/prüfen als eigene Stufe – sonst sähe der erste Start wie hängengeblieben aus.
+        let mods_progress = |p: presets::ApplyProgress| on_progress(mods_stage(&p));
+        // Performance-Mods gibt es nur für Fabric; Forge-Boost (1.8.9) bekommt nur den TRS Client.
+        if effective.loader.kind == LoaderKind::Fabric && instance.loader.kind != LoaderKind::Fabric {
+            if boost::needs_performance(&self.paths, &effective).await {
+                on_progress(StageProgress::begin(Stage::Mods));
+            }
+            boost::ensure_performance(&self.http, &self.paths, catalog.builds(), &effective, &mods_progress).await?;
+        }
+        let instance = &effective;
+        // Gehostete Welt: Ohne TRS Client kann das Spiel weder verbinden noch die Anweisung lesen.
+        if world.is_some()
+            && (instance.loader.kind == LoaderKind::Vanilla
+                || instance.overrides.trs_client == Some(false)
+                || client_mod::build_for(catalog.builds(), instance.loader.kind, &instance.game_version).is_none())
+        {
+            return Err(Error::launch(crate::msg!(
+                "hosting.needsClient",
+                "Diese Instanz startet ohne TRS Client – gehosteten Welten kann nur ein Spiel mit TRS Client beitreten."
+            )));
+        }
+
+        let updates = Some(&self.client_mod_updates);
+        // Der Mod liest daraus, ob er die TRS API benutzen darf (nur feste Werte, kein Token).
+        let trs_enabled = self.trs.enabled().await;
+        if let Err(e) =
+            client_mod::sync(&self.http, &self.paths, client_mod_dir.as_deref(), updates, instance, &settings.ui, trs_enabled, &self.trs.active_events())
+                .await
+        {
+            tracing::warn!("TRS Client konnte nicht eingerichtet werden: {e}");
+        }
+        // Passen die Mod-Versionen nicht zusammen (Iris will Sodium 0.9.x, da liegt 0.8.9),
+        // werden passende getauscht – sonst bricht Fabric mit „Incompatible mods“ ab.
+        if let Some(note) =
+            depcheck::versions_for_launch(&self.http, &self.paths, catalog.builds(), instance, skip_mod_check, &mods_progress).await?
+        {
+            let sink = self.games.sink();
+            sink(GameEvent::notice(instance.id.clone(), &note));
+        }
+        // Fehlt einer Mod eine Pflicht-Abhängigkeit (z. B. Cloth Config für More Culling),
+        // wird sie ergänzt – sonst bricht Fabric den Start mit „Incompatible mods“ ab.
+        match depcheck::ensure_before_launch(&self.http, &self.paths, catalog.builds(), instance, &mods_progress).await {
+            Ok(fix) if !fix.is_empty() => {
+                let sink = self.games.sink();
+                sink(GameEvent::notice(
+                    instance.id.clone(),
+                    &crate::msg!(
+                        "launcher.dependenciesAdded",
+                        "Fehlende Abhängigkeiten ergänzt: {list} (gebraucht von {mods}).",
+                        list = fix.added.join(", "),
+                        mods = fix.needed_by.join(", ")
+                    ),
+                ));
+            }
+            Ok(_) => {}
+            Err(Error::Cancelled) => return Err(Error::Cancelled),
+            Err(e) => tracing::warn!("Abhängigkeiten konnten nicht geprüft werden: {e}"),
+        }
+
+        let prepared =
+            prepare::prepare(&self.http, &self.paths, &settings, instance, &session.features(), false, on_progress)
+                .await?;
+
+        // Letzte Gelegenheit zum Abbrechen – ab hier wird gestartet.
+        task::checkpoint().await?;
+        on_progress(StageProgress::begin(Stage::Starting));
+        // Neue Java-Version? Einmal die Firewall-Freigabe eintragen, damit Windows
+        // nicht bei jeder Instanz einzeln nach dem Netzwerkzugriff fragt.
+        if settings.auto_firewall {
+            let missing = firewall::missing_for_auto(&self.paths).await;
+            if !missing.is_empty() {
+                match firewall::allow(&self.paths, missing.clone()).await {
+                    Ok(n) => tracing::info!("Firewall-Freigabe für {n} Java-Programme eingetragen"),
+                    Err(Error::Cancelled) => {
+                        let _ = firewall::remember_declined(&self.paths, &missing).await;
+                    }
+                    Err(e) => tracing::warn!("Firewall-Freigabe fehlgeschlagen: {e}"),
+                }
+            }
+        }
+        let game_dir = self.paths.instance_game_dir(&instance.id);
+        fsutil::ensure_dir(&game_dir).await?;
+
+        let exit_plan = ExitPlan::new(&self.paths, instance, &settings, Some(prepared.java.clone()));
+        if let Some(pre) = &exit_plan.hooks.pre_launch {
+            hooks::run(HookKind::PreLaunch, pre, &exit_plan.context, &exit_plan.env, hooks::HOOK_TIMEOUT).await?;
+        }
+        // Gemeinsame Ordner: fehlende/kaputte Links neu setzen, neue Dateien zusammenführen.
+        let broken = self.ensure_shared_folders(instance).await;
+        if !broken.is_empty() {
+            let sink = self.games.sink();
+            let list = broken.iter().map(|k| k.key()).collect::<Vec<_>>().join(", ");
+            sink(GameEvent::notice(
+                instance.id.clone(),
+                &crate::msg!(
+                    "sharedFolders.repairFailed",
+                    "Gemeinsame Ordner konnten nicht eingerichtet werden ({list}) – das Spiel nutzt dafür eigene Ordner.",
+                    list = list
+                ),
+            ));
+        }
+        // Gemeinsame options.txt & Co. holen. Scheitert das, startet das Spiel
+        // mit den eigenen Dateien – dann wird auch nichts zurückkopiert.
+        // (Nicht bei einem weiteren Prozess: Die Dateien gehören dem laufenden Spiel.)
+        if !extra && let Err(e) = sync::pull(&exit_plan.sync_dirs, &exit_plan.sync_items).await {
+            tracing::warn!("Synchronisierung vor dem Start fehlgeschlagen: {e}");
+        }
+        // Noch keine options.txt (erster Start, auch nach Import/Modpack ohne Optionen):
+        // Standard mit unbegrenzter Bildrate und ohne VSync – nach dem Sync, damit
+        // eine gemeinsame options.txt des Spielers Vorrang hat.
+        let data_version = instance::client_data_version(&self.paths.version_jar(&instance.game_version)).await;
+        if let Err(e) = instance::seed_game_options(&game_dir, data_version).await {
+            tracing::warn!("Standard-Optionen konnten nicht geschrieben werden: {e}");
+        }
+        // Die Launcher-Server sollen in jeder Instanz in der Serverliste stehen.
+        if let Err(e) = self.servers.sync_to_instance(&game_dir).await {
+            tracing::warn!("servers.dat konnte nicht aktualisiert werden: {e}");
+        }
+        let assets_dir = self.paths.assets_dir();
+        let libraries_dir = self.paths.libraries_dir();
+        let dirs = launch::LaunchDirs { game: &game_dir, assets: &assets_dir, libraries: &libraries_dir };
+        // Nach einem Speicherfehler beim letzten Versuch: gleich mit sicheren Werten.
+        let retry_safe = self.safe_memory.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&instance.id);
+        let mut memory = launch::Memory::now(retry_safe);
+        let mut command = launch::build_command(&prepared, instance, &settings, &session, dirs, join.as_ref(), memory)?;
+        // Vorab prüfen, ob Java den Speicher bekommt – sonst bricht es mit „Could not create
+        // the Java Virtual Machine“ ab. Dann klein starten und nach Bedarf wachsen.
+        if !memory.safe && !launch::heap_probe(&command).await {
+            memory.safe = true;
+            command = launch::build_command(&prepared, instance, &settings, &session, dirs, join.as_ref(), memory)?;
+            if !launch::heap_probe(&command).await {
+                return Err(Error::launch(crate::msg!(
+                    "launcher.notEnoughMemory",
+                    "Nicht genug freier Arbeitsspeicher für Java. Schließe andere Programme oder stelle der Instanz weniger RAM ein."
+                )));
+            }
+            self.games.sink()(GameEvent::notice(instance.id.clone(), &memory_safe_notice()));
+        }
+
+        // Eingebaute Optimierungen des TRS Clients im Menü abgeschaltet: Fabric lässt sie weg.
+        let client_build = client_mod::build_for(catalog.builds(), instance.loader.kind, &instance.game_version)
+            .filter(|_| instance.overrides.trs_client != Some(false));
+        if let Some(build) = client_build {
+            let extra = client_mod::bundled_jvm_args(&self.paths, build, instance).await;
+            launch::insert_jvm_args(&mut command, &prepared, extra);
+        }
+        // Vorab aufgelöste Server für den TRS Client (wie trs-api.json: nur mit TRS Client).
+        self.write_connect_hints(&instance.id, client_build.is_some(), hints_join.as_deref(), hints_task).await;
+
+        let launcher = Arc::clone(self);
+        let id = instance.id.clone();
+        let sink = self.games.sink();
+        let plan = exit_plan.clone();
+        let still_running = self.games.running_probe();
+        let on_exit = Box::new(move |play_seconds: u64| {
+            if !extra {
+                // Spiel zu: Der Launcher meldet sofort wieder „online“.
+                launcher.trs.presence.game_exited(&id);
+                launcher.clips.game_exited(&id);
+                launcher.discord.game_exited(&id);
+                link_game_exited(&launcher.link, &launcher.paths, &id);
+            }
+            tokio::spawn(async move {
+                // Jeder Prozess verbucht seine eigene Spielzeit.
+                if let Err(e) = launcher.instances.add_play_time(&id, play_seconds).await {
+                    tracing::warn!("Spielzeit für '{id}' konnte nicht gespeichert werden: {e}");
+                }
+                // Nach-Beenden-Hook und Synchronisieren erst nach dem letzten Prozess der Instanz.
+                if !still_running(&id) {
+                    plan.run(sink).await;
+                }
+            });
+        });
+
+        // Windows: Eintrag unter „Grafikeinstellungen“ (Registry), Linux: PRIME-Variablen (unten).
+        if settings.prefer_dedicated_gpu {
+            gpu::prefer_for_launch(&gpu::WindowsGpuPreferences, &self.paths.java_dir(), &command.program);
+        }
+        command.high_priority = settings.high_priority;
+        command.env = exit_plan.env.clone();
+        if settings.prefer_dedicated_gpu {
+            for (key, value) in process::prefer_dedicated_gpu(&command.program) {
+                // Eigene Variablen des Nutzers (Einstellungen oder Umgebung) haben Vorrang.
+                if !command.env.iter().any(|(k, _)| *k == key) && std::env::var_os(&key).is_none() {
+                    command.env.push((key, value));
+                }
+            }
+        }
+        if let Some(wrapper) = &exit_plan.hooks.wrapper {
+            hooks::apply_wrapper(&mut command, wrapper);
+        }
+        let log_dir = self.paths.instance_dir(&instance.id).join("launcher-logs");
+        // TRS-Link: Schlüssel nur über die Umgebung des Spielprozesses (nie auf die Platte).
+        self.link_attach_accounts();
+        let legacy_mod = client_mod::installed_is_legacy(&self.paths, &instance.id).await;
+        if world.is_some() && legacy_mod {
+            return Err(Error::launch(client_too_old()));
+        }
+        let mut secrets = vec![session.access_token.clone()];
+        // Ein weiterer Prozess läuft ohne TRS-Link: Die Sitzung gehört dem ersten (Schlüssel = Instanz-ID).
+        if extra {
+            command.env.retain(|(k, _)| k != link::ENV_VAR);
+        } else {
+            self.link_open_for(&instance.id, legacy_mod, world, &mut command, &mut secrets).await?;
+            // Clips: Port (bzw. altes Token für Mods ≤ 0.5.0) und Status für die Mod.
+            self.clips.prepare(&instance.id, &game_dir, &settings.clips).await;
+            // Vor dem Start eintragen: Der Launcher meldet für dieses Konto ab jetzt `in-game`
+            // statt `online` (Live-TRS-Abzeichen), bis das Spiel beendet ist.
+            let presence_game = serde_json::to_value(instance.loader.kind)
+                .ok()
+                .and_then(|v| v.as_str().and_then(|loader| trs_api::PresenceGame::checked(&instance.game_version, loader)));
+            self.trs.presence.game_started(&instance.id, Some(&session.uuid), presence_game);
+            self.discord.game_started(discord::GameInfo { started_at: chrono::Utc::now().timestamp(), ..discord_game });
+        }
+        let pid = match self.games.spawn(&instance.id, command, &log_dir, secrets, on_exit, extra) {
+            Ok(pid) => pid,
+            Err(e) => {
+                if !extra {
+                    self.trs.presence.game_exited(&instance.id);
+                    self.clips.game_exited(&instance.id);
+                    self.discord.game_exited(&instance.id);
+                    link_game_exited(&self.link, &self.paths, &instance.id);
+                }
+                return Err(e);
+            }
+        };
+        if !extra {
+            self.link.set_pid(&instance.id, pid);
+            if !memory.safe {
+                self.watch_heap_failure(instance.id.clone(), log_dir.clone());
+            }
+            self.clips.game_started(
+                clips::RunningGame {
+                    instance_id: instance.id.clone(),
+                    instance_name: instance.name.clone(),
+                    pid,
+                    game_dir: game_dir.clone(),
+                },
+                &settings.clips,
+            );
+        }
+        self.instances.touch_last_played(&instance.id).await?;
+        let mut entry = HistoryEntry::new(HistoryKind::Launched);
+        if let Some(label) = &join_label {
+            entry = entry.subject(label);
+        }
+        history::record(&self.paths, &instance.id, entry).await;
+        // Erfolge: Spielstart mit lokaler Stunde (gesendet wird gesammelt im Hintergrund).
+        self.trs.achievements.push(&session.uuid, trs_api::achievements::ReportKind::launch_now());
+        Ok(pid)
+    }
+
+    /// TRS-Link-Sitzung für den ersten Prozess: Schlüssel nur über die Umgebung des Spielprozesses
+    /// (nie auf die Platte); ein Welt-Beitritt wird vorgemerkt und geht gleich nach der Anmeldung ans Spiel.
+    async fn link_open_for(
+        &self,
+        instance_id: &str,
+        legacy_mod: bool,
+        world: Option<&trs_api::hosting::HostedWorld>,
+        command: &mut launch::Command,
+        secrets: &mut Vec<String>,
+    ) -> Result<()> {
+        match self.link.open_session(instance_id, legacy_mod).await {
+            Ok(handoff) => {
+                command.env.retain(|(k, _)| k != link::ENV_VAR);
+                command.env.push(handoff.env());
+                secrets.push(handoff.secret().to_owned());
+                if let Some(world) = world {
+                    self.link.queue_hosting_join(instance_id, world.clone());
+                }
+            }
+            Err(e) if world.is_some() => return Err(e),
+            Err(e) => tracing::warn!("TRS-Link startet nicht: {e}"),
+        }
+        Ok(())
+    }
+}
+
+/// Hinweis: Das Spiel startet mit sicheren Speicherwerten.
+fn memory_safe_notice() -> error::Msg {
+    crate::msg!(
+        "launcher.memorySafeStart",
+        "Wenig freier Arbeitsspeicher: Das Spiel startet klein und holt sich den Speicher nach Bedarf."
+    )
+}
+
+impl Launcher {
+    /// Scheitert Java in den ersten Sekunden doch noch am Speicher (z. B. weil andere
+    /// Programme ihn inzwischen belegt haben): Spiel beenden – das schließt auch das
+    /// Java-Fehlerfenster – und einmal mit sicheren Werten neu starten.
+    fn watch_heap_failure(self: &Arc<Self>, instance_id: String, log_dir: PathBuf) {
+        let launcher = Arc::clone(self);
+        tokio::spawn(async move {
+            let read = |name: &str| {
+                std::fs::read(log_dir.join(name))
+                    .map(|b| String::from_utf8_lossy(&b[..b.len().min(64 * 1024)]).into_owned())
+                    .unwrap_or_default()
+            };
+            let mut failed = false;
+            for _ in 0..60 {
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                let running = launcher.games.is_running(&instance_id);
+                if launch::is_heap_failure(&read("launcher-stdout.log")) || launch::is_heap_failure(&read("launcher-stderr.log")) {
+                    failed = true;
+                    break;
+                }
+                if !running {
+                    break;
+                }
+            }
+            if !failed {
+                return;
+            }
+            tracing::warn!("Java ist für '{instance_id}' am Speicher gescheitert – Neustart mit sicheren Werten");
+            launcher.games.kill(&instance_id);
+            for _ in 0..40 {
+                if !launcher.games.is_running(&instance_id) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            }
+            // Nachlauf des beendeten Spiels (Sync, Spielzeit) abwarten.
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            launcher.safe_memory.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(instance_id.clone());
+            let sink = launcher.games.sink();
+            sink(GameEvent::notice(instance_id.clone(), &memory_safe_notice()));
+            let no_progress = |_: StageProgress| {};
+            if let Err(e) = launcher.launch(&instance_id, None, &no_progress).await {
+                tracing::warn!("Neustart mit sicheren Speicherwerten fehlgeschlagen: {e}");
+                sink(GameEvent::notice_error(instance_id.clone(), &e));
+            }
+        });
+    }
+}
+
+impl Launcher {
+    /// Prüft alle Spieldateien der Instanz per Prüfsumme und lädt beschädigte
+    /// neu (nach einem Absturz wegen kaputter Dateien).
+    pub async fn repair_instance(&self, instance_id: &str, on_progress: &ProgressFn) -> Result<()> {
+        platform::desktop_only()?;
+        let instance = self.instances.get(instance_id).await?;
+        if self.games.is_running(&instance.id) {
+            return Err(Error::launch(crate::msg!("launcher.instanceRunningStopFirst", "Die Instanz läuft gerade – bitte erst beenden.")));
+        }
+        let (_, catalog) = self.client_mod_catalog().await;
+        let effective = boost::effective_instance(&self.http, &self.paths, catalog.builds(), &instance).await;
+        let settings = self.settings().await;
+        let features = meta::version::Features { custom_resolution: true, ..Default::default() };
+        prepare::prepare(&self.http, &self.paths, &settings, &effective, &features, true, on_progress).await?;
+        history::record(&self.paths, &instance.id, HistoryEntry::new(HistoryKind::Repaired)).await;
+        Ok(())
+    }
+
+    /// Lädt den neuesten Log der Instanz geschwärzt auf mclo.gs hoch.
+    pub async fn share_log(&self, instance_id: &str) -> Result<String> {
+        if !self.settings().await.allow_log_upload {
+            return Err(Error::validation(crate::msg!("launcher.logUploadDisabled", "Log-Upload ist in den Datenschutz-Einstellungen ausgeschaltet.")));
+        }
+        let instance = self.instances.get(instance_id).await?;
+        let game_dir = self.paths.instance_game_dir(&instance.id);
+        let launcher_logs = self.paths.instance_dir(&instance.id).join("launcher-logs");
+        let file = process::latest_log_file(&game_dir, &launcher_logs)
+            .ok_or_else(|| Error::validation(crate::msg!("launcher.noLogToShare", "Es gibt noch keinen Log zum Teilen.")))?;
+        let raw = process::read_log_file(&file).await?;
+        // Gespeicherte Tokens zusätzlich wörtlich schwärzen.
+        let secrets = self.accounts.active_session().await.ok().flatten().map(|s| vec![s.access_token]).unwrap_or_default();
+        process::share_log(&self.http, &process::redact(&raw, &secrets)).await
+    }
+}
+
+impl Launcher {
+    fn anything_active(&self) -> bool {
+        !self.games.running().is_empty()
+            || !self.preparing.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_empty()
+    }
+
+    /// Wie [`Self::repair_instance`], lädt aber auch die Spielversion komplett
+    /// neu und prüft die TRS-Optimierung beim nächsten Start neu.
+    pub async fn reinstall_instance(&self, instance_id: &str, on_progress: &ProgressFn) -> Result<()> {
+        let instance = self.instances.get(instance_id).await?;
+        if self.anything_active() {
+            return Err(Error::launch(crate::msg!("launcher.stopAllGamesFirst", "Bitte erst alle laufenden Spiele beenden.")));
+        }
+        let _ = tokio::fs::remove_file(self.paths.instance_dir(&instance.id).join("trs-boost.json")).await;
+        if meta::is_safe_id(&instance.game_version) {
+            let dir = self.paths.version_dir(&instance.game_version);
+            if dir.is_dir()
+                && let Err(e) = tokio::fs::remove_dir_all(&dir).await
+            {
+                tracing::warn!("Versionsordner konnte nicht gelöscht werden: {e}");
+            }
+        }
+        self.repair_instance(&instance.id, on_progress).await
+    }
+
+    pub async fn storage_stats(&self) -> Result<storage::StorageStats> {
+        storage::stats(&self.paths, self.instances.list().await?).await
+    }
+
+    /// Löscht Spielversionen, die keine Instanz mehr braucht.
+    pub async fn clean_unused_storage(&self) -> Result<u64> {
+        if self.anything_active() {
+            return Err(Error::launch(crate::msg!("launcher.stopAllGamesFirst", "Bitte erst alle laufenden Spiele beenden.")));
+        }
+        storage::clean_unused(&self.paths, self.instances.list().await?).await
+    }
+
+    /// Prüft die geteilten Spieldateien; beschädigte werden beim nächsten Start neu geladen.
+    pub async fn verify_storage(&self) -> Result<storage::VerifyReport> {
+        if self.anything_active() {
+            return Err(Error::launch(crate::msg!("launcher.stopAllGamesFirst", "Bitte erst alle laufenden Spiele beenden.")));
+        }
+        storage::verify_assets(&self.paths).await
+    }
+
+    pub async fn detect_java(&self) -> Vec<java::JavaInstall> {
+        if platform::MOBILE {
+            return Vec::new();
+        }
+        let paths = self.paths.clone();
+        tokio::task::spawn_blocking(move || java::detect(&paths)).await.unwrap_or_default()
+    }
+
+    /// Installiert die von Mojang empfohlene Runtime für eine Java-Hauptversion.
+    pub async fn install_java(&self, major: u32, on_progress: &(dyn Fn(download::Progress) + Sync)) -> Result<PathBuf> {
+        platform::desktop_only()?;
+        let component = java::component_for(major).ok_or_else(|| Error::validation(crate::msg!("launcher.javaVersionUnavailable", "Diese Java-Version gibt es nicht zum Installieren.")))?;
+        let concurrency = usize::from(self.settings().await.concurrent_downloads);
+        java::ensure_runtime(&self.http, &self.paths, component, concurrency, on_progress).await
+    }
+}
+
+/// Optionen für [`Launcher::launch_with`].
+#[derive(Debug, Clone, Default)]
+pub struct LaunchOptions {
+    /// Instanz noch einmal starten, obwohl sie läuft (nur wirksam, wenn sie wirklich läuft).
+    pub extra: bool,
+    /// Konto für diesen Start (sonst das aktive).
+    pub account_id: Option<String>,
+    /// „Trotzdem starten“ (Konflikt-Helfer): Mod-Versionen diesmal nicht prüfen.
+    pub skip_mod_check: bool,
+}
+
+/// Direkt beitreten: Server aus der Launcher-Liste (ID), freie Adresse oder
+/// eine gehostete Welt (die Anweisung geht über den TRS-Link ans Spiel).
+#[derive(Debug, Clone, Copy)]
+pub enum Join<'a> {
+    Server(&'a str),
+    Address(&'a str),
+    World(&'a trs_api::hosting::HostedWorld),
+}
+
+/// `join` in `connect-hints.json`: die Adresse wie gespeichert bzw. eingegeben –
+/// nur beim Server-Beitritt, nie bei gehosteten Welten.
+fn connect_join(join: Option<Join<'_>>, stored: Option<&str>) -> Option<String> {
+    match join {
+        Some(Join::Server(_)) => stored.map(|a| a.trim().to_owned()),
+        Some(Join::Address(address)) => Some(address.trim().to_owned()),
+        Some(Join::World(_)) | None => None,
+    }
+}
+
+impl Launcher {
+    /// `connect-hints.json` vor dem Start: wartet höchstens bis zum Ende der
+    /// (begrenzten) Messung; Fehler landen nur im Log.
+    async fn write_connect_hints(
+        &self,
+        instance_id: &str,
+        client: bool,
+        join: Option<&str>,
+        task: Option<tokio::task::JoinHandle<Option<connect_hints::FastConnect>>>,
+    ) {
+        let json = if client {
+            if let Some(task) = task {
+                let limit = connect_hints::Timing::LAUNCH.overall;
+                if tokio::time::timeout(limit, task).await.is_err() {
+                    tracing::debug!("Schnell verbinden: Messung für den Start nicht rechtzeitig fertig");
+                }
+            }
+            self.servers.hints().file_json(join)
+        } else {
+            None
+        };
+        if let Err(e) = client_mod::write_connect_hints(&self.paths, instance_id, json.as_deref()).await {
+            tracing::warn!("connect-hints.json konnte nicht geschrieben werden: {e}");
+        }
+    }
+
+    /// Das Spiel läuft schon: Welt-Beitritt direkt über den Link übergeben.
+    fn hand_world_to_running_game(&self, instance_id: &str, world: &trs_api::hosting::HostedWorld) -> Result<u32> {
+        let pid = self.games.running().into_iter().find(|g| g.instance_id == instance_id).map(|g| g.pid);
+        match pid {
+            Some(pid) if self.link.queue_hosting_join(instance_id, world.clone()) => Ok(pid),
+            _ => Err(Error::launch(crate::msg!(
+                "hosting.gameNotLinked",
+                "Dieses Spiel ist nicht mit dem Launcher verbunden – beende es und starte es aus dem Launcher neu."
+            ))),
+        }
+    }
+
+    /// Stand des Welt-Beitritts für das Spiel dieser Instanz (vorgemerkt, übergeben, …).
+    pub fn hosting_delivery(&self, instance_id: &str) -> link::HostingDelivery {
+        self.link.hosting_delivery(instance_id)
+    }
+}
+
+fn client_too_old() -> error::Msg {
+    crate::msg!(
+        "hosting.clientTooOld",
+        "Der TRS Client dieser Instanz ist zu alt für gehostete Welten – starte sie einmal normal, damit er sich aktualisiert."
+    )
+}
+
+/// Loader-Name wie in der API (`vanilla`, `fabric`, …).
+pub fn loader_name(kind: LoaderKind) -> &'static str {
+    match kind {
+        LoaderKind::Vanilla => "vanilla",
+        LoaderKind::Fabric => "fabric",
+        LoaderKind::Quilt => "quilt",
+        LoaderKind::Forge => "forge",
+        LoaderKind::NeoForge => "neoforge",
+    }
+}
+
+/// Gleiche Minecraft-Version und passender Loader wie die gehostete Welt?
+fn check_world_instance(instance: &Instance, world: &trs_api::hosting::HostedWorld) -> Result<()> {
+    // Nur geprüfte (bereits gesäuberte) Angaben gehen ans Spiel.
+    if world.clone().checked().as_ref() != Some(world) {
+        return Err(Error::validation(crate::msg!("hosting.invalidRoom", "Ungültige Welt.")));
+    }
+    if instance.game_version == world.mc_version
+        && trs_api::hosting::loaders_compatible(&world.loader, loader_name(instance.loader.kind))
+    {
+        return Ok(());
+    }
+    Err(Error::validation(crate::msg!(
+        "hosting.wrongInstance",
+        "Diese Welt läuft auf Minecraft {version} ({loader}) – wähle eine passende Instanz.",
+        version = world.mc_version.clone(),
+        loader = world.loader.clone()
+    )))
+}
+
+/// Was vor dem Start feststeht und nach dem Spielende passieren soll:
+/// zurücksynchronisieren und den Nach-Beenden-Hook ausführen.
+#[derive(Clone)]
+struct ExitPlan {
+    hooks: hooks::LaunchHooks,
+    context: HookContext,
+    sync_dirs: sync::SyncDirs,
+    sync_items: Vec<sync::SyncItem>,
+    env: Vec<(String, String)>,
+}
+
+impl ExitPlan {
+    fn new(paths: &Paths, instance: &Instance, settings: &Settings, java: Option<PathBuf>) -> Self {
+        let instance_dir = paths.instance_dir(&instance.id);
+        let game_dir = paths.instance_game_dir(&instance.id);
+        Self {
+            hooks: instance.overrides.hooks.clone().unwrap_or_else(|| settings.hooks.clone()),
+            env: hooks::env_pairs(instance.overrides.env.as_deref().unwrap_or(&settings.env)),
+            context: HookContext {
+                instance_id: instance.id.clone(),
+                instance_name: instance.name.clone(),
+                instance_dir: instance_dir.clone(),
+                game_dir: game_dir.clone(),
+                java,
+            },
+            sync_dirs: sync::SyncDirs { shared: paths.shared_dir(), instance: instance_dir, game: game_dir },
+            sync_items: sync_items(settings, instance),
+        }
+    }
+
+    /// Fehler gehen als Hinweis ans Frontend – das Spiel ist ja schon zu.
+    async fn run(self, sink: EventSink) {
+        let id = self.context.instance_id.clone();
+        if let Err(e) = sync::push(&self.sync_dirs).await {
+            tracing::warn!("Synchronisierung nach dem Beenden fehlgeschlagen: {e}");
+            sink(GameEvent::notice(
+                id.clone(),
+                &crate::msg!(
+                    "launcher.syncAfterExitFailed",
+                    "Die Einstellungen konnten nicht mit den anderen Instanzen synchronisiert werden."
+                ),
+            ));
+        }
+        if let Some(post) = &self.hooks.post_exit
+            && let Err(e) = hooks::run(HookKind::PostExit, post, &self.context, &self.env, hooks::HOOK_TIMEOUT).await
+        {
+            sink(GameEvent::notice_error(id, &e));
+        }
+    }
+}
+
+/// Was kopiert synchronisiert wird. Teilt die Instanz den Ordner für
+/// Ressourcenpakete, ist er schon gemeinsam – dann nicht noch zusätzlich kopieren.
+fn sync_items(settings: &Settings, instance: &Instance) -> Vec<sync::SyncItem> {
+    let shared = instance.overrides.shared_folders.contains(&shared_folders::SharedFolder::Resourcepacks);
+    sync::active_items(&settings.sync, &instance.overrides.sync_separate)
+        .into_iter()
+        .filter(|item| !(shared && *item == sync::SyncItem::ResourcePacks))
+        .collect()
+}
+
+/// Spielende: Link-Sitzung schließen und `clips.json` leeren (kein Port, kein Token).
+fn link_game_exited(link: &Arc<link::TrsLink>, paths: &Paths, instance_id: &str) {
+    link.close_session(instance_id);
+    let game_dir = paths.instance_game_dir(instance_id);
+    if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+        runtime.spawn(async move {
+            if let Err(e) = link::write_config(&game_dir, &link::LinkConfig::disabled()).await {
+                tracing::warn!("clips.json konnte nicht zurückgesetzt werden: {e}");
+            }
+        });
+    }
+}
+
+/// Fortschritt beim Laden/Ergänzen von Mods als Start-Stufe „Mods“
+/// (Auflösen 0–20 %, Downloads 20–100 %).
+fn mods_stage(p: &presets::ApplyProgress) -> StageProgress {
+    let fraction = if p.total == 0 { 1.0 } else { f64::from(p.done) / f64::from(p.total) };
+    let (percent, done, total) = match p.phase {
+        presets::ApplyPhase::Resolve => (fraction * 20.0, 0, 0),
+        presets::ApplyPhase::Install => (20.0 + fraction * 80.0, u64::from(p.done), u64::from(p.total)),
+    };
+    StageProgress { stage: Stage::Mods, percent: percent.clamp(0.0, 100.0), done_files: done, total_files: total }
+}
+
+/// Kurzbeschreibung für den Verlauf, z. B. `1.21.1 Fabric 0.16.10`.
+fn describe_version(game_version: &str, loader: &Loader) -> String {
+    let name = match loader.kind {
+        LoaderKind::Vanilla => "Vanilla",
+        LoaderKind::Fabric => "Fabric",
+        LoaderKind::Quilt => "Quilt",
+        LoaderKind::Forge => "Forge",
+        LoaderKind::NeoForge => "NeoForge",
+    };
+    match &loader.version {
+        Some(v) => format!("{game_version} {name} {v}"),
+        None => format!("{game_version} {name}"),
+    }
+}
+
+/// Messe-Build: Besucher dürfen ohne Konto im offiziellen Demo-Modus spielen.
+static DEMO_WITHOUT_ACCOUNT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Ohne Konto im Demo-Modus starten lassen (nur der Messe-Build ruft das beim Start auf).
+pub fn allow_demo_without_account() {
+    DEMO_WITHOUT_ACCOUNT.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Ohne Account startet nur ein Entwicklungs-Build oder der Messe-Build – und dann im
+/// offiziellen Demo-Modus des Spiels. Release-Builds verlangen sonst immer eine Anmeldung.
+fn demo_session() -> Result<Session> {
+    if cfg!(debug_assertions) || DEMO_WITHOUT_ACCOUNT.load(std::sync::atomic::Ordering::Relaxed) {
+        tracing::warn!("Kein Account angemeldet – starte im Demo-Modus");
+        Ok(Session {
+            player_name: "Player".into(),
+            uuid: "0".repeat(32),
+            access_token: "0".into(),
+            xuid: String::new(),
+            demo: true,
+        })
+    } else {
+        Err(Error::auth(crate::msg!("launcher.signInFirst", "Bitte melde dich zuerst unter „Accounts“ mit deinem Microsoft-Konto an.")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn linked_resource_packs_skip_the_copy_sync() {
+        let mut settings = Settings::default();
+        settings.sync.resource_packs = true;
+        settings.sync.options = true;
+        let mut instance: Instance = serde_json::from_value(serde_json::json!({
+            "id": "a", "name": "A", "gameVersion": "1.21.1", "loader": { "kind": "vanilla", "version": null },
+            "createdAt": "2026-01-01T00:00:00Z", "lastPlayed": null
+        }))
+        .unwrap();
+        assert_eq!(sync_items(&settings, &instance), [sync::SyncItem::Options, sync::SyncItem::ResourcePacks]);
+        instance.overrides.shared_folders = vec![shared_folders::SharedFolder::Resourcepacks];
+        assert_eq!(sync_items(&settings, &instance), [sync::SyncItem::Options]);
+    }
+
+    #[test]
+    fn connect_hints_join_only_for_servers() {
+        let world: trs_api::hosting::HostedWorld = serde_json::from_value(serde_json::json!({
+            "roomId": "r1", "name": "Welt", "mcVersion": "1.21.1", "loader": "fabric"
+        }))
+        .unwrap();
+        // Gehostete Welt: kein `join` (die Verbindung läuft über den TRS-Link).
+        assert_eq!(connect_join(Some(Join::World(&world)), Some("play.example.net")), None);
+        assert_eq!(connect_join(None, None), None);
+        assert_eq!(connect_join(Some(Join::Server("id")), Some("play.example.net")).as_deref(), Some("play.example.net"));
+        assert_eq!(connect_join(Some(Join::Address(" Play.Example.net:25570 ")), None).as_deref(), Some("Play.Example.net:25570"));
+        let json = connect_hints::file_json(connect_join(Some(Join::World(&world)), None).as_deref(), &[]).unwrap();
+        assert!(!json.contains("\"join\""), "{json}");
+    }
+}

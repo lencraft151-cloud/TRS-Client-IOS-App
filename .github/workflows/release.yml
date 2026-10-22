@@ -1,0 +1,547 @@
+name: Release
+
+# Baut bei jedem Versions-Tag (v1.2.3) den signierten Windows-Installer und die
+# Linux-Pakete (AppImage, .deb, .rpm), legt ein (Vorab-)Release an und
+# aktualisiert den Update-Kanal, den der eingebaute Auto-Updater abfragt.
+# `latest.json` entsteht erst, wenn Windows UND Linux fertig gebaut sind.
+# Dazu die mobile App: signierte Android-APK und unsigniertes iOS-IPA im Kanal `mobile` (mobile.json + AltStore-Quelle).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Vorhandenes Tag, z. B. v0.1.0"
+        required: true
+
+# Nur der Job „publish“ darf schreiben.
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  # Mitwirkende seit dem vorherigen Release-Tag (GitHub-Namen, ohne Maintainer und Bots) – für den Dank im
+  # GitHub-Release und im „Was ist neu“-Dialog. Schlägt die GitHub-API fehl, geht der Release ohne Dank weiter.
+  contributors:
+    name: Contributors
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      list: ${{ steps.list.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          # Alle Tags, um das vorherige Release zu finden.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Contributors since the previous release
+        id: list
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # Ausgabe „a,b,c“ – nur gültige GitHub-Namen, daher sicher für GITHUB_OUTPUT.
+          if list=$(node scripts/contributors.mjs --tag "$TAG" --repo "$GITHUB_REPOSITORY"); then
+            echo "Contributors: ${list:-(none)}"
+          else
+            echo "::warning::Could not determine the contributors – this release has no thanks section."
+            list=""
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Windows
+    needs: contributors
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: release
+          cache-on-failure: true
+
+      - run: pnpm install --frozen-lockfile
+
+      # Mitwirkende als Zeile „<!-- contributors: a,b -->“ in den Abschnitt der Version – der Launcher bringt
+      # CHANGELOG.md mit und zeigt den Dank im „Was ist neu“-Dialog; die Release-Hinweise bekommen „Thanks to“.
+      - name: Contributors into CHANGELOG.md
+        shell: bash
+        env:
+          CONTRIBUTORS: ${{ needs.contributors.outputs.list }}
+        run: node --experimental-strip-types scripts/changelog.mjs set-contributors "${TAG#v}" "$CONTRIBUTORS"
+
+      # Ohne Changelog-Eintrag (Englisch + Deutsch) für diese Version kein Release –
+      # vor dem langen Build prüfen. Der Text landet im Release und im Auto-Update.
+      - name: Release notes from CHANGELOG.md
+        shell: bash
+        run: node --experimental-strip-types scripts/changelog.mjs notes "${TAG#v}" > release-notes.md
+
+      # Nur bauen und signieren – veröffentlicht wird im Job „publish“.
+      - name: Build signed installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Ohne Secret bleibt CurseForge im Build ausgeschaltet (siehe crates/core/build.rs).
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          # Discord-Status: App-ID der Discord-App (öffentlich). Ohne Repo-Variable gilt die
+          # im Code eingebaute ID (siehe crates/core/src/discord/mod.rs); "off" schaltet ab.
+          TRS_DISCORD_APP_ID: ${{ vars.TRS_DISCORD_APP_ID }}
+        run: pnpm tauri build
+
+      - name: Collect release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          src=$(ls src-tauri/target/release/bundle/nsis/*_x64-setup.exe | head -1)
+          mkdir -p out
+          exe="TRS-Launcher_${version}_x64-setup.exe"
+          cp "$src" "out/$exe"
+          cp "$src.sig" "out/$exe.sig"
+          cp release-notes.md out/
+          # Eintrag für latest.json – zusammengeführt wird im Job „publish“.
+          node scripts/updater-manifest.mjs platform windows-x86_64 "out/$exe" > out/platform-windows.json
+          ls -la out
+
+      # Portable Version: EXE + mitgelieferte Ressourcen (TRS Client in client-mod/, liegen wie beim Installer
+      # neben der EXE) + Marker portable.txt + kurzes README. Die Daten landen dann in data/ daneben.
+      # Kein Eintrag in latest.json – die portable Version aktualisiert sich nicht selbst.
+      - name: Portable ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:TAG.TrimStart('v')
+          $release = 'src-tauri/target/release'
+          $exe = @("$release/TRS Launcher.exe", "$release/trs-launcher.exe") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $exe) { throw 'Launcher-EXE not found in target/release' }
+          $stage = 'portable'
+          New-Item -ItemType Directory -Force "$stage/client-mod" | Out-Null
+          Copy-Item -LiteralPath $exe "$stage/TRS Launcher.exe"
+          Copy-Item -Recurse -Force 'src-tauri/resources/client-mod/*' "$stage/client-mod/"
+          Set-Content -Encoding utf8 "$stage/portable.txt" "This file switches the TRS Launcher to portable mode. Data is stored in the 'data' folder next to it."
+          $readme = @(
+            "TRS Launcher $version - portable",
+            "",
+            "Unzip this folder anywhere (e.g. a USB stick) and start 'TRS Launcher.exe'.",
+            "All data (instances, Java, accounts, settings) is stored in the 'data' folder next to it.",
+            "Needs the Microsoft Edge WebView2 Runtime (built into Windows 10/11).",
+            "",
+            "Updates: the portable version doesn't update itself. Download the new ZIP from",
+            "https://github.com/theredstonee/TRS-Launcher/releases and replace the files - keep the 'data' folder.",
+            "Delete portable.txt to use the normal data folder in %APPDATA% instead.",
+            "",
+            "---",
+            "",
+            "TRS Launcher $version - portabel",
+            "",
+            "Den Ordner irgendwohin entpacken (z. B. auf einen USB-Stick) und 'TRS Launcher.exe' starten.",
+            "Alle Daten (Instanzen, Java, Konten, Einstellungen) liegen im Ordner 'data' daneben.",
+            "Braucht die Microsoft Edge WebView2 Runtime (in Windows 10/11 enthalten).",
+            "",
+            "Updates: Die portable Version aktualisiert sich nicht selbst. Neue ZIP von",
+            "https://github.com/theredstonee/TRS-Launcher/releases laden und die Dateien ersetzen - den Ordner 'data' behalten.",
+            "Ohne portable.txt nutzt der Launcher wieder den normalen Datenordner in %APPDATA%."
+          )
+          Set-Content -Encoding utf8 "$stage/README.txt" $readme
+          New-Item -ItemType Directory -Force out | Out-Null
+          $zip = "out/TRS-Launcher_${version}_x64-portable.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -CompressionLevel Optimal
+          Get-Item $zip | Format-List Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/
+          if-no-files-found: error
+
+  linux:
+    name: Linux
+    needs: contributors
+    # Ältestes unterstütztes Ubuntu-LTS: das glibc hier ist die Untergrenze für
+    # AppImage, .deb und .rpm (neuere Distributionen laufen damit alle).
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: System libraries (WebKitGTK 4.1, GTK 3)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libssl-dev libxdo-dev patchelf file
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: release-linux
+          cache-on-failure: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Contributors into CHANGELOG.md
+        env:
+          CONTRIBUTORS: ${{ needs.contributors.outputs.list }}
+        run: node --experimental-strip-types scripts/changelog.mjs set-contributors "${TAG#v}" "$CONTRIBUTORS"
+
+      # Gleiche Prüfung wie unter Windows – ohne Eintrag bricht der Release früh ab.
+      - name: Release notes from CHANGELOG.md
+        run: node --experimental-strip-types scripts/changelog.mjs notes "${TAG#v}" > /dev/null
+
+      - name: Build signed AppImage, .deb and .rpm
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          TRS_DISCORD_APP_ID: ${{ vars.TRS_DISCORD_APP_ID }}
+          # linuxdeploy ist selbst ein AppImage – ohne FUSE im Runner entpacken statt einhängen.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          NO_STRIP: "true"
+        run: pnpm tauri build --bundles appimage,deb,rpm
+
+      - name: Collect release files
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          bundle=src-tauri/target/release/bundle
+          mkdir -p out
+          appimage="TRS-Launcher_${version}_amd64.AppImage"
+          deb="TRS-Launcher_${version}_amd64.deb"
+          rpm="TRS-Launcher-${version}-1.x86_64.rpm"
+          cp "$(ls $bundle/appimage/*.AppImage | head -1)" "out/$appimage"
+          cp "$(ls $bundle/deb/*.deb | head -1)" "out/$deb"
+          cp "$(ls $bundle/rpm/*.rpm | head -1)" "out/$rpm"
+          # Ohne die mitgebündelten libwayland-* (sonst leeres Fenster auf Arch/Fedora),
+          # danach neu signieren – die Signatur von tauri build passt nicht mehr.
+          bash scripts/fix-appimage.sh "out/$appimage"
+          pnpm tauri signer sign "out/$appimage" > /dev/null
+          test -s "out/$appimage.sig"
+          # Der Auto-Updater kann sich unter Linux nur als AppImage selbst ersetzen.
+          node scripts/updater-manifest.mjs platform linux-x86_64 "out/$appimage" > out/platform-linux.json
+          (cd out && sha256sum "$appimage" "$deb" "$rpm" > SHA256SUMS-linux.txt)
+          # AUR-Paket (trs-launcher-bin) mit Prüfsumme dieses Releases.
+          node scripts/aur.mjs --version "$version" --deb "out/$deb" --out out/aur
+          ls -la out out/aur
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: out/
+          if-no-files-found: error
+          # .SRCINFO (AUR) beginnt mit einem Punkt – ohne das lässt upload-artifact@v4 sie weg.
+          include-hidden-files: true
+
+  publish:
+    name: Publish
+    needs: [build, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Assemble release files and latest.json
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cp artifacts/windows/TRS-Launcher_* out/
+          cp artifacts/linux/TRS-Launcher* artifacts/linux/SHA256SUMS-linux.txt out/
+          # PKGBUILD + .SRCINFO für das AUR als eigene Dateien im Release.
+          cp artifacts/linux/aur/PKGBUILD out/trs-launcher-bin.PKGBUILD
+          cp artifacts/linux/aur/.SRCINFO out/trs-launcher-bin.SRCINFO
+          cp artifacts/windows/release-notes.md .
+          node scripts/updater-manifest.mjs merge "${TAG#v}" release-notes.md "$GITHUB_REPOSITORY" "$TAG" \
+            artifacts/windows/platform-windows.json artifacts/linux/platform-linux.json > out/latest.json
+          cat out/latest.json
+          ls -la out
+
+      - name: Publish release and update channel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/* --clobber
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" out/* --prerelease --title "TRS Launcher $TAG" --notes-file release-notes.md
+          fi
+          # Der Updater fragt einen festen Kanal ab (Release "updater"), damit
+          # auch Vorabversionen gefunden werden.
+          gh release view updater >/dev/null 2>&1 || gh release create updater --prerelease --title "Update-Kanal" \
+            --notes "Wird automatisch gepflegt – enthält nur latest.json für den Auto-Updater."
+          gh release upload updater out/latest.json --clobber
+
+  # --- Android/iOS (Kanal "mobile") ---------------------------------------------------------------------------------
+  # Unabhängig vom Desktop-Release: Schlägt hier etwas fehl, sind Installer und latest.json trotzdem draußen.
+  # Signier-Schlüssel der APK (Secrets, siehe docs/mobile.md): ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+  # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD. Fehlen sie, wird die APK gebaut, aber nicht veröffentlicht.
+  android:
+    name: Android
+    needs: contributors
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 28.2.13676358
+      # Spiel-Engine (Plugin trs-game, ndk-build) ist auf NDK r27d festgelegt.
+      ENGINE_NDK_VERSION: 27.3.13750724
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+        with:
+          # Ohne das veraltete Paket „tools“ (gibt es mit cmdline-tools 16 nicht mehr).
+          packages: 'platform-tools'
+
+      - name: Android NDK
+        run: |
+          set -euo pipefail
+          sdkmanager --install "ndk;$NDK_VERSION" "ndk;$ENGINE_NDK_VERSION" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: release-android
+          cache-on-failure: true
+
+      - run: pnpm install --frozen-lockfile
+
+      # Ohne Changelog-Eintrag kein Release (wie Windows/Linux) – vor dem langen Build prüfen.
+      - name: Release notes from CHANGELOG.md
+        run: node --experimental-strip-types scripts/changelog.mjs notes "${TAG#v}" > /dev/null
+
+      # Gradle signiert selbst (signingConfig in gen/android/app/build.gradle.kts), wenn ANDROID_KEYSTORE_PATH gesetzt ist.
+      - name: Keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::warning::No Android keystore secrets – the APK is built but not signed or published."
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      # Telefone (arm64) und Chromebooks/Emulatoren (x86_64) in einer APK – die Spiel-Engine gibt es nur für 64 Bit.
+      - name: Build release APK
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        # Nur arm64: echte Handys (x86_64 braucht nur der Emulator).
+        run: pnpm tauri android build --apk --ci --target aarch64
+
+      - name: Check signature
+        id: sign
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir -p out
+          # Ausgabe je ABI (arm64/release) oder universal – Ordner nicht fest annehmen.
+          apks=$(find src-tauri/gen/android/app/build/outputs/apk -path '*release*' -name '*.apk' | sort)
+          echo "$apks"
+          if [ -z "${ANDROID_KEYSTORE_PATH:-}" ]; then
+            cp "$(echo "$apks" | grep -- '-unsigned' | head -1)" "out/TRS-Launcher_${version}_unsigned.apk"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          shred -u "$ANDROID_KEYSTORE_PATH" 2> /dev/null || true
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          apk=$(echo "$apks" | grep -v -- '-unsigned' | head -1)
+          [ -n "$apk" ] || { echo "Keine signierte APK gefunden" >&2; exit 1; }
+          # Ausgabe je nach build-tools-Version unterschiedlich formatiert – die Prüfung selbst entscheidet.
+          certs=$("$tools/apksigner" verify --print-certs "$apk")
+          echo "$certs" | grep -E 'certificate (DN|SHA-256)' || echo "$certs"
+          cp "$apk" "out/TRS-Launcher_${version}.apk"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/
+          if-no-files-found: error
+
+  ios:
+    name: iOS
+    needs: contributors
+    runs-on: macos-latest
+    env:
+      # Swift-Pakete der Plugins nutzen APIs ab iOS 14; die App verlangt iOS 15.
+      IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: release-ios
+          cache-on-failure: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Frontend build
+        run: pnpm generate
+
+      - name: Xcode project
+        run: bash scripts/ios-project.sh
+
+      # Unsigniert: AltStore/SideStore signieren beim Installieren mit der Apple-ID des Nutzers.
+      - name: Unsigned IPA
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+        run: bash scripts/ios-unsigned-ipa.sh release "out/TRS-Launcher_${TAG#v}.ipa"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: out/
+          if-no-files-found: error
+
+  # iOS-Spiel-Engine bauen und ins IPA packen (Artefakt „trs-launcher-ios“: TRS-Launcher.ipa + altstore-app.json).
+  ios-engine:
+    name: iOS engine
+    needs: ios
+    uses: ./.github/workflows/ios-engine.yml
+    with:
+      app-artifact: ios
+
+  # Kanal "mobile": mobile.json (signiert wie client-mod.json) + AltStore-Quelle; APK/IPA zusätzlich am Versions-Release.
+  # Wartet auf "publish", damit das Versions-Release schon existiert.
+  mobile:
+    name: Publish mobile
+    needs: [publish, android, ios, ios-engine]
+    if: needs.android.outputs.signed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Nur für `tauri signer sign` (keine Nuxt-Vorbereitung nötig).
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: mobile.json and AltStore source
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          node --experimental-strip-types scripts/changelog.mjs notes "$version" > release-notes.md
+          # IPA mit Spiel-Engine (ios-engine) statt der reinen App; Entitlements/Datenschutz für AltStore von dort.
+          cp artifacts/trs-launcher-ios/TRS-Launcher.ipa "artifacts/ios/TRS-Launcher_${version}.ipa"
+          node scripts/mobile-channel.mjs --version "$version" --notes release-notes.md --repo "$GITHUB_REPOSITORY" \
+            --apk "artifacts/android/TRS-Launcher_${version}.apk" --ipa "artifacts/ios/TRS-Launcher_${version}.ipa" \
+            --altstore-app artifacts/trs-launcher-ios/altstore-app.json --out out/mobile
+          ls -la out/mobile
+
+      - name: Publish to the mobile channel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          gh release upload "$TAG" "artifacts/android/TRS-Launcher_${version}.apk" "artifacts/ios/TRS-Launcher_${version}.ipa" --clobber
+          gh release view mobile > /dev/null 2>&1 || gh release create mobile --prerelease --latest=false --title "Mobile-Kanal" \
+            --notes "Wird automatisch gepflegt: mobile.json (signiert) für die Android-App und die AltStore-/SideStore-Quelle altstore.json für iOS."
+          # Erst die Dateien, dann Manifest + Signatur: wer zwischendurch prüft, sieht noch den alten Stand.
+          gh release upload mobile out/mobile/TRS-Launcher-*.apk out/mobile/TRS-Launcher-*.ipa --clobber
+          gh release upload mobile out/mobile/altstore.json out/mobile/mobile.json.sig out/mobile/mobile.json --clobber
+          # Alte APK/IPA aus dem Kanal nehmen.
+          keep=" TRS-Launcher-${version}.apk TRS-Launcher-${version}.ipa altstore.json mobile.json mobile.json.sig "
+          for name in $(gh release view mobile --json assets -q '.assets[].name'); do
+            case "$keep" in *" $name "*) ;; *) gh release delete-asset mobile "$name" --yes ;; esac
+          done

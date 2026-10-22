@@ -1,0 +1,158 @@
+package dev.theredstonee.trsclient.hud;
+
+import dev.theredstonee.trsclient.core.hud.HudLayout;
+import dev.theredstonee.trsclient.core.module.TrsModules;
+import dev.theredstonee.trsclient.core.ui.Canvas;
+import dev.theredstonee.trsclient.core.ui.menu.HudItem;
+import dev.theredstonee.trsclient.screen.TrsUiScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
+import org.lwjgl.opengl.GL11;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Hält alle HUD-Elemente und zeichnet sie an ihrer gespeicherten Position. */
+public final class HudManager {
+	private final Minecraft mc = Minecraft.getMinecraft();
+	private final List<HudElement> elements;
+	private List<HudItem> editorItems;
+	/** Wiederverwendeter Puffer für {@link #bounds}: x, y, Breite, Höhe (skaliert). */
+	private final int[] box = new int[4];
+	private final CrosshairRenderer crosshair;
+	private final RedstoneHuds.Overlay redstoneOverlay;
+	private final MinimapHud minimap;
+
+	public HudManager(TrsModules modules) {
+		this.crosshair = new CrosshairRenderer(modules);
+		dev.theredstonee.trsclient.core.redstone.RedstoneTools redstone = dev.theredstonee.trsclient.TrsClient.get().redstone();
+		this.redstoneOverlay = new RedstoneHuds.Overlay(modules, redstone);
+		this.minimap = new MinimapHud(modules);
+		this.elements = Collections.unmodifiableList(Arrays.<HudElement>asList(
+				new FpsHud(modules.fps),
+				new CpsHud(modules.cps),
+				new KeystrokesHud(modules.keystrokes, modules),
+				new PingHud(modules),
+				new ArmorHud(modules.armor, modules),
+				new InfoHuds.Effects(modules.effects),
+				new InfoHuds.Coords(modules.coords, modules),
+				new InfoHuds.Clock(modules.clock, modules),
+				new InfoHuds.Memory(modules.memory),
+				new InfoHuds.Server(modules.server),
+				new InfoHuds.Packs(modules.packs),
+				new InfoHuds.ToggleIndicator(modules.toggleSprint, true),
+				new InfoHuds.ToggleIndicator(modules.toggleSneak, false),
+				minimap,
+				new RedstoneHuds.Signal(modules, redstone),
+				new RedstoneHuds.Clock(modules, redstone),
+				new ClipHud(modules),
+				new NotesHud(modules)));
+	}
+
+	/** Einmal je Client-Tick (Karte abtasten). */
+	public void tick() {
+		minimap.tick();
+	}
+
+	public CrosshairRenderer crosshair() {
+		return crosshair;
+	}
+
+	public List<HudElement> elements() {
+		return elements;
+	}
+
+	/** Die HUD-Elemente für den versionsunabhängigen HUD-Editor (Vorschau mit Beispielwerten). */
+	public List<HudItem> editorItems() {
+		if (editorItems == null) {
+			List<HudItem> items = new ArrayList<HudItem>(elements.size());
+			for (int i = 0; i < elements.size(); i++) items.add(new EditorItem(elements.get(i)));
+			editorItems = items;
+		}
+		return editorItems;
+	}
+
+	/**
+	 * Ein HUD-Element aus Sicht des Editors. Gezeichnet wird über den FontRenderer und die
+	 * GL-Matrix – der Editor hat die Fläche vorher verschoben und skaliert.
+	 */
+	private static final class EditorItem implements HudItem {
+		private final HudElement element;
+
+		EditorItem(HudElement element) {
+			this.element = element;
+		}
+
+		@Override
+		public dev.theredstonee.trsclient.core.module.HudModule module() {
+			return element.module();
+		}
+
+		@Override
+		public int width() {
+			return element.width(font(), true);
+		}
+
+		@Override
+		public int height() {
+			return element.height(font(), true);
+		}
+
+		@Override
+		public void draw(Canvas canvas) {
+			element.draw(font(), true);
+		}
+
+		private static net.minecraft.client.gui.FontRenderer font() {
+			return net.minecraft.client.Minecraft.getMinecraft().fontRenderer;
+		}
+	}
+
+	/** Aus RenderGameOverlayEvent.Post (jeden Frame), Größe in GUI-Pixeln. */
+	public void render(int sw, int sh, float partialTicks) {
+		if (mc.gameSettings.hideGUI || mc.currentScreen instanceof TrsUiScreen) return;
+		FontRenderer font = mc.fontRenderer;
+		// Signal-Overlay liegt in der Welt – vor den Anzeigen zeichnen.
+		redstoneOverlay.render(font, sw, sh, partialTicks);
+		// Hunger-Anzeige liegt auf der Vanilla-Hungerleiste – unter den verschiebbaren Anzeigen.
+		HungerHud.render(font, sw, sh);
+		for (int i = 0, n = elements.size(); i < n; i++) {
+			HudElement e = elements.get(i);
+			if (e.module().isEnabled() && e.visible()) draw(font, e, sw, sh, false);
+		}
+	}
+
+	/** Zeichnet ein Element an seiner Position (auch vom Editor genutzt). */
+	public void draw(FontRenderer font, HudElement e, int sw, int sh, boolean preview) {
+		int[] b = bounds(font, e, sw, sh, preview);
+		float scale = e.module().scale.getFloat();
+		if (!preview) {
+			e.originX = b[0];
+			e.originY = b[1];
+			e.originScale = scale;
+		}
+		GL11.glPushMatrix();
+		GL11.glTranslatef(b[0], b[1], 0);
+		GL11.glScalef(scale, scale, 1f);
+		e.draw(font, preview);
+		GL11.glPopMatrix();
+		GL11.glColor4f(1f, 1f, 1f, 1f);
+	}
+
+	/**
+	 * Berechnet die skalierte Box eines Elements. Achtung: gibt einen geteilten Puffer zurück,
+	 * der beim nächsten Aufruf überschrieben wird.
+	 */
+	public int[] bounds(FontRenderer font, HudElement e, int sw, int sh, boolean preview) {
+		float scale = e.module().scale.getFloat();
+		int w = (int) Math.ceil(e.width(font, preview) * scale);
+		int h = (int) Math.ceil(e.height(font, preview) * scale);
+		box[0] = HudLayout.resolveX(e.module().position(), w, sw);
+		box[1] = HudLayout.resolveY(e.module().position(), h, sh);
+		box[2] = w;
+		box[3] = h;
+		return box;
+	}
+}

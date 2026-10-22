@@ -1,0 +1,679 @@
+package dev.theredstonee.trsclient.dev;
+
+import dev.theredstonee.trsclient.TrsClient;
+import dev.theredstonee.trsclient.compat.Mc;
+import dev.theredstonee.trsclient.core.config.TrsConfig;
+import dev.theredstonee.trsclient.core.hud.Crosshair;
+import dev.theredstonee.trsclient.core.module.Module;
+import dev.theredstonee.trsclient.core.module.TrsModules;
+import dev.theredstonee.trsclient.core.pvp.ComboTracker;
+import dev.theredstonee.trsclient.screen.CrosshairEditorScreen;
+import dev.theredstonee.trsclient.screen.HudEditorScreen;
+import dev.theredstonee.trsclient.screen.PackScreen;
+import dev.theredstonee.trsclient.screen.TrsMenuScreen;
+import dev.theredstonee.trsclient.screen.TrsTitleScreen;
+import dev.theredstonee.trsclient.screen.WaypointListScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.client.gui.GuiIngameMenu;
+import net.minecraft.client.gui.GuiMainMenu;
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.ServerList;
+import net.minecraft.client.multiplayer.WorldClient;
+import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.util.ScreenShotHelper;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+
+/**
+ * Entwickler-Selbsttest, nur aktiv mit {@code -Dtrsclient.autotest=true}
+ * ({@code ./gradlew :<minecraft>:runClient -PtrsAutotest}): TRS-Startbildschirm und Menü, Testwelt laden,
+ * Screenshots von HUD (inkl. Rüstung/Effekte/Koordinaten/…, eigenes Fadenkreuz), Zoom, Nacht ohne/mit
+ * Fullbright, Freelook, Menü, Fadenkreuz-Editor, Resourcepacks, HUD-Profilen, HUD-Editor sowie
+ * Wegpunkte + Minimap + Chat-Zeitstempel/Zusammenfassung, Wegpunkt-Liste und dem Menü mit
+ * Text-Einstellungen, dann beenden.
+ * Screenshots landen in {@code run/forge-<minecraft>/screenshots/trsclient-<minecraft>-*.png}.
+ */
+public final class AutoTest {
+	private final String mcVersion = Mc.version();
+	private final String world = "trs-autotest-" + mcVersion;
+
+	private int step;
+	private int wait;
+	private int titlePhase;
+	private boolean figureTurned;
+	private int titleScaleBefore;
+	private int reopenCount;
+	/** Bildschirm, den der Test gerade erwartet (null = Spiel ohne Menü). */
+	private Class<? extends GuiScreen> expected;
+	private GuiScreen expectedInstance;
+	/** Modul-Zustand vor dem Test – wird am Ende wiederhergestellt (die Config bleibt sauber). */
+	private TrsConfig before;
+
+	private final CapeTest capeTest = new CapeTest();
+	private final CreatorTest creatorTest = new CreatorTest();
+	private final CinematicTest cinematicTest = new CinematicTest();
+	private final FreecamTest freecamTest = new FreecamTest();
+	private final EmoteTest emoteTest = new EmoteTest();
+	private final RedstoneTest redstoneTest = new RedstoneTest();
+	private final PerfTest perfTest = new PerfTest();
+	private final ClipsTest clipsTest = new ClipsTest();
+	private final CapeColorTest capeColorTest = new CapeColorTest();
+
+	private AutoTest() {
+	}
+
+	public static void installIfRequested() {
+		if (!Boolean.getBoolean("trsclient.autotest")) return;
+		// -PtrsAutotestOnly=realbench: nur der realistische Benchmark (eigener Ablauf, ohne Menü-Tests)
+		if (RealBenchRunner.installIfRequested()) return;
+		TrsClient.LOGGER.info("[Autotest] aktiv");
+		if ("accounts".equals(System.getProperty("trsclient.autotest.only"))) {
+			AccountsTest.install();
+			return;
+		}
+		if ("intro".equals(System.getProperty("trsclient.autotest.only"))) {
+			IntroTest.install();
+			return;
+		}
+		if ("wardrobe".equals(System.getProperty("trsclient.autotest.only"))) {
+			WardrobeTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=qol: Komfort & PvP (Chat, Zaehler, Warnungen, Hitmarker, Scoreboard, Streamer, Reconnect)
+		if ("qol".equals(System.getProperty("trsclient.autotest.only"))) {
+			QolTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=comfort: Tooltips, Server-Profil, Panorama (Komfort-Paket 2)
+		if ("comfort".equals(System.getProperty("trsclient.autotest.only"))) {
+			ComfortTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=circuits: Schaltungs-Bibliothek (Liste, Vorschau, Geisterblöcke, Platzieren)
+		if ("circuits".equals(System.getProperty("trsclient.autotest.only"))) {
+			CircuitTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=disconnect: Fehlerbildschirm (Neu anmelden, kopieren, Server-Status)
+		if ("disconnect".equals(System.getProperty("trsclient.autotest.only"))) {
+			DisconnectTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=screenshots: Screenshot-Werkzeuge (Vorschau, Chat, Editor, Favoriten)
+		if ("screenshots".equals(System.getProperty("trsclient.autotest.only"))) {
+			ScreenshotTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=notes: Notizen je Welt (HUD, Liste, Lesen, Bearbeiten, Suche, Koordinaten, Wegpunkt, Karte)
+		if ("notes".equals(System.getProperty("trsclient.autotest.only"))) {
+			NotesTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=keysearch: Suche in der Tastenbelegung (Steuerung)
+		if ("keysearch".equals(System.getProperty("trsclient.autotest.only"))) {
+			KeySearchTest.install();
+			return;
+		}
+		if ("connect".equals(System.getProperty("trsclient.autotest.only"))) {
+			ConnectTest.install();
+			return;
+		}
+		if ("menus".equals(System.getProperty("trsclient.autotest.only"))) {
+			MenusTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=halloween: Halloween 2026 (Startbildschirm, Seite Halloween, Mondlauf, Spuk-Effekte, Jumpscares)
+		if ("halloween".equals(System.getProperty("trsclient.autotest.only"))) {
+			HalloweenTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=winter: Design „Winternacht“ (Startbildschirm Nacht/Polarlicht/Pinguin/Tag, TRS-Menü, Laden, Pause)
+		if ("winter".equals(System.getProperty("trsclient.autotest.only"))) {
+			WinterTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=addserver: Formulare der Serverliste mit breiter GUI und fremdem Eck-Knopf
+		if ("addserver".equals(System.getProperty("trsclient.autotest.only"))) {
+			MenusTest.installAddServer();
+			return;
+		}
+		if ("maps".equals(System.getProperty("trsclient.autotest.only"))) {
+			MapsTest.install();
+			return;
+		}
+		if ("social".equals(System.getProperty("trsclient.autotest.only"))) {
+			SocialTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=hosting: Welt-Hosting mit zwei Spielen (Host/Gast, siehe HostingTest)
+		if ("hosting".equals(System.getProperty("trsclient.autotest.only"))) {
+			HostingTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=fastconnect: Schnell verbinden – schnellste Adresse vorab, Paket vorladen, Serverwechsel
+		if ("fastconnect".equals(System.getProperty("trsclient.autotest.only"))) {
+			FastConnectTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=ping: Ping-Test der Serverliste, Ping-HUD, Entpacken vorher/nachher, Eingabeverzögerung
+		if ("ping".equals(System.getProperty("trsclient.autotest.only"))) {
+			PingTest.install();
+			return;
+		}
+		// -PtrsAutotestOnly=socialtoasts: nur Sozial-Toasts neben dem Vanilla-Erfolgsfenster (Ausweichen) und über einem Menü
+		if ("socialtoasts".equals(System.getProperty("trsclient.autotest.only"))) {
+			SocialTest.installToasts();
+			return;
+		}
+		// -PtrsAutotestOnly=bugreport: „Bug melden“ – Formular, Vorschau, Senden an die Attrappe, Fehlerfall
+		if ("bugreport".equals(System.getProperty("trsclient.autotest.only"))) {
+			BugReportTest.install();
+			return;
+		}
+		MinecraftForge.EVENT_BUS.register(new AutoTest());
+	}
+
+	@SubscribeEvent
+	public void onTick(TickEvent.ClientTickEvent event) {
+		if (event.phase == TickEvent.Phase.END) tick(Minecraft.getMinecraft());
+	}
+
+	private void tick(Minecraft mc) {
+		// Das Spielfenster bekommt den Fokus – Tastendrücke landen im Spiel (Esc → Pausenmenü …).
+		// Für saubere Screenshots den erwarteten Zustand wiederherstellen (höchstens 5-mal).
+		if (step >= 4 && step < 18 && Mc.world() != null && !isExpected(mc.currentScreen) && reopenCount < 5) {
+			reopenCount++;
+			TrsClient.LOGGER.warn("[Autotest] fremdes Menü geschlossen/ersetzt: {}", mc.currentScreen);
+			mc.displayGuiScreen(expectedInstance);
+			KeyBinding.unPressAllKeys();
+			if (wait < 5) wait = 5;
+		}
+		if (wait > 0) {
+			wait--;
+			return;
+		}
+		// Verbindung verloren (z. B. Server-Timeout bei überlasteter Maschine) → Test abbrechen statt abstürzen.
+		if (step >= 4 && step < 18 && Mc.player() == null) {
+			TrsClient.LOGGER.error("[Autotest] Welt/Spieler verloren in Schritt {} – Abbruch", step);
+			step = 18;
+		}
+		TrsModules modules = TrsClient.get().modules();
+		switch (step) {
+			case 0:
+				if (!(mc.currentScreen instanceof TrsTitleScreen) && !(mc.currentScreen instanceof GuiMainMenu)) return; // lädt noch
+				mc.gameSettings.pauseOnLostFocus = false;
+				//? if >=1.12 {
+				/*mc.getTutorial().setStep(net.minecraft.client.tutorial.TutorialSteps.NONE);
+				*///?}
+				before = modules.registry.capture();
+				modules.titleScreen.setEnabled(true);
+				seedServers(mc);
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm erreicht: {}", mc.currentScreen.getClass().getSimpleName());
+				mc.displayGuiScreen(new TrsTitleScreen());
+				next(20);
+				break;
+			case 1:
+				if (mc.currentScreen instanceof TrsTitleScreen && titleStep(mc, (TrsTitleScreen) mc.currentScreen)) return;
+				mc.displayGuiScreen(new TrsMenuScreen(mc.currentScreen));
+				next(20);
+				break;
+			case 2:
+				shot(mc, "menu-title");
+				mc.displayGuiScreen(null);
+				startWorld(mc);
+				next(0);
+				break;
+			case 3: {
+				EntityPlayerSP player = Mc.player();
+				if (Mc.world() == null || player == null) return;
+				if (mc.currentScreen != null && !(mc.currentScreen instanceof GuiIngameMenu)) return; // Ladebildschirm
+				TrsClient.LOGGER.info("[Autotest] Welt geladen");
+				mc.displayGuiScreen(null);
+				KeyBinding.unPressAllKeys();
+				expect(null);
+				// Leicht nach unten schauen, damit Gelände (und damit Fullbright) im Bild ist.
+				player.rotationPitch = 15.0F;
+				player.prevRotationPitch = 15.0F;
+				String name = player.getName();
+				command(mc, "replaceitem entity " + name + " slot.armor.head minecraft:iron_helmet");
+				command(mc, "replaceitem entity " + name + " slot.armor.chest minecraft:diamond_chestplate");
+				command(mc, "replaceitem entity " + name + " slot.armor.feet minecraft:golden_boots");
+				command(mc, "replaceitem entity " + name + " slot.hotbar.0 minecraft:diamond_sword");
+				command(mc, "effect " + name + " minecraft:speed 300 1 true");
+				command(mc, "effect " + name + " minecraft:night_vision 120 0 true");
+				command(mc, "time set 1000");
+				for (Module m : new Module[]{modules.armor, modules.effects, modules.coords, modules.clock, modules.memory,
+						modules.packs, modules.toggleSprint, modules.crosshair}) {
+					m.setEnabled(true);
+				}
+				TrsClient.get().sprintToggle().set(true);
+				// Toggle-Schleichen nur für das HUD-Bild: beide Anzeigen "[… (umgeschaltet)]".
+				modules.toggleSneak.setEnabled(true);
+				TrsClient.get().sneakToggle().set(true);
+				modules.crosshairShape.set(Crosshair.Shape.CROSS_DOT);
+				modules.crosshairColor.set(0xFFB84D);
+				// Chat-Meldungen der Befehle verblassen lassen (Chat verblasst nach 10 s)
+				next(230);
+				break;
+			}
+			case 4:
+				// -PtrsAutotestOnly=redstone: nur den Redstone-Teil prüfen (schneller Durchlauf)
+				// -PtrsAutotestOnly=clips: nur Clips (F9/F10, mit Launcher-Attrappe auch „Clips einschalten“)
+				if ("redstone".equals(System.getProperty("trsclient.autotest.only"))
+						|| "perf".equals(System.getProperty("trsclient.autotest.only"))
+						|| "clips".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 18;
+					break;
+				}
+				// -PtrsAutotestOnly=capecolor: nur Umhang-Einstellungen/Vorschau und Farben
+				if ("capecolor".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 19;
+					break;
+				}
+				// -PtrsAutotestOnly=creator: Fan-Symbole + Creator-Sterne (braucht -PtrsApi mit scripts/mock-creator-api.mjs)
+				if ("creator".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 25;
+					break;
+				}
+				// -PtrsAutotestOnly=cinematic: Kamera-Fahrt (Keyframes, Abspielen, HUD, Kamera)
+				if ("cinematic".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 26;
+					break;
+				}
+				// -PtrsAutotestOnly=freecam: freie Kamera (Fair Play an Stein, durch Glas/Tür, ohne Fair Play durch Stein)
+				if ("freecam".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 27;
+					break;
+				}
+				// -PtrsAutotestOnly=cosmetics2: Kopf-Kosmetik v2 (braucht -PtrsApi mit scratchpad/cos2mod/mock-api.mjs)
+				if ("cosmetics2".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 24;
+					break;
+				}
+				shot(mc, "hud");
+				TrsClient.LOGGER.info("[Autotest] Toggle-Anzeige: {} {}", TrsClient.get().pvp().toggles().sprintStatus().text(),
+						TrsClient.get().pvp().toggles().sneakStatus().text());
+				TrsClient.get().sneakToggle().set(false);
+				TrsClient.get().setForceZoom(true);
+				next(30);
+				break;
+			case 5:
+				shot(mc, "zoom");
+				TrsClient.LOGGER.info("[Autotest] Zoom-Faktor beim Screenshot: {}", TrsClient.get().zoom().factor());
+				TrsClient.get().setForceZoom(false);
+				command(mc, "effect " + Mc.player().getName() + " clear");
+				command(mc, "time set 18000");
+				modules.fullbright.setEnabled(false);
+				next(40);
+				break;
+			case 6:
+				shot(mc, "night");
+				modules.fullbright.setEnabled(true);
+				next(20);
+				break;
+			case 7:
+				shot(mc, "fullbright");
+				TrsClient.LOGGER.info("[Autotest] Gamma-Option nach Fullbright unverändert: {}", mc.gameSettings.gammaSetting);
+				modules.fullbright.setEnabled(false);
+				command(mc, "time set 1000");
+				TrsClient.get().pvp().forceFreelook(150F);
+				next(20);
+				break;
+			case 8:
+				shot(mc, "freelook");
+				TrsClient.get().pvp().forceFreelook(Float.NaN);
+				expect(new TrsMenuScreen(null).select(modules.freelook));
+				next(20);
+				break;
+			case 9:
+				shot(mc, "menu");
+				expect(new CrosshairEditorScreen(null));
+				next(20);
+				break;
+			case 10:
+				shot(mc, "crosshair-editor");
+				expect(new PackScreen(null));
+				next(20);
+				break;
+			case 11:
+				shot(mc, "packs");
+				expect(new TrsMenuScreen(null).showProfiles());
+				next(20);
+				break;
+			case 12:
+				shot(mc, "profiles");
+				expect(new HudEditorScreen(null).selectFirst());
+				next(20);
+				break;
+			case 13: {
+				shot(mc, "hud-editor");
+				expect(null);
+				// Neue Module einschalten und mit Beispielwerten füttern (reine Anzeigen).
+				for (Module m : new Module[]{modules.reach, modules.combo, modules.speed, modules.minimap,
+						modules.waypoints, modules.chat, modules.blockOutline, modules.hitboxes, modules.noHurtCam}) {
+					m.setEnabled(true);
+				}
+				modules.chatTimestamps.set(true);
+				long now = System.currentTimeMillis();
+				TrsClient.get().pvp().reach().record(3.04, now);
+				ComboTracker combo = TrsClient.get().pvp().combo();
+				for (int i = 0; i < 3; i++) {
+					combo.onAttack(4242, now);
+					combo.onTargetHurt(4242, now);
+				}
+				EntityPlayerSP player = Mc.player();
+				if (player != null) {
+					// Wegpunkt 20 Blöcke vor dem Spieler, damit die Markierung im Bild liegt.
+					double yaw = Math.toRadians(player.rotationYaw);
+					int wx = (int) Math.floor(player.posX - Math.sin(yaw) * 20);
+					int wz = (int) Math.floor(player.posZ + Math.cos(yaw) * 20);
+					TrsClient.get().waypoints().createAt("Testpunkt", wx, (int) Math.floor(player.posY), wz, 0xFFB84D);
+				}
+				// Gleiche Nachricht dreimal → Zusammenfassung "(x3)" im Chat.
+				for (int i = 0; i < 3; i++) command(mc, "say TRS-Selbsttest Chat");
+				next(30);
+				break;
+			}
+			case 14:
+				shot(mc, "waypoints-minimap");
+				expect(new WaypointListScreen(null));
+				next(20);
+				break;
+			case 15:
+				shot(mc, "waypoint-list");
+				// Menü mit Text-Einstellungen (Auto-GG) – Textzeilen liegen jetzt im Einstellungs-Bereich.
+				expect(new TrsMenuScreen(null).select(modules.autoGg));
+				next(20);
+				break;
+			case 16:
+				shot(mc, "menu-text");
+				TrsClient.LOGGER.info("[Autotest] Wegpunkte: {}, Combo: {}, Reichweite: {}",
+						TrsClient.get().waypoints().all().size(),
+						TrsClient.get().pvp().combo().combo(),
+						TrsClient.get().pvp().reach().distance());
+				expect(null);
+				next(5);
+				break;
+			case 17:
+				// TRS-Umhang, Umhang-Physik und Abzeichen (mit lokaler API-Attrappe, siehe -PtrsApi)
+				CapeTest.Actions actions = new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.this.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				};
+				if (capeTest.step(mc, modules, actions)) return;
+				// Emote-Rad und Emotes (gleiche Attrappe)
+				if (emoteTest.step(mc, modules, actions)) return;
+				next(5);
+				break;
+			case 18:
+				// Clips & Aufnahme (nur mit -PtrsAutotestOnly=clips)
+				if ("clips".equals(System.getProperty("trsclient.autotest.only"))) {
+					if (clipsTest.step(mc, modules, new CapeTest.Actions() {
+						@Override
+						public void shot(String name) {
+							AutoTest.this.shot(mc, name);
+						}
+
+						@Override
+						public void command(String command) {
+							AutoTest.command(mc, command);
+						}
+					})) return;
+					next(5);
+					break;
+				}
+				// Redstone-Werkzeuge: Signalstärke, Komparator, Overlay, Takt
+				if (!"perf".equals(System.getProperty("trsclient.autotest.only")) && redstoneTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.this.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				// Leistung: Testszene, FPS ohne/mit FPS-Boost, Dynamische FPS, Menü, Rückgängig
+				if (!"redstone".equals(System.getProperty("trsclient.autotest.only")) && perfTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.this.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				if ("perf".equals(System.getProperty("trsclient.autotest.only"))) {
+					step = 20;
+					break;
+				}
+				next(5);
+				break;
+			case 19:
+				// Umhang-Physik-Einstellungen (Vorschau, Wind, Stufen) und Farben (Sättigung 0 %/200 %)
+				if (capeColorTest.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.this.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				next(5);
+				break;
+			case 24:
+				// Kopf-Kosmetik v2: Screenshots trsclient-<mc>-cos2-*.png
+				if (cosmetics2Test.step(mc, modules, new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.this.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				})) return;
+				step = 20;
+				wait = 5;
+				break;
+			case 25:
+			case 26:
+			case 27: {
+				// Creator-Programm bzw. Kamera-Fahrten: Screenshots trsclient-<mc>-creator-*.png / -cinematic-*.png
+				CapeTest.Actions creatorActions = new CapeTest.Actions() {
+					@Override
+					public void shot(String name) {
+						AutoTest.this.shot(mc, name);
+					}
+
+					@Override
+					public void command(String command) {
+						AutoTest.command(mc, command);
+					}
+				};
+				if (step == 25 ? creatorTest.step(mc, modules, creatorActions)
+						: step == 26 ? cinematicTest.step(mc, modules, creatorActions) : freecamTest.step(mc, modules, creatorActions)) return;
+				step = 20;
+				wait = 5;
+				break;
+			}
+			case 20:
+				TrsClient.LOGGER.info("[Autotest] Hook-Aufrufe: {}", HookStats.summary());
+				TrsClient.LOGGER.info("[Autotest] Leistungs-Hooks: {}", dev.theredstonee.trsclient.perf.LegacyPerf.get().stats());
+				TrsClient.LOGGER.info("[Autotest] fertig, verlasse Welt und beende das Spiel");
+				TrsClient.get().sprintToggle().set(false);
+				if (before != null) modules.registry.apply(before);
+				TrsClient.get().saveConfig();
+				WorldClient w = Mc.world();
+				if (w != null) {
+					w.sendQuittingDisconnectingPacket();
+					mc.loadWorld((WorldClient) null);
+				}
+				mc.displayGuiScreen(new GuiMainMenu());
+				next(20);
+				break;
+			default:
+				if (step == 21) mc.shutdown();
+				step = 22;
+				break;
+		}
+	}
+
+	/** Öffnet den erwarteten Bildschirm (null = Spiel ohne Menü). */
+	private void expect(GuiScreen screen) {
+		expectedInstance = screen;
+		expected = screen == null ? null : screen.getClass();
+		Minecraft.getMinecraft().displayGuiScreen(screen);
+	}
+
+	private final Cosmetics2Test cosmetics2Test = new Cosmetics2Test();
+
+	private boolean isExpected(GuiScreen current) {
+		// Das Emote-Rad öffnet der Emote-Test selbst.
+		if (current instanceof dev.theredstonee.trsclient.screen.EmoteWheelScreen) return true;
+		return expected == null ? current == null : expected.isInstance(current);
+	}
+
+	/**
+	 * Startbildschirm: Ruhe-Screenshot, eine Lampe per Tastatur-Auswahl an (wie Hover), dann die
+	 * Kosten der Hintergrund-Animation messen (mit und ohne Schaltung). true = noch nicht fertig.
+	 */
+	private boolean titleStep(Minecraft mc, TrsTitleScreen screen) {
+		dev.theredstonee.trsclient.core.ui.title.TitleUi title = screen.titleUi();
+		switch (titlePhase++) {
+			case 0:
+				if (!figureTurned) {
+					// Figur fast von vorn für den Screenshot (ein paar Bilder vorher setzen).
+					figureTurned = true;
+					title.setFigureAngle(20f);
+					titlePhase--;
+					wait = 2;
+					return true;
+				}
+				shot(mc, "title");
+				title.focus(0);
+				wait = 10;
+				return true;
+			case 1:
+				shot(mc, "title-hover");
+				title.focus(-1);
+				wait = 100;
+				return true;
+			case 2:
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm: Szene " + Math.round(title.sceneMicros()) + " µs, Bildschirm "
+						+ Math.round(title.frameMicros()) + " µs (CPU), Bildzeit " + String.format(java.util.Locale.ROOT, "%.2f", title.frameMillis())
+						+ " ms, " + Minecraft.getDebugFPS() + " fps, sparsam=" + title.sparseScene());
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm: Figur+Drehscheibe " + Math.round(title.modelMicros()) + " µs, "
+						+ title.modelFaces() + " Flächen, Figur=" + title.figureShown() + ", Leiste=" + title.sideMode());
+				title.setSceneEnabled(false);
+				wait = 100;
+				return true;
+			case 3:
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm ohne Schaltung: Bildschirm " + Math.round(title.frameMicros())
+						+ " µs (CPU), Bildzeit " + String.format(java.util.Locale.ROOT, "%.2f", title.frameMillis()) + " ms, " + Minecraft.getDebugFPS() + " fps");
+				title.setSceneEnabled(true);
+				if (!"title".equals(System.getProperty("trsclient.autotest.only"))) return false;
+				wait = 10;
+				return true;
+			case 4:
+				// Nur -PtrsAutotestOnly=title: große und kleine GUI, „Kommt bald“, dann beenden.
+				titleScaleBefore = mc.gameSettings.guiScale;
+				mc.gameSettings.guiScale = 1;
+				mc.displayGuiScreen(screen);
+				wait = 30;
+				return true;
+			case 5:
+				shot(mc, "title-wide");
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm groß: Figur=" + title.figureShown() + ", Leiste=" + title.sideMode()
+						+ ", " + title.modelFaces() + " Flächen");
+				mc.gameSettings.guiScale = 3;
+				mc.displayGuiScreen(screen);
+				wait = 30;
+				return true;
+			case 6:
+				shot(mc, "title-narrow");
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm schmal: Figur=" + title.figureShown() + ", Leiste=" + title.sideMode());
+				mc.gameSettings.guiScale = titleScaleBefore;
+				mc.displayGuiScreen(screen);
+				wait = 30;
+				return true;
+			case 7: {
+				int[] r = title.buttonRect("wardrobe");
+				if (r != null) title.mouseClicked(r[0] + r[2] / 2.0, r[1] + r[3] / 2.0, 0);
+				wait = 12;
+				return true;
+			}
+			case 8:
+				shot(mc, "title-soon");
+				TrsClient.LOGGER.info("[Autotest] Garderobe-Knopf: Hinweis \"" + title.toast() + "\"");
+				TrsClient.LOGGER.info("[Autotest] Startbildschirm-Test fertig");
+				if (before != null) TrsClient.get().modules().registry.apply(before);
+				mc.shutdown();
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	private void next(int ticks) {
+		step++;
+		wait = ticks;
+	}
+
+	/** Legt für den Test zwei Server in servers.dat an, falls die Liste leer ist (Schnellbeitritt-Leiste). */
+	private static void seedServers(Minecraft mc) {
+		ServerList list = new ServerList(mc);
+		list.loadServerList();
+		if (list.countServers() > 0) return;
+		list.addServerData(new ServerData("TRS Testserver", "localhost:25565", false));
+		list.addServerData(new ServerData("Hypixel", "mc.hypixel.net", false));
+		list.saveServerList();
+	}
+
+	/** Führt einen Befehl als Server (volle Rechte) auf dem Server-Thread aus. */
+	private static void command(Minecraft mc, final String command) {
+		final IntegratedServer server = mc.getIntegratedServer();
+		if (server == null) return;
+		server.addScheduledTask(new Runnable() {
+			@Override
+			public void run() {
+				int result = server.getCommandManager().executeCommand(server, command);
+				TrsClient.LOGGER.info("[Autotest] /{} → {}", command, result);
+			}
+		});
+	}
+
+	private void startWorld(Minecraft mc) {
+		if (mc.getSaveLoader().canLoadWorld(world)) {
+			TrsClient.LOGGER.info("[Autotest] öffne Testwelt '{}'", world);
+			mc.launchIntegratedServer(world, world, null);
+		} else {
+			TrsClient.LOGGER.info("[Autotest] erstelle Testwelt '{}'", world);
+			mc.launchIntegratedServer(world, world, Mc.creativeWorld(System.nanoTime()));
+		}
+	}
+
+	private void shot(Minecraft mc, String name) {
+		String file = "trsclient-" + mcVersion + "-" + name + ".png";
+		ScreenShotHelper.saveScreenshot(Mc.gameDir(), file, mc.displayWidth, mc.displayHeight, mc.getFramebuffer());
+		TrsClient.LOGGER.info("[Autotest] Screenshot {}", file);
+	}
+}

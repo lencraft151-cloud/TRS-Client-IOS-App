@@ -1,0 +1,531 @@
+<script setup lang="ts">
+import type { TrsCape } from '~/utils/trs'
+import { capeFilters, capeOrigin, capeSorts, filterCapes, type CapeFilter, type CapeSort } from '~/utils/capeFilter'
+
+// TRS-Umhänge auf der Skins-Seite: Katalog mit Sperr-Status, Vorschau in der
+// großen 3D-Ansicht der Seite (per `preview`), Anlegen/Ablegen, Code einlösen,
+// eigene Umhänge hochladen (Prüfung durch das Team) und mit Freunden teilen.
+const props = defineProps<{ previewId: string | null }>()
+const emit = defineEmits<{ preview: [cape: TrsCape | null]; active: [cape: TrsCape | null] }>()
+
+const trs = useTrsStore()
+const events = useEventsStore()
+const accounts = useAccountsStore()
+const toasts = useToasts()
+
+const capes = ref<TrsCape[] | null>(null)
+const loading = ref(false)
+const offline = ref(false)
+const busy = ref<string | null>(null)
+
+const active = computed(() => capes.value?.find((c) => c.active) ?? null)
+// Die Seite zeigt den getragenen TRS-Umhang in der Vorschau – so wie andere ihn im Spiel sehen.
+watch(active, (cape) => emit('active', cape), { immediate: true })
+const selected = computed(() => capes.value?.find((c) => c.id === props.previewId) ?? null)
+const canClaim = computed(() => {
+  const cape = selected.value
+  return !!cape && !cape.owned && cape.unlock === 'event' && !!cape.unlockEvent && events.has(cape.unlockEvent)
+})
+
+async function claim() {
+  const cape = selected.value
+  if (!cape || busy.value) return
+  busy.value = 'claim'
+  try {
+    await backend.trs.claimCape(cape.id)
+    toasts.ok(t('capes.toasts.claimed', { name: cape.name }))
+    await load()
+  } catch (e) {
+    toasts.error(e)
+  } finally {
+    busy.value = null
+  }
+}
+// Suche, Filter, Sortierung und Info-Karte
+const query = ref('')
+const filter = ref<CapeFilter>('all')
+const sort = ref<CapeSort>('default')
+const shown = computed(() => filterCapes(capes.value ?? [], query.value, filter.value, sort.value))
+const infoCape = ref<TrsCape | null>(null)
+const pendingCount = computed(() => capes.value?.filter((c) => c.kind === 'upload' && c.status === 'pending').length ?? 0)
+
+async function load() {
+  if (!trs.enabled || !accounts.active) {
+    capes.value = null
+    return
+  }
+  loading.value = true
+  try {
+    capes.value = await backend.trs.capes()
+    offline.value = false
+    // Die Vorschau zeigt die aktuellen Daten (z. B. nach einer Freigabe).
+    if (props.previewId) emit('preview', capes.value.find((c) => c.id === props.previewId) ?? null)
+  } catch (e) {
+    if (e instanceof BackendError && e.kind === 'trs_offline') offline.value = true
+    else if (!(e instanceof BackendError && trsIsQuiet(e.kind))) toasts.error(e)
+  } finally {
+    loading.value = false
+  }
+}
+
+// --- Kopf-Kosmetik per Code: gleich anbieten, sie aufzusetzen (Liste: TrsHeadCosmetics) ----
+
+const hatOffer = ref<{ id: string; name: string } | null>(null)
+
+async function wearOffered() {
+  const offer = hatOffer.value
+  hatOffer.value = null
+  if (!offer) return
+  await run('hat', async () => {
+    await backend.trs.setHat(offer.id)
+    toasts.ok(t('capes.toasts.hatOn', { name: offer.name }))
+    trs.capesRevision++
+  })
+}
+
+onMounted(load)
+watch(() => [trs.enabled, accounts.active?.id], load)
+// Angebot angenommen, Umhang zurückgegeben …
+watch(() => trs.capesRevision, load)
+
+function preview(cape: TrsCape) {
+  emit('preview', props.previewId === cape.id ? null : cape)
+}
+
+async function run(key: string, action: () => Promise<void>) {
+  if (busy.value) return
+  busy.value = key
+  try {
+    await action()
+  } catch (e) {
+    toasts.error(e)
+  } finally {
+    busy.value = null
+  }
+}
+
+async function wear(cape: TrsCape | null) {
+  await run('wear', async () => {
+    await backend.trs.setCape(cape?.id ?? null)
+    toasts.ok(cape ? t('capes.toasts.worn', { name: cape.name }) : t('capes.toasts.removed'))
+    await load()
+  })
+}
+
+// --- Code einlösen ------------------------------------------------------------------
+
+const redeeming = ref(false)
+const code = ref('')
+const codeError = ref<string | null>(null)
+
+function startRedeem() {
+  code.value = ''
+  codeError.value = null
+  redeeming.value = true
+}
+// Die Kopf-Kosmetik-Liste öffnet denselben Dialog („Code einlösen“ bei gesperrten Teilen).
+defineExpose({ startRedeem })
+
+async function redeem() {
+  // Creator-Codes (Muster mit Bindestrich, §35.1) gehen ans Creator-Programm, alles andere ist ein Umhang-Code.
+  if (isCreatorCode(code.value)) {
+    codeError.value = null
+    await run('redeem', async () => {
+      try {
+        const result = await useCreatorStore().redeem(code.value.trim().toUpperCase())
+        redeeming.value = false
+        await load()
+        toasts.ok(
+          result.supportChanged
+            ? t('creator.fan.redeemed.now', { name: result.creator.name })
+            : result.fanCapeGranted
+              ? t('creator.fan.redeemed.capeUnlocked', { cape: result.creator.fanCape?.name ?? '' })
+              : t('creator.fan.redeemed.already', { name: result.creator.name }),
+          { label: t('creator.toast.open'), run: () => void navigateTo('/creator') },
+        )
+      } catch (e) {
+        codeError.value = errorMessage(e)
+      }
+    })
+    return
+  }
+  const parsed = trsRedeemCodeSchema.safeParse(code.value)
+  if (!parsed.success) {
+    codeError.value = firstIssue(parsed.error)
+    return
+  }
+  codeError.value = null
+  await run('redeem', async () => {
+    try {
+      const result = await backend.trs.redeem(parsed.data)
+      redeeming.value = false
+      await load()
+      if (result.kind === 'cosmetic') {
+        // Kopf-Kosmetik-Liste neu laden; neue Kopf-Teile gleich zum Aufsetzen anbieten.
+        trs.capesRevision++
+        if (result.wearableHat && result.cosmeticId && !result.alreadyOwned) {
+          hatOffer.value = { id: result.cosmeticId, name: result.name }
+          return
+        }
+      }
+      toasts.ok(
+        result.alreadyOwned
+          ? t('capes.toasts.alreadyOwned', { name: result.name })
+          : t('capes.toasts.unlocked', { name: result.name }),
+      )
+      const cape = capes.value?.find((c) => c.id === result.capeId)
+      if (cape) emit('preview', cape)
+    } catch (e) {
+      // Im Dialog anzeigen statt als Toast – der Code steht ja noch da.
+      codeError.value = errorMessage(e)
+    }
+  })
+}
+
+// --- Hochladen (Zuschneide-Dialog) ---------------------------------------------------
+
+const uploading = ref(false)
+
+function startUpload() {
+  uploading.value = true
+  // Creator ab Partner: die Werkstatt bietet „Als Fan-Umhang einreichen“ an.
+  const creator = useCreatorStore()
+  if (!creator.me && !creator.loading) void creator.load()
+}
+
+async function uploaded(cape: TrsCape) {
+  uploading.value = false
+  await load()
+  emit('preview', capes.value?.find((c) => c.id === cape.id) ?? cape)
+}
+
+// --- Teilen ------------------------------------------------------------------------
+
+const sharing = ref<TrsCape | null>(null)
+const toGiveBack = ref<TrsCape | null>(null)
+
+async function confirmGiveBack() {
+  const cape = toGiveBack.value
+  toGiveBack.value = null
+  if (!cape || !accounts.active) return
+  const me = accounts.active.id
+  await run('giveBack', async () => {
+    await backend.trs.revokeCapeShare(cape.id, me)
+    if (props.previewId === cape.id) emit('preview', null)
+    toasts.ok(t('capeShare.toasts.givenBack', { cape: cape.name }))
+    await load()
+  })
+}
+
+function closeShare() {
+  sharing.value = null
+  void load()
+}
+
+const toDelete = ref<TrsCape | null>(null)
+async function confirmDelete() {
+  const cape = toDelete.value
+  toDelete.value = null
+  if (!cape) return
+  await run('delete', async () => {
+    await backend.trs.deleteCape(cape.id)
+    if (props.previewId === cape.id) emit('preview', null)
+    toasts.ok(t('capes.toasts.deleted'))
+    await load()
+  })
+}
+
+function lockClass(cape: TrsCape) {
+  if (cape.shared) return 'bg-redstone-900/30 text-redstone-200'
+  if (cape.kind === 'upload') return 'bg-base-800 text-base-200'
+  if (cape.unlock === 'free') return 'bg-ok/10 text-ok'
+  if (cape.unlock === 'code') return 'bg-lamp-900/60 text-lamp-300'
+  if (cape.unlock === 'reward') return 'bg-[#3a1f5c]/60 text-[#e8a866]'
+  return 'bg-redstone-900/50 text-redstone-300'
+}
+</script>
+
+<template>
+  <section aria-labelledby="trs-capes-title">
+    <div class="mb-2 flex flex-wrap items-center gap-2">
+      <h2 id="trs-capes-title" class="section-title">{{ t('capes.title') }}</h2>
+      <span v-if="active" class="badge bg-ok/10 text-ok">{{ t('capes.wearing', { name: active.name }) }}</span>
+      <div v-if="trs.enabled && accounts.active" class="ml-auto flex gap-2">
+        <button class="btn btn-ghost px-3 py-1.5 text-xs" :disabled="!!busy || offline" @click="startRedeem">{{ t('capes.redeem') }}</button>
+        <button class="btn btn-ghost px-3 py-1.5 text-xs" :disabled="!!busy || offline" @click="startUpload">
+          {{ t('capes.upload') }}
+        </button>
+      </div>
+    </div>
+    <p class="mb-3 text-xs text-base-400">{{ t('capes.intro') }}</p>
+
+    <TrsGate what="capes">
+      <CapeOffersList v-if="!offline" compact class="mb-4" />
+      <div v-if="offline" class="card flex items-center gap-3 px-4 py-3 text-sm text-base-400">
+        <span class="size-2 rounded-full bg-base-600" />
+        <span class="flex-1">{{ t('capes.offline') }}</span>
+        <button class="btn btn-ghost px-3 py-1 text-xs" :disabled="loading" @click="load">{{ t('common.actions.retry') }}</button>
+      </div>
+      <div v-else-if="loading && !capes" class="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3">
+        <div v-for="i in 6" :key="i" class="skeleton h-32" />
+      </div>
+      <template v-else-if="capes">
+        <div v-if="capes.length > 1" class="mb-3 flex flex-wrap items-center gap-2" data-testid="trs-cape-filters">
+          <input
+            v-model="query"
+            type="search"
+            class="field min-w-40 flex-1 py-1.5 text-xs"
+            maxlength="48"
+            :placeholder="t('capes.filter.search')"
+            :aria-label="t('capes.filter.search')"
+          />
+          <select v-model="filter" class="field w-auto py-1.5 text-xs" :aria-label="t('capes.filter.label')">
+            <option v-for="f in capeFilters" :key="f" :value="f">{{ t(`capes.filter.${f}`) }}</option>
+          </select>
+          <select v-model="sort" class="field w-auto py-1.5 text-xs" :aria-label="t('capes.sort.label')">
+            <option v-for="s in capeSorts" :key="s" :value="s">{{ t(`capes.sort.${s}`) }}</option>
+          </select>
+        </div>
+        <ul v-stagger class="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3" data-testid="trs-capes">
+          <li v-for="cape in shown" :key="cape.id">
+            <button
+              class="card card-hover card-lift flex h-full w-full flex-col items-center gap-2 p-3"
+              :class="{
+                'border-redstone-600/60 bg-redstone-900/20': previewId === cape.id,
+                'opacity-60': !cape.owned && cape.kind !== 'upload',
+              }"
+              :aria-pressed="previewId === cape.id"
+              :title="cape.owned ? t('capes.tryOn', { name: cape.name }) : t('capes.tryOnLocked', { name: cape.name })"
+              @click="preview(cape)"
+            >
+              <span class="relative">
+                <CapeThumb
+                  :texture="cape.texture"
+                  :scale="cape.scale"
+                  :frames="cape.frames"
+                  :frame-time-ms="cape.frameTimeMs"
+                  :width="30"
+                />
+                <svg
+                  v-if="!cape.owned && cape.kind !== 'upload'"
+                  viewBox="0 0 24 24"
+                  class="absolute -right-2 -bottom-1 size-4 rounded bg-base-900 p-0.5 text-base-200"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  :aria-label="t('capes.locked')"
+                >
+                  <path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z" />
+                </svg>
+              </span>
+              <span class="w-full truncate text-center text-xs">{{ cape.name }}</span>
+              <span class="flex flex-wrap justify-center gap-1">
+                <span class="badge px-1.5 py-0 text-[10px]" :class="lockClass(cape)">{{ trsUnlockLabel(cape) }}</span>
+                <span v-if="cape.frames > 1" class="badge bg-base-800 px-1.5 py-0 text-[10px] text-base-200">{{ t('capes.animated') }}</span>
+              </span>
+              <span v-if="cape.active" class="text-[10px] text-ok">{{ t('capes.worn') }}</span>
+              <span v-else-if="cape.holders && !cape.shared" class="text-[10px] text-base-400">{{ t('capeShare.card.holders', cape.holders) }}</span>
+              <span
+                v-else-if="trsStatusLabel(cape.status)"
+                class="text-[10px]"
+                :class="cape.status === 'rejected' ? 'text-redstone-300' : 'text-lamp-300'"
+              >
+                {{ trsStatusLabel(cape.status) }}
+              </span>
+            </button>
+          </li>
+        </ul>
+        <p v-if="!capes.length" class="card px-4 py-6 text-center text-sm text-base-400">
+          {{ t('capes.empty') }}
+        </p>
+        <p v-else-if="!shown.length" class="card px-4 py-6 text-center text-sm text-base-400">
+          {{ t('capes.filter.none') }}
+        </p>
+
+        <!-- Aktionen für den angeprobten Umhang -->
+        <div v-if="selected" class="card mt-3 flex flex-wrap items-center gap-3 px-4 py-3" data-testid="trs-cape-actions">
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-semibold text-base-50">{{ selected.name }}</p>
+            <p class="text-xs text-base-400">
+              <template v-if="selected.kind === 'upload' && selected.status === 'pending'">
+                {{ t('capes.selected.pending') }}
+              </template>
+              <template v-else-if="selected.kind === 'upload' && selected.status === 'rejected'">
+                {{
+                  selected.rejectReason
+                    ? t('capes.selected.rejectedReason', { reason: selected.rejectReason })
+                    : t('capes.selected.rejected')
+                }}
+              </template>
+              <template v-else-if="!selected.owned && selected.unlock === 'code'">{{ t('capes.selected.lockedCode') }}</template>
+              <template v-else-if="!selected.owned && selected.unlock === 'event'">{{ t('capes.selected.event') }}</template>
+              <template v-else-if="!selected.owned && selected.unlock === 'reward'">{{ t('capes.selected.reward') }}</template>
+              <template v-else-if="!selected.owned">{{ t('capes.selected.lockedTeam') }}</template>
+              <template v-else-if="selected.active">{{ t('capes.selected.active') }}</template>
+              <template v-else-if="selected.unlock === 'free'">{{ t('capes.selected.free') }}</template>
+              <template v-else>{{ t('capes.selected.unlocked') }}</template>
+            </p>
+            <p v-if="selected.shared" class="truncate text-xs text-base-400" data-testid="trs-cape-shared">
+              {{
+                selected.shared.creator.uuid === selected.shared.from.uuid
+                  ? t('capeShare.selected.from', { name: selected.shared.from.name })
+                  : t('capeShare.selected.fromVia', { name: selected.shared.from.name, creator: selected.shared.creator.name })
+              }}
+            </p>
+            <p v-else-if="selected.kind === 'upload' && selected.status === 'pending'" class="text-xs text-base-600">
+              {{ t('capeShare.selected.afterApproval') }}
+            </p>
+          </div>
+          <button
+            v-if="selected.owned && !selected.active"
+            class="btn btn-primary px-3 py-1.5 text-xs"
+            :disabled="!!busy"
+            @click="wear(selected)"
+          >
+            {{ busy === 'wear' ? t('capes.actions.wearing') : t('capes.actions.wear') }}
+          </button>
+          <button v-if="selected.active" class="btn btn-ghost px-3 py-1.5 text-xs" :disabled="!!busy" @click="wear(null)">
+            {{ busy === 'wear' ? t('capes.actions.removing') : t('capes.actions.remove') }}
+          </button>
+          <button
+            v-if="canClaim"
+            class="btn btn-primary px-3 py-1.5 text-xs"
+            :disabled="!!busy"
+            data-testid="trs-cape-claim"
+            @click="claim"
+          >
+            {{ busy === 'claim' ? t('capes.actions.claiming') : t('capes.actions.claim') }}
+          </button>
+          <button
+            v-if="!selected.owned && selected.unlock === 'code'"
+            class="btn btn-ghost px-3 py-1.5 text-xs"
+            :disabled="!!busy"
+            @click="startRedeem"
+          >
+            {{ t('capes.redeem') }}
+          </button>
+          <button
+            v-if="selected.shareable"
+            class="btn btn-ghost px-3 py-1.5 text-xs"
+            :disabled="!!busy"
+            data-testid="trs-cape-share"
+            @click="sharing = selected"
+          >
+            {{ selected.holders ? t('capeShare.actions.manage', { count: selected.holders }) : t('capeShare.actions.share') }}
+          </button>
+          <button
+            v-if="selected.shared"
+            class="btn btn-ghost px-3 py-1.5 text-xs hover:text-redstone-300"
+            :disabled="!!busy"
+            @click="toGiveBack = selected"
+          >
+            {{ t('capeShare.actions.giveBack') }}
+          </button>
+          <button
+            v-else-if="selected.kind === 'upload'"
+            class="btn btn-ghost px-3 py-1.5 text-xs hover:text-redstone-300"
+            :disabled="!!busy"
+            @click="toDelete = selected"
+          >
+            {{ t('common.actions.delete') }}
+          </button>
+          <button class="btn btn-ghost px-3 py-1.5 text-xs" data-testid="trs-cape-info" @click="infoCape = selected">
+            {{ t('capes.actions.info') }}
+          </button>
+          <button class="btn btn-ghost px-3 py-1.5 text-xs" @click="emit('preview', null)">{{ t('capes.actions.endPreview') }}</button>
+        </div>
+        <p v-if="pendingCount" class="mt-2 text-[11px] text-base-600">
+          {{ t('capes.pendingCount', pendingCount) }}
+        </p>
+      </template>
+    </TrsGate>
+
+    <BaseDialog v-if="infoCape" :title="infoCape.name" @close="infoCape = null">
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm" data-testid="trs-cape-info-card">
+        <dt class="text-base-400">{{ t('capes.info.source') }}</dt>
+        <dd>{{ t(`capes.info.origin.${capeOrigin(infoCape)}`) }}</dd>
+        <template v-if="infoCape.shared">
+          <dt class="text-base-400">{{ t('capes.info.from') }}</dt>
+          <dd>{{ infoCape.shared.from.name }} ({{ t('capes.info.creator', { name: infoCape.shared.creator.name }) }})</dd>
+        </template>
+        <dt class="text-base-400">{{ t('capes.info.animated') }}</dt>
+        <dd>{{ infoCape.frames > 1 ? t('capes.info.framesYes', { n: infoCape.frames }) : t('capes.info.no') }}</dd>
+        <dt class="text-base-400">{{ t('capes.info.size') }}</dt>
+        <dd>{{ infoCape.width }} × {{ infoCape.height }}</dd>
+        <dt class="text-base-400">{{ t('capes.info.status') }}</dt>
+        <dd>{{ infoCape.owned ? t('capes.info.owned') : t('capes.info.notOwned') }}</dd>
+        <template v-if="infoCape.shareable || infoCape.holders">
+          <dt class="text-base-400">{{ t('capes.info.holders') }}</dt>
+          <dd>{{ infoCape.holders }}</dd>
+        </template>
+        <dt class="text-base-400">{{ t('capes.info.how') }}</dt>
+        <dd>
+          <template v-if="infoCape.kind === 'upload' && infoCape.status === 'pending'">{{ t('capes.selected.pending') }}</template>
+          <template v-else-if="infoCape.owned">{{ t('capes.info.howOwned') }}</template>
+          <template v-else-if="infoCape.unlock === 'code'">{{ t('capes.selected.lockedCode') }}</template>
+          <template v-else-if="infoCape.unlock === 'event'">{{ t('capes.selected.event') }}</template>
+          <template v-else-if="infoCape.unlock === 'reward'">{{ t('capes.selected.reward') }}</template>
+          <template v-else>{{ t('capes.selected.lockedTeam') }}</template>
+        </dd>
+      </dl>
+      <template #actions>
+        <button class="btn btn-primary" @click="infoCape = null">{{ t('common.actions.close') }}</button>
+      </template>
+    </BaseDialog>
+    <BaseDialog v-if="hatOffer":title="t('capes.hatDialog.title', { name: hatOffer.name })" @close="hatOffer = null">
+      <p class="text-sm text-base-300">{{ t('capes.hatDialog.text') }}</p>
+      <template #actions>
+        <button class="btn btn-ghost" @click="hatOffer = null">{{ t('capes.hatDialog.later') }}</button>
+        <button class="btn btn-primary" :disabled="!!busy" @click="wearOffered">{{ t('capes.hatDialog.wear') }}</button>
+      </template>
+    </BaseDialog>
+    <BaseDialog v-if="redeeming" :title="t('capes.redeem')" @close="redeeming = false">
+      <label class="label" for="trs-code">{{ t('capes.redeemDialog.codeLabel') }}</label>
+      <input
+        id="trs-code"
+        v-model="code"
+        class="field font-mono tracking-wider uppercase"
+        maxlength="64"
+        placeholder="XXXXX-XXXXX-XXXXX-XXXXX"
+        autocomplete="off"
+        spellcheck="false"
+        autofocus
+        @keydown.enter="redeem"
+      />
+      <p class="mt-2 text-xs text-base-400">{{ t('capes.redeemDialog.hint') }}</p>
+      <p v-if="codeError" role="alert" class="mt-2 text-xs text-redstone-300">{{ codeError }}</p>
+      <template #actions>
+        <button class="btn btn-ghost" @click="redeeming = false">{{ t('common.actions.cancel') }}</button>
+        <button class="btn btn-primary" :disabled="busy === 'redeem'" @click="redeem">
+          {{ busy === 'redeem' ? t('capes.redeemDialog.checking') : t('capes.redeemDialog.submit') }}
+        </button>
+      </template>
+    </BaseDialog>
+
+    <CapeUploadDialog v-if="uploading" @close="uploading = false" @uploaded="uploaded" @fan-uploaded="uploading = false" />
+
+    <CapeShareDialog v-if="sharing" :cape="sharing" @close="closeShare" @changed="trs.loadCapeOffers()" />
+
+    <BaseDialog v-if="toGiveBack" :title="t('capeShare.giveBackDialog.title')" @close="toGiveBack = null">
+      <i18n-t keypath="capeShare.giveBackDialog.text" tag="p" scope="global" class="text-sm text-base-200">
+        <template #name><strong class="text-base-50">{{ toGiveBack.name }}</strong></template>
+      </i18n-t>
+      <template #actions>
+        <button class="btn btn-ghost" @click="toGiveBack = null">{{ t('common.actions.cancel') }}</button>
+        <button class="btn btn-danger" @click="confirmGiveBack">{{ t('capeShare.actions.giveBack') }}</button>
+      </template>
+    </BaseDialog>
+
+    <BaseDialog v-if="toDelete" :title="t('capes.deleteDialog.title')" @close="toDelete = null">
+      <i18n-t keypath="capes.deleteDialog.text" tag="p" scope="global" class="text-sm text-base-200">
+        <template #name><strong class="text-base-50">{{ toDelete.name }}</strong></template>
+      </i18n-t>
+      <p v-if="toDelete.holders" class="mt-2 text-xs text-lamp-300">{{ t('capeShare.deleteWarning', toDelete.holders) }}</p>
+      <template #actions>
+        <button class="btn btn-ghost" @click="toDelete = null">{{ t('common.actions.cancel') }}</button>
+        <button class="btn btn-danger" @click="confirmDelete">{{ t('common.actions.delete') }}</button>
+      </template>
+    </BaseDialog>
+  </section>
+</template>

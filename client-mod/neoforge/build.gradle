@@ -1,0 +1,345 @@
+// Build-Skript für JEDE NeoForge-Version (:<minecraft>), ausgeführt von Stonecutter.
+// Quellcode: src/ (vorverarbeitet je Version) + ../common/src/main/java (unverändert).
+// Versionsspezifische Werte: versions/<minecraft>/gradle.properties (neo_version)
+//
+// Alle NeoForge-Versionen (ab 20.2 / Minecraft 1.20.2) laufen in Produktion mit Mojang-Namen
+// (geprüft: die Universal-JARs von 20.2.93/20.4.251/20.6.141 referenzieren Mojmap, keine SRG-Namen) –
+// die normale JAR ist daher direkt die fertige Mod, ohne Reobfuskierung oder Refmap.
+import groovy.json.JsonSlurper
+import org.gradle.api.artifacts.CacheableRule
+import org.gradle.api.artifacts.ComponentMetadataContext
+import org.gradle.api.artifacts.ComponentMetadataRule
+import org.gradle.api.artifacts.repositories.RepositoryResourceAccessor
+import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
+import org.gradle.api.model.ObjectFactory
+
+import javax.inject.Inject
+import java.nio.charset.StandardCharsets
+import java.util.jar.JarInputStream
+
+plugins {
+	id 'java'
+	id 'net.neoforged.moddev'
+}
+
+/**
+ * NeoForge 20.2.93 (1.20.2), 20.3.8-beta (1.20.3) und 20.5.21-beta (1.20.5) wurden ohne Gradle-Module-Metadaten
+ * veröffentlicht – ModDevGradle findet dort seine Varianten (moddev-bundle, moddev-config, …) nicht.
+ * Diese Regel erzeugt sie aus der config.json der userdev-JAR, genau wie sie NeoForge 20.4.251 mitbringt
+ * (Vorbild: ModDevGradles LegacyForgeMetadataTransform). Die Minecraft-Bibliotheken kommen aus
+ * net.neoforged:minecraft-dependencies:<minecraft>, dekompiliert/gepatcht wird mit der NeoForm-Version,
+ * gegen die NeoForge gebaut wurde (config.json "mcp").
+ */
+@CacheableRule
+class OldNeoForgeMetadataRule implements ComponentMetadataRule {
+	static final Set<String> VERSIONS = ['20.2.93', '20.3.8-beta', '20.5.21-beta'] as Set
+
+	private final ObjectFactory objects
+	private final RepositoryResourceAccessor resources
+
+	@Inject
+	OldNeoForgeMetadataRule(ObjectFactory objects, RepositoryResourceAccessor resources) {
+		this.objects = objects
+		this.resources = resources
+	}
+
+	@Override
+	void execute(ComponentMetadataContext context) {
+		def details = context.details
+		def id = details.id
+		if (!(id.version in VERSIONS)) return
+		def base = "${id.name}-${id.version}"
+		Map config = null
+		resources.withResource("net/neoforged/neoforge/${id.version}/${base}-userdev.jar") { InputStream stream ->
+			def zin = new JarInputStream(new BufferedInputStream(stream))
+			for (def e = zin.nextJarEntry; e != null; e = zin.nextJarEntry) {
+				if (e.name == 'config.json') config = (Map) new JsonSlurper().parseText(new String(zin.readAllBytes(), StandardCharsets.UTF_8))
+			}
+			zin.close()
+		}
+		if (config == null) throw new GradleException("config.json fehlt in ${base}-userdev.jar")
+		// "net.neoforged:neoform:1.20.2-20231019.002635@zip"
+		def neoformVersion = config.mcp.toString().tokenize(':')[2].tokenize('@')[0]
+		def mcVersion = neoformVersion.tokenize('-')[0]
+		def libraries = config.libraries.collect { it.toString().replace('@jar', '') }
+		def modules = (config.modules ?: []).collect { it.toString().replace('@jar', '') }
+		def userdevJar = "${base}-userdev.jar".toString()
+		def universalJar = "${base}-universal.jar".toString()
+		def data = { attrs ->
+			attrs.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, 'data'))
+			attrs.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.EXTERNAL))
+		}
+		def library = { attrs, String usage ->
+			attrs.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+			attrs.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.EXTERNAL))
+			attrs.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, usage))
+		}
+
+		details.addVariant('modDevBundle') { v ->
+			v.attributes { data(it) }
+			v.withFiles { it.addFile(userdevJar, userdevJar) }
+			v.withDependencies { it.add("net.neoforged:neoform:${neoformVersion}") }
+			v.withCapabilities { it.addCapability('net.neoforged', 'neoforge-moddev-bundle', id.version) }
+		}
+		details.addVariant('modDevConfig') { v ->
+			v.attributes { data(it) }
+			// MDG liest die Run-Vorlagen auch direkt aus der userdev-JAR (config.json).
+			v.withFiles { it.addFile(userdevJar, userdevJar) }
+			v.withCapabilities { it.addCapability('net.neoforged', 'neoforge-moddev-config', id.version) }
+		}
+		details.addVariant('modDevModulePath') { v ->
+			v.attributes {
+				it.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+				it.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.EXTERNAL))
+			}
+			v.withDependencies { deps -> modules.each { deps.add(it) } }
+			v.withCapabilities { it.addCapability('net.neoforged', 'neoforge-moddev-module-path', id.version) }
+		}
+		['modDevApiElements': Usage.JAVA_API, 'modDevRuntimeElements': Usage.JAVA_RUNTIME].each { name, usage ->
+			details.addVariant(name) { v ->
+				v.attributes { library(it, usage) }
+				v.withDependencies { deps ->
+					// Genau die Versionen des Installers (sonst hebt Gradle z. B. modlauncher über
+					// at-modlauncher auf 10.1.7 an, und FML 1.0.16 startet nicht mehr).
+					libraries.findAll { !it.startsWith('net.neoforged:neoform:') }.each { lib ->
+						def parts = lib.tokenize(':')
+						deps.add(lib) { d -> d.version { it.strictly(parts[2]) } }
+					}
+					deps.add("net.neoforged:minecraft-dependencies:${mcVersion}")
+				}
+				v.withCapabilities {
+					it.removeCapability(id.group, id.name)
+					it.addCapability('net.neoforged', 'neoforge-dependencies', id.version)
+				}
+			}
+		}
+		details.addVariant('universalJar') { v ->
+			v.attributes {
+				library(it, Usage.JAVA_RUNTIME)
+				it.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+			}
+			v.withFiles { it.addFile(universalJar, universalJar) }
+		}
+		// Quellen-JAR ohne transitive Abhängigkeiten (wie sourcesElements in neuen NeoForge-Versionen).
+		['sources', 'javadoc'].each { n ->
+			details.withVariant(n) { v -> v.withDependencies { it.removeAll { true } } }
+		}
+		// Die aus der POM abgeleiteten Varianten dürfen nicht mehr gewählt werden.
+		['compile', 'runtime'].each { n ->
+			details.withVariant(n) { v ->
+				v.withCapabilities { caps ->
+					caps.removeCapability(id.group, id.name)
+					caps.addCapability('___dummy___', '___dummy___', '___dummy___')
+				}
+			}
+		}
+	}
+}
+
+/** Macht strikte Versionen in minecraft-dependencies 1.20.2/1.20.3/1.20.5 zu normalen Anforderungen. */
+@CacheableRule
+class NonStrictOldMinecraftRule implements ComponentMetadataRule {
+	@Override
+	void execute(ComponentMetadataContext context) {
+		if (!(context.details.id.version in ['1.20.2', '1.20.3', '1.20.5'])) return
+		context.details.allVariants { v ->
+			v.withDependencies { deps ->
+				deps.each { d ->
+					d.version { vc ->
+						def strict = vc.strictVersion
+						if (strict) {
+							vc.strictly('')
+							vc.require(strict)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+def mc = stonecutter.current.version
+def javaVersion = stonecutter.eval(mc, '>=26.1') ? 25 : (stonecutter.eval(mc, '>=1.20.5') ? 21 : 17)
+// NeoForge 20.2–20.4 lesen META-INF/mods.toml, ab 20.5 META-INF/neoforge.mods.toml.
+def newModsToml = stonecutter.eval(mc, '>=1.20.5')
+// "20.2.93" → "20.2", "26.1.0.19-beta" → "26.1" (Untergrenze der NeoForge-Abhängigkeit)
+def neoMajorMinor = project.neo_version.tokenize('.').take(2).join('.')
+
+group = rootProject.maven_group
+version = rootProject.mod_version
+
+base {
+	archivesName = "trsclient-neoforge-${mc}"
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(javaVersion)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release = javaVersion
+}
+
+// Die versionsunabhängige Logik wird mit dem Java-Level DIESER Version mitkompiliert
+// (1.20.2–1.20.4 laufen auf Java 17) und landet direkt in der Mod-JAR. Ihre Tests laufen mit.
+sourceSets {
+	main.java.srcDir(rootProject.file('../common/src/main/java'))
+	main.resources.srcDir(rootProject.file('../common/src/main/resources'))
+	test.java.srcDir(rootProject.file('../common/src/test/java'))
+}
+
+repositories {
+	mavenCentral()
+}
+
+neoForge {
+	version = project.neo_version
+
+	runs {
+		client {
+			client()
+			// Eigenes Spielverzeichnis je Loader/Version (Welten und Configs kollidieren sonst).
+			gameDirectory = rootProject.file("../run/neoforge-${mc}")
+			// Mixin-Anwendung sichtbar im Log (Nachweis, dass alle Mixins greifen).
+			systemProperty 'mixin.debug.verbose', 'true'
+			// ./gradlew :<v>:runClient -PtrsAutotest → Startbildschirm, Menü, Testwelt, Screenshots, beendet sich.
+			if (project.hasProperty('trsAutotest')) {
+				systemProperty 'trsclient.autotest', 'true'
+			}
+			// -PtrsApi=http://127.0.0.1:8787 → TRS API + Mojang-Join gegen eine lokale Attrappe (Umhang-/Abzeichen-Tests)
+			if (project.hasProperty('trsApi')) {
+				systemProperty 'trsclient.api.url', project.trsApi
+				systemProperty 'trsclient.session.url', project.trsApi
+			}
+		}
+	}
+
+	mods {
+		trsclient {
+			sourceSet sourceSets.main
+		}
+	}
+}
+
+dependencies {
+	testImplementation "com.google.code.gson:gson:${rootProject.gson_version}"
+	testImplementation platform("org.junit:junit-bom:${rootProject.junit_version}")
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// DPAPI-Test (Kontenspeicher) wie in common: JNA liegt sonst nicht im Testpfad.
+	testRuntimeOnly 'net.java.dev.jna:jna:3.4.0'
+}
+
+test {
+	useJUnitPlatform()
+}
+
+// Mixin-Liste je Version (alle NeoForge-Versionen sind ≥ 1.20.2, daher nur wenige Ausnahmen).
+def mixinClasses = ['CameraMixin', 'FovMixin', 'LightmapMixin', 'MouseHandlerMixin', 'OverlayTextureAccessor',
+		'TitleScreenMixin', 'AttackMixin', 'ChatComponentAccessor', 'ChatMixin', 'ChatScreenMixin',
+		'HurtCamMixin', 'OldAnimationsMixin', 'LowFireMixin', 'BlockOutlineMixin',
+		// TRS API: TRS-Umhang-Textur, Umhang-Physik, Abzeichen in Tabliste und über dem Namen
+		'CapeTextureMixin', 'CapeLayerMixin', 'HatLayerMixin', 'WingsLayerMixin', 'TabBadgeMixin', 'NameTagBadgeMixin',
+		// Emotes: Pose auf HumanoidModel#setupAnim; ab 1.21.2 Spieler über den Render-State zuordnen.
+		'EmoteModelMixin',
+		// Farben: Farb-Durchgang direkt nach GameRenderer#renderLevel (vor HUD und Menüs).
+		'ColorGradeMixin']
+if (stonecutter.eval(mc, '>=1.21.2')) mixinClasses << 'EmoteStateMixin'
+// Creator-Programm: Fan-Symbol als Bild vor erweiterten Namen (Schrift-Aufrufe bis 26.1, ab 26.2 beim Einreichen).
+if (stonecutter.eval(mc, '<26.2')) mixinClasses << 'FanTextMixin'
+mixinClasses << 'FanGuiMixin'
+if (stonecutter.eval(mc, '>=26.2')) mixinClasses << 'FanNameTagMixin'
+// Menü-Stil (Pause, Serverliste, Laden, Optionen, Welten): Hintergrund, Knöpfe, Karten, Ladebildschirme.
+mixinClasses += ['MenuScreenMixin', 'MenuButtonMixin', 'MenuEditBoxMixin', 'ServerEntryMixin', 'WorldEntryMixin', 'LoadingOverlayMixin',
+		'JoinMultiplayerAccessor']
+if (stonecutter.eval(mc, '>=1.20.5')) mixinClasses << 'MenuListMixin'
+// Suche in der Tastenbelegung: Einträge der Liste ersetzen (alle Versionen).
+mixinClasses << 'KeySearchListInvoker'
+// Fehlerbildschirm: Ziel der letzten Verbindung merken (Erneut verbinden, Neu anmelden).
+mixinClasses << 'ConnectTargetMixin'
+// Welt-Hosting: Gast über eigenen Netty-Kanal (Marker-Adresse), Host öffnet ohne TCP/LAN, Spielergrenze ≤ 10.
+mixinClasses += ['HostingConnectMixin', 'HostingPublishMixin', 'HostingPingerMixin', 'HostingServerAccessor']
+mixinClasses << (stonecutter.eval(mc, '>=1.21.9') ? 'HostingPlayerListMixin' : 'HostingPlayerListAccessor')
+// Welt-Hosting: Resource Pack des Hosts als Server-Pack (Konfigurationsphase ab 1.20.3), Gast-Adresse lokal.
+if (stonecutter.eval(mc, '>=1.20.3')) mixinClasses += ['HostingPackServerMixin', 'HostingPackConfigMixin', 'HostingPackClientMixin']
+if (stonecutter.eval(mc, '<1.20.3')) mixinClasses << 'SelectionListAccessor'
+if (stonecutter.eval(mc, '>=26.1')) mixinClasses << 'PauseBackgroundMixin'
+// Leistung: Dynamische FPS/FPS-Messung, Partikel, Entity-Culling, Welt-Details (alle require = 0).
+mixinClasses += ['FramePaceMixin', 'WindowMixin', 'ParticleLimitMixin', 'EntityCullMixin', 'BlockEntityCullMixin', 'NameTagCullMixin',
+		'LivingNameTagCullMixin', 'TextureAnimationMixin', 'SkyMixin', 'StarsMixin', 'WeatherMixin']
+// Netzwerk-Optimierung + Ping (Handler an der Client-Verbindung), niedrige Eingabeverzögerung (spätes Lesen der Maus).
+mixinClasses += ['NetConnectionMixin', 'LatencyMixin']
+// Schnell verbinden: Adressen-Rennen am Verbindungsaufbau, DNS-Speicher im Resolver.
+mixinClasses += ['FastConnectMixin', 'FastResolveMixin']
+// Schnell verbinden: Server-Ressourcenpakete, schneller Serverwechsel (siehe fabric/build.gradle).
+mixinClasses += ['PackPushMixin', 'PackStatusMixin', 'FastSwitchMixin']
+if (stonecutter.eval(mc, '>=1.20.2')) mixinClasses << 'FrameCapMixin'
+if (stonecutter.eval(mc, '>=1.21.9')) mixinClasses << 'PackOverlayMixin'
+// Nebel-Werte liegen ab 1.21.6 in einem GPU-Puffer – dort kein Nebel-Mixin.
+if (stonecutter.eval(mc, '<1.21.6')) mixinClasses << 'FogMixin'
+// RenderSystem#lineWidth gibt es ab 1.21.11 nicht mehr (Linienstärke dort unveränderbar).
+if (stonecutter.eval(mc, '<1.21.11')) mixinClasses << 'LineWidthMixin'
+// Hitbox-Farbe: bis 1.21.8 zeichnet der EntityRenderDispatcher die Boxen selbst.
+if (stonecutter.eval(mc, '<1.21.9')) mixinClasses << 'HitboxColorMixin'
+// Schild-Position: Haken am Hand-Renderer; Deckkraft ab 1.21.9 im Submit-Sammler; ab 26.3 Modell aus FirstPersonHandsAndItems.
+// Komfort/PvP: Chat-Filter + Verlauf, Scoreboard/Titel/Bossleiste, Tab-Ping, Totems/Partikel, Namensschutz,
+// Auto-Reconnect-Knopf, Serverliste im Streamer-Modus.
+mixinClasses += ['QolChatMixin', 'ChatHeadMixin', 'ChatHeadLineMixin', 'QolGuiMixin', 'BossBarMixin', 'TabPingMixin', 'QolEntityMixin', 'QolParticleMixin',
+		'NameMaskMixin', 'DisconnectScreenMixin', 'StreamerServerEntryMixin']
+if (stonecutter.eval(mc, '>=1.19.1')) mixinClasses << 'ChatSenderMixin'
+if (stonecutter.eval(mc, '>=1.21.11')) mixinClasses << 'ChatHeadInnerMixin'
+mixinClasses << 'ShieldHandMixin'
+// Komfort-Paket 2: bessere Tooltips (Zusatzkarte am Inventar, Text-Zusätze an der Tooltip-Liste).
+mixinClasses += ['TooltipScreenMixin', 'TooltipLinesMixin']
+if (stonecutter.eval(mc, '>=1.21.9')) mixinClasses << 'ShieldSubmitMixin'
+if (stonecutter.eval(mc, '>=26.3')) mixinClasses << 'ShieldModelMixin'
+
+processResources {
+	def props = [
+			version        : project.version,
+			minecraft      : mc,
+			neoforge       : neoMajorMinor,
+			mixins         : mixinClasses.collect { "\"${it}\"" }.join(', '),
+			mixinJava      : "JAVA_${javaVersion >= 21 ? 21 : 17}",
+			// FML 1 (NeoForge 20.2/20.3) kennt nur "mandatory = true", ab FML 2 (20.4) ist das ein Fehler → type = "required"
+			required       : stonecutter.eval(mc, '>=1.20.4') ? 'type = "required"' : 'mandatory = true',
+	]
+	inputs.properties(props)
+	filesMatching(['META-INF/neoforge.mods.toml', 'trsclient.mixins.json']) {
+		expand props
+	}
+	if (!newModsToml) {
+		rename('neoforge\\.mods\\.toml', 'mods.toml')
+	}
+}
+
+tasks.withType(Jar).configureEach {
+	from(rootProject.file('../LICENSE')) {
+		rename { "${it}_trsclient" }
+	}
+	from(rootProject.file('../licenses/chat-heads-MPL-2.0.txt')) {
+		into 'META-INF'
+	}
+}
+
+// Die fertige Mod-JAR dieser Version (für collectLauncherJars im Controller).
+ext.trsModJar = tasks.named('jar')
+
+// Fehlende Gradle-Metadaten alter NeoForge-Versionen ergänzen (siehe OldNeoForgeMetadataRule oben).
+dependencies {
+	components {
+		withModule('net.neoforged:neoforge', OldNeoForgeMetadataRule)
+		// Die Minecraft-Bibliotheken dort strikt festgenagelt, NeoForge 20.2/20.3/20.5 will teils neuere
+		// (slf4j 2.0.9 statt 2.0.7 …) – wie ModDevGradles NonStrictDependencyTransform nur "require".
+		withModule('net.neoforged:minecraft-dependencies', NonStrictOldMinecraftRule)
+	}
+}
+
+// Autotests ohne Ton (siehe gradle/autotest-mute.gradle).
+apply from: new File(buildscript.sourceFile.parentFile, '../gradle/autotest-mute.gradle')

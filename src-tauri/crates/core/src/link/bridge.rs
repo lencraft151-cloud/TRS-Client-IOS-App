@@ -1,0 +1,140 @@
+//! Konten des Launchers für den TRS-Link (Kontowechsel im Spiel).
+
+use std::sync::Weak;
+
+use futures::future::BoxFuture;
+
+use super::{AccountsHandler, ClipsHandler, HandlerResult, HostingHandler, LinkAccount, LinkModSource, LinkPreview, LinkSession};
+use crate::{Error, Launcher};
+
+pub(crate) struct AccountsBridge {
+    pub(crate) launcher: Weak<Launcher>,
+}
+
+/// Fester Fehlercode für die Mod – nie die interne Meldung.
+fn code(e: &Error) -> &'static str {
+    match e {
+        Error::Cancelled => "cancelled",
+        Error::Http(_) => "offline",
+        Error::Auth(msg) if msg.code == "auth.loginInProgress" => "busy",
+        Error::Auth(_) | Error::AuthNotApproved => "auth_failed",
+        _ => "error",
+    }
+}
+
+/// `clips.enable` → [`Launcher::enable_clips_from_game`].
+pub(crate) fn clips_enabler(launcher: Weak<Launcher>) -> super::ClipsEnabler {
+    std::sync::Arc::new(move |instance_id: String| {
+        let launcher = launcher.clone();
+        Box::pin(async move {
+            let launcher = launcher.upgrade().ok_or("error")?;
+            launcher.enable_clips_from_game(&instance_id).await
+        })
+    })
+}
+
+/// `clips.preview` / `clips.open` → Clip-Bibliothek des Launchers.
+pub(crate) struct ClipsBridge {
+    pub(crate) launcher: Weak<Launcher>,
+}
+
+impl ClipsHandler for ClipsBridge {
+    fn preview(&self, instance_id: String, clip: String) -> BoxFuture<'static, HandlerResult<LinkPreview>> {
+        let launcher = self.launcher.clone();
+        Box::pin(async move { launcher.upgrade().ok_or("error")?.clip_preview_for_game(&instance_id, &clip).await })
+    }
+
+    fn open(&self, instance_id: String, clip: String) -> BoxFuture<'static, HandlerResult<()>> {
+        let launcher = self.launcher.clone();
+        Box::pin(async move { launcher.upgrade().ok_or("error")?.open_clip_from_game(&instance_id, &clip).await })
+    }
+}
+
+/// `hosting.mods` / `hosting.open` → Welt-Hosting mit Mods.
+pub(crate) struct HostingBridge {
+    pub(crate) launcher: Weak<Launcher>,
+}
+
+impl HostingHandler for HostingBridge {
+    fn identify_mods(&self, instance_id: String) -> BoxFuture<'static, HandlerResult<Vec<LinkModSource>>> {
+        let launcher = self.launcher.clone();
+        Box::pin(async move {
+            let launcher = launcher.upgrade().ok_or("error")?;
+            if !launcher.games().is_running(&instance_id) {
+                return Err("not_allowed");
+            }
+            launcher.identify_instance_mods(&instance_id).await.map_err(|e| code(&e))
+        })
+    }
+
+    fn open_world(&self, instance_id: String, room_id: String) -> BoxFuture<'static, HandlerResult<()>> {
+        let launcher = self.launcher.clone();
+        Box::pin(async move { launcher.upgrade().ok_or("error")?.open_world_from_game(&instance_id, &room_id) })
+    }
+}
+
+impl AccountsHandler for AccountsBridge {
+    fn list(&self) -> BoxFuture<'static, HandlerResult<Vec<LinkAccount>>> {
+        let launcher = self.launcher.clone();
+        Box::pin(async move {
+            let launcher = launcher.upgrade().ok_or("error")?;
+            let accounts = launcher.accounts.list().await.map_err(|e| code(&e))?;
+            Ok(accounts
+                .into_iter()
+                .map(|a| LinkAccount { id: a.id, name: a.name, skin_url: a.skin_url, active: a.active })
+                .collect())
+        })
+    }
+
+    fn session(&self, instance_id: String, account: String, refresh: bool) -> BoxFuture<'static, HandlerResult<LinkSession>> {
+        let launcher = self.launcher.clone();
+        Box::pin(async move {
+            let launcher = launcher.upgrade().ok_or("error")?;
+            let session = match launcher.accounts.session_for(&account, refresh).await {
+                Ok(Some(session)) => session,
+                Ok(None) => return Err("unknown_account"),
+                Err(e) => {
+                    tracing::warn!("Sitzung für den Kontowechsel im Spiel fehlgeschlagen: {e}");
+                    return Err(code(&e));
+                }
+            };
+            if refresh {
+                tracing::info!("Neue Sitzung im Spiel ('{instance_id}') für {}", session.player_name);
+            } else {
+                tracing::info!("Kontowechsel im Spiel ('{instance_id}') → {}", session.player_name);
+            }
+            // In diesem Spiel spielt jetzt dieses Konto (Präsenz des Launchers).
+            launcher.trs.presence.game_account_changed(&instance_id, &session.uuid);
+            Ok(LinkSession { id: session.uuid, name: session.player_name, xuid: session.xuid, token: session.access_token })
+        })
+    }
+
+    fn add(&self, instance_id: String) -> BoxFuture<'static, HandlerResult<LinkAccount>> {
+        let launcher = self.launcher.clone();
+        Box::pin(async move {
+            let launcher = launcher.upgrade().ok_or("error")?;
+            let opener = launcher.url_opener().ok_or("error")?;
+            let open = move |url: &str| opener(url);
+            tracing::info!("Konto hinzufügen aus dem Spiel ('{instance_id}')");
+            let account = launcher.accounts.login_browser_as(&open, false).await.map_err(|e| {
+                tracing::warn!("Konto hinzufügen aus dem Spiel fehlgeschlagen: {e}");
+                code(&e)
+            })?;
+            launcher.emit_accounts_changed();
+            Ok(LinkAccount { id: account.id, name: account.name, skin_url: account.skin_url, active: account.active })
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fehlercodes_verraten_nichts() {
+        assert_eq!(code(&Error::Cancelled), "cancelled");
+        assert_eq!(code(&Error::auth(crate::msg!("auth.loginInProgress", "x"))), "busy");
+        assert_eq!(code(&Error::auth(crate::msg!("auth.sessionExpired", "x"))), "auth_failed");
+        assert_eq!(code(&Error::Internal("geheim".into())), "error");
+    }
+}

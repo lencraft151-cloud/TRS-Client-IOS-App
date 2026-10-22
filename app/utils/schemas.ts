@@ -1,0 +1,440 @@
+import { z } from 'zod'
+import { supportedLocales, t, type MessageKey, type NamedParams } from './i18n'
+import { motionModes } from './motion'
+import { designs } from './design'
+
+// Spiegelt die Regeln aus `trs_core` – der Kern validiert trotzdem immer selbst.
+
+/**
+ * Fehlermeldung, die zod erst beim Prüfen übersetzt – folgt so der aktuell
+ * eingestellten Sprache.
+ */
+function msg(key: MessageKey, params?: NamedParams) {
+  return { error: () => t(key, params) }
+}
+
+const versionString = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9._+\- ]+$/, msg('validation.invalidCharacters'))
+
+export const loaderKinds = ['vanilla', 'fabric', 'quilt', 'forge', 'neoforge'] as const
+
+export const newInstanceSchema = z.object({
+  name: z.string().trim().min(1, msg('validation.nameRequired')).max(64, msg('validation.maxChars', { max: 64 })),
+  gameVersion: versionString,
+  loader: z.object({
+    kind: z.enum(loaderKinds),
+    version: versionString.nullable(),
+  }),
+})
+
+const resolutionSchema = z.object({
+  width: z.number().int().min(320).max(16384),
+  height: z.number().int().min(240).max(16384),
+})
+
+// Steuerzeichen (auch Zeilenumbrüche) würden in `cmd /C` weitere Befehle anhängen.
+// eslint-disable-next-line no-control-regex
+const noControl = /^[^\u0000-\u001f\u007f]*$/
+
+export const javaPathSchema = z
+  .string()
+  .max(1024)
+  .regex(noControl, msg('validation.javaPathInvalid'))
+  // Windows: `C:\…\javaw.exe`, Linux: `/…/bin/java` – der Kern prüft zusätzlich je System.
+  .regex(/^(?:[A-Za-z]:\\.*\\javaw?\.exe|\/.*\/java)$/i, msg('validation.javaPathNotJava'))
+
+const hookCommand = z
+  .string()
+  .trim()
+  .max(1024, msg('validation.commandTooLong', { max: 1024 }))
+  .regex(noControl, msg('validation.commandInvalidChars'))
+  .nullable()
+  .transform((v) => (v ? v : null))
+
+export const envVarSchema = z.object({
+  key: z
+    .string()
+    .trim()
+    .max(64, msg('validation.envKeyTooLong', { max: 64 }))
+    .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, msg('validation.envKeyFormat')),
+  value: z
+    .string()
+    .max(1024, msg('validation.envValueTooLong', { max: 1024 }))
+    .regex(noControl, msg('validation.envValueInvalidChars')),
+})
+
+export const hooksSchema = z.object({
+  preLaunch: hookCommand,
+  wrapper: hookCommand,
+  postExit: hookCommand,
+})
+
+export const envSchema = z
+  .array(envVarSchema)
+  .max(32, msg('validation.envTooMany', { max: 32 }))
+  .refine((env) => new Set(env.map((e) => e.key.toUpperCase())).size === env.length, msg('validation.envDuplicate'))
+
+export const syncItems = ['options', 'servers', 'resourcePacks', 'commandHistory', 'hotbar'] as const
+
+export const syncSettingsSchema = z.object({
+  options: z.boolean(),
+  servers: z.boolean(),
+  resourcePacks: z.boolean(),
+  commandHistory: z.boolean(),
+  hotbar: z.boolean(),
+})
+
+/** Gemeinsame Ordner zwischen Instanzen (Rust: `shared_folders::SharedFolder`). */
+export const sharedFolderKinds = ['shaderpacks', 'resourcepacks', 'screenshots', 'saves', 'schematics'] as const
+
+export const sharedFolderStatusSchema = z.array(
+  z.object({
+    kind: z.enum(sharedFolderKinds),
+    enabled: z.boolean(),
+    linked: z.boolean(),
+    blocked: z.boolean(),
+    instances: z.number().int().min(0),
+  }),
+)
+
+export const updateInstanceSchema = z.object({
+  name: z.string().trim().min(1, msg('validation.nameRequired')).max(64, msg('validation.maxChars', { max: 64 })),
+  overrides: z.object({
+    maxMemoryMb: z.number().int().min(512).max(131072).nullable(),
+    javaPath: javaPathSchema.nullable(),
+    jvmArgs: z.string().max(4096).regex(noControl, msg('validation.jvmArgsInvalidChars')).nullable(),
+    resolution: resolutionSchema.nullable(),
+    trsClient: z.boolean().nullable(),
+    boost: z.boolean().nullable(),
+    performanceTuning: z.boolean().nullable().default(null),
+    updateChannel: z.enum(['release', 'beta', 'alpha']).nullable(),
+    fullscreen: z.boolean().nullable(),
+    hooks: hooksSchema.nullable(),
+    env: envSchema.nullable(),
+    syncSeparate: z.array(z.enum(syncItems)).max(syncItems.length),
+    // Ändert der Kern nur über set_instance_shared_folder – hier nur durchgereicht.
+    sharedFolders: z.array(z.enum(sharedFolderKinds)).max(sharedFolderKinds.length).default([]),
+    touchProfile: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/).nullable().default(null),
+  }),
+})
+
+export const groupSchema = z
+  .string()
+  .trim()
+  .max(32, msg('validation.groupTooLong', { max: 32 }))
+  .regex(noControl, msg('validation.groupInvalidChars'))
+
+export const uiSettingsSchema = z.object({
+  theme: z.enum(['dark', 'oled', 'light', 'system']),
+  accent: z.enum(['redstone', 'lamp', 'emerald', 'lapis', 'amethyst', 'ice']),
+  design: z.enum(designs).catch('redstone').default('redstone'),
+  advancedRendering: z.boolean(),
+  animatedBackground: z.boolean(),
+  motion: z.enum(motionModes),
+  worldsTab: z.boolean(),
+  screenshotsTab: z.boolean(),
+  historyTab: z.boolean(),
+  sidebarRecent: z.boolean(),
+  sidebarAccount: z.boolean(),
+  hideRightSidebar: z.boolean(),
+  compactLibrary: z.boolean(),
+  showPlayTime: z.boolean(),
+  language: z.enum(supportedLocales),
+  bigPictureOnStart: z.boolean().default(false),
+  bigPictureAuto: z.boolean().default(true),
+  eventIcons: z.boolean().default(true),
+  halloweenFlicker: z.boolean().default(true),
+  halloweenFlickerHintSeen: z.boolean().default(false),
+  startIntro: z.boolean().default(true),
+  startIntroSound: z.boolean().default(true),
+  startIntroFlicker: z.boolean().default(true),
+  startIntroHintSeen: z.boolean().default(false),
+})
+
+/** Clips & Aufnahme – gleiche Grenzen wie `trs_core::clips::settings`. */
+export const clipSettingsSchema = z.object({
+  enabled: z.boolean(),
+  bufferSeconds: z
+    .number()
+    .int()
+    .min(15, msg('validation.clipBufferRange', { min: 15, max: 120 }))
+    .max(120, msg('validation.clipBufferRange', { min: 15, max: 120 })),
+  resolution: z.enum(['native', '1080p', '720p']),
+  fps: z.union([z.literal(30), z.literal(60)]),
+  quality: z.enum(['low', 'medium', 'high']),
+  encoder: z.enum(['auto', 'nvenc', 'amf', 'qsv', 'x264']),
+  systemAudio: z.boolean(),
+  microphone: z.boolean(),
+  folder: z.string().max(400).regex(noControl, msg('validation.invalidCharacters')).nullable(),
+  maxStorageGb: z
+    .number()
+    .int()
+    .min(1, msg('validation.clipStorageRange', { min: 1, max: 2000 }))
+    .max(2000, msg('validation.clipStorageRange', { min: 1, max: 2000 })),
+})
+
+/** Benachrichtigungen aus „Sozial“ – fehlt das Feld (älterer Kern), gelten die Standardwerte. */
+export const socialSettingsSchema = z
+  .object({
+    toasts: z.boolean().default(true),
+    corner: z.enum(['top-right', 'top-left', 'bottom-right', 'bottom-left']).default('top-right'),
+    durationSecs: z.number().int().min(3).max(10).default(5),
+    sound: z.boolean().default(true),
+    doNotDisturb: z.boolean().default(false),
+    quietInFullscreen: z.boolean().default(true),
+    native: z.boolean().default(true),
+    quickReply: z.boolean().default(true),
+    messages: z.boolean().default(true),
+    invites: z.boolean().default(true),
+    friendRequests: z.boolean().default(true),
+    capeOffers: z.boolean().default(true),
+    friendOnline: z.boolean().default(true),
+    issues: z.boolean().default(true),
+    achievements: z.boolean().default(true),
+  })
+  .prefault({})
+
+export const settingsSchema = z
+  .object({
+    minMemoryMb: z.number().int().min(128),
+    maxMemoryMb: z.number().int().min(512).max(131072),
+    javaPath: javaPathSchema.nullable(),
+    jvmArgs: z.string().max(4096).regex(noControl, msg('validation.jvmArgsInvalidChars')),
+    resolution: resolutionSchema,
+    concurrentDownloads: z.number().int().min(1).max(64),
+    closeOnLaunch: z.boolean(),
+    showSnapshots: z.boolean(),
+    preferDedicatedGpu: z.boolean(),
+    performanceTuning: z.boolean().default(true),
+    highPriority: z.boolean().default(false),
+    autoFirewall: z.boolean(),
+    fullscreen: z.boolean(),
+    hooks: hooksSchema,
+    env: envSchema,
+    sync: syncSettingsSchema,
+    ui: uiSettingsSchema,
+    allowLogUpload: z.boolean(),
+    discordPresence: z.boolean().default(true),
+    java: z.object({
+      java8: javaPathSchema.nullable(),
+      java17: javaPathSchema.nullable(),
+      java21: javaPathSchema.nullable(),
+      java25: javaPathSchema.nullable(),
+    }),
+    clips: clipSettingsSchema,
+    trsSync: z.boolean().default(true),
+    social: socialSettingsSchema,
+    modpackTrsClient: z.enum(['ask', 'always', 'never']).default('ask'),
+    showBedrock: z.boolean().default(true),
+    sharedFolders: z.array(z.enum(sharedFolderKinds)).max(sharedFolderKinds.length).default([]),
+    /** PC-Fernbedienung – fehlt das Feld (älterer Kern), ist sie aus. */
+    remote: z
+      .object({ enabled: z.boolean().default(false), allowLaunch: z.boolean().default(false), allowInstall: z.boolean().default(false) })
+      .prefault({}),
+  })
+  .passthrough()
+  .refine((s) => s.minMemoryMb <= s.maxMemoryMb, {
+    ...msg('validation.minAboveMax'),
+    path: ['minMemoryMb'],
+  })
+
+export const serverSchema = z.object({
+  name: z.string().trim().min(1, msg('validation.nameRequired')).max(64, msg('validation.maxChars', { max: 64 })),
+  address: z
+    .string()
+    .trim()
+    .min(1, msg('validation.addressRequired'))
+    .max(260)
+    .regex(/^[A-Za-z0-9._-]+(:\d{1,5})?$/, msg('validation.addressFormat')),
+  autoResourcePack: z.boolean(),
+})
+
+const searchSlug = z.string().min(1).max(40).regex(/^[a-z0-9+-]+$/)
+const projectId = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/)
+
+/** Spiegelt `validate_search` im Kern (Whitelist für Sortierung, Arten, Loader, Grenzen). */
+export const modrinthSearchSchema = z.object({
+  query: z.string().max(100),
+  kind: z.enum(['mod', 'resourcepack', 'shaderpack', 'datapack', 'modpack']),
+  gameVersions: z.array(z.string().min(1).max(32).regex(/^[A-Za-z0-9._+\- ]+$/)).max(30),
+  loaders: z.array(z.enum(['fabric', 'quilt', 'forge', 'neoforge'])).max(30),
+  categories: z.array(searchSlug).max(30),
+  categoryMatch: z.enum(['all', 'any']),
+  excludeCategories: z.array(searchSlug).max(30),
+  environments: z.array(z.enum(['client', 'server'])).max(2),
+  excludeProjectIds: z.array(projectId).max(300),
+  openSource: z.boolean(),
+  index: z.enum(['relevance', 'downloads', 'follows', 'newest', 'updated']),
+  offset: z.number().int().min(0).max(10_000),
+  limit: z.number().int().min(1).max(100),
+})
+
+/** Name eines Skins in der eigenen Sammlung (Kern kürzt zusätzlich auf 48). */
+export const skinNameSchema = z
+  .string()
+  .trim()
+  .min(1, msg('validation.nameRequired'))
+  .max(48, msg('validation.maxChars', { max: 48 }))
+  .regex(noControl, msg('validation.nameInvalidChars'))
+
+export const skinVariants = ['classic', 'slim'] as const
+
+/** Link zu einem Skin-PNG: nur https, ohne Zugangsdaten (Kern prüft zusätzlich Host/IP). */
+export const skinUrlSchema = z
+  .string()
+  .trim()
+  .min(1, msg('validation.urlRequired'))
+  .max(2048, msg('validation.maxChars', { max: 2048 }))
+  .regex(noControl, msg('validation.invalidCharacters'))
+  .refine((value) => {
+    try {
+      const url = new URL(value)
+      return url.protocol === 'https:' && !url.username && !url.password && !!url.hostname
+    } catch {
+      return false
+    }
+  }, msg('validation.urlHttps'))
+
+/** Spiegelt `validate_options` im Kern (modpack_export.rs). */
+export const exportOptionsSchema = z.object({
+  name: z.string().trim().min(1, msg('validation.nameRequired')).max(64, msg('validation.maxChars', { max: 64 })),
+  version: z
+    .string()
+    .trim()
+    .min(1, msg('validation.versionRequired'))
+    .max(32, msg('validation.maxChars', { max: 32 }))
+    .regex(/^[A-Za-z0-9._+-]+$/, msg('validation.versionFormat')),
+  summary: z
+    .string()
+    .trim()
+    .max(512, msg('validation.maxChars', { max: 512 }))
+    .regex(noControl, msg('validation.descriptionInvalidChars'))
+    .nullable(),
+  include: z.array(z.string().min(1).max(120)).min(1, msg('validation.folderRequired')).max(100),
+})
+
+export function firstIssue(error: z.ZodError): string {
+  return error.issues[0]?.message ?? t('validation.invalidInput')
+}
+
+// --- Mod-Presets (Regeln wie in `trs_core::presets`) ---------------------------
+
+export const PRESET_NAME_MAX = 48
+export const PRESET_ITEMS_MAX = 100
+
+/** Symbole eigener Presets (Namen aus `icons`) – wie `PRESET_ICONS` im Kern. */
+export const PRESET_ICONS = [
+  'presets', 'bolt', 'flame', 'sword', 'shield', 'cube', 'world', 'compass', 'wrench', 'puzzle',
+  'lightbulb', 'star', 'crown', 'trophy', 'gamepad', 'image', 'palette', 'moon', 'leaf', 'monitor',
+] as const
+/** Akzentfarben eigener Presets – wie `PRESET_COLORS` im Kern. */
+export const PRESET_COLORS = ['redstone', 'amber', 'lime', 'emerald', 'cyan', 'sky', 'violet', 'pink', 'slate'] as const
+export type PresetIconName = (typeof PRESET_ICONS)[number]
+export type PresetColorName = (typeof PRESET_COLORS)[number]
+
+const presetSourceSchema = z.enum(['modrinth', 'curseforge'])
+/** Projekt-ID je Quelle: Modrinth-ID/Slug bzw. CurseForge-Zahl. */
+export function isPresetProjectId(source: 'modrinth' | 'curseforge', id: string): boolean {
+  return source === 'modrinth' ? /^[A-Za-z0-9_-]{1,64}$/.test(id) : /^[1-9][0-9]{0,11}$/.test(id)
+}
+/** Symbol-Adressen nur von den CDNs der beiden Quellen. */
+export function isPresetIconUrl(url: string): boolean {
+  return (
+    url.length <= 512 &&
+    ['https://cdn.modrinth.com/', 'https://media.forgecdn.net/'].some((cdn) => url.startsWith(cdn) && url.length > cdn.length) &&
+    !/[\s"'<>\\@]/.test(url)
+  )
+}
+
+export const presetItemSchema = z
+  .object({
+    source: presetSourceSchema,
+    projectId: z.string().max(64),
+    title: z.string().trim().min(1).max(100),
+    iconUrl: z.string().max(512).refine(isPresetIconUrl).nullable(),
+    kind: z.enum(['mod', 'resourcepack', 'shaderpack', 'datapack']),
+  })
+  .refine((i) => isPresetProjectId(i.source, i.projectId), { path: ['projectId'] })
+
+export const presetInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, msg('validation.nameRequired'))
+    .max(PRESET_NAME_MAX, msg('validation.maxChars', { max: PRESET_NAME_MAX }))
+    .regex(noControl, msg('validation.invalidCharacters')),
+  auto: z.boolean(),
+  items: z
+    .array(presetItemSchema)
+    .max(PRESET_ITEMS_MAX, msg('presets.editor.tooManyItems', { max: PRESET_ITEMS_MAX }))
+    .refine((items) => new Set(items.map((i) => `${i.source}:${i.projectId}`)).size === items.length, msg('presets.editor.duplicate')),
+  icon: z.enum(PRESET_ICONS).nullable().optional(),
+  color: z.enum(PRESET_COLORS).nullable().optional(),
+})
+
+// Antworten der Preset-Werkzeuge (Auswahl „Aus Modpack übernehmen“, Prüfung).
+const kindSchema = z.enum(['mod', 'resourcepack', 'shaderpack', 'datapack'])
+const loaderSchema = z.enum(['vanilla', 'fabric', 'quilt', 'forge', 'neoforge'])
+const shortText = (max: number) => z.string().max(max)
+const iconSchema = z
+  .string()
+  .max(512)
+  .nullable()
+  .transform((u) => (u && isPresetIconUrl(u) ? u : null))
+
+export const presetPickListSchema = z.object({
+  name: shortText(200),
+  gameVersion: shortText(64).nullable(),
+  loader: loaderSchema.nullable(),
+  items: z
+    .array(
+      z.object({
+        source: presetSourceSchema.nullable(),
+        projectId: shortText(64).nullable(),
+        title: shortText(200),
+        iconUrl: iconSchema,
+        kind: kindSchema,
+        categories: z.array(shortText(60)).max(20),
+        performance: z.boolean(),
+        clientOnly: z.boolean().nullable(),
+        fileName: shortText(260).nullable(),
+      }),
+    )
+    .max(2000),
+})
+
+const itemRefSchema = z.object({ source: presetSourceSchema, projectId: shortText(64), title: shortText(200) })
+
+export const presetCheckSchema = z.object({
+  deps: z
+    .array(
+      z.object({
+        source: presetSourceSchema,
+        projectId: shortText(64),
+        deps: z
+          .array(
+            z.object({
+              source: presetSourceSchema,
+              projectId: shortText(64),
+              title: shortText(200),
+              iconUrl: iconSchema,
+              loaders: z.array(shortText(20)).max(8),
+            }),
+          )
+          .max(100),
+      }),
+    )
+    .max(200),
+  conflicts: z
+    .array(
+      z.object({
+        a: itemRefSchema,
+        b: itemRefSchema.nullable(),
+        reason: z.enum(['renderer', 'shaders', 'minimap', 'zoom', 'nvidium', 'declared', 'trsClient']),
+      }),
+    )
+    .max(500),
+})

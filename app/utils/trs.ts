@@ -1,0 +1,552 @@
+import { z } from 'zod'
+// Relativ importiert, damit Tests die Datei ohne Nuxt laden können.
+import { t } from './i18n'
+import { compareText, formatRelative, formatShortDate, loaderLabels } from './format'
+import { myTeamSchema } from './teamAccess'
+
+// TRS-Dienste (Umhänge, Freunde, Verwaltung): Schemas für das, was der Kern
+// liefert (wird beim Empfang geprüft), und für Eingaben, bevor sie rausgehen.
+// Alle Netzwerkzugriffe laufen im Rust-Kern – hier gibt es nur Daten.
+
+const uuid = z.string().regex(/^[0-9a-f]{32}$/)
+const capeId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/)
+const text = (max: number) => z.string().max(max)
+const pngDataUrl = z.string().startsWith('data:image/png;base64,').nullable()
+/** Umhang-Faktor 1–16 (bis 1024×512 je Frame), mitgelieferte wie eigene – wie `MAX_CAPE_SCALE` im Kern. */
+const capeScale = z.number().int().min(1).max(16)
+/** Event-ID (`halloween`) – wie `event_id` im Kern. */
+export const eventId = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/)
+
+export const trsStatusSchema = z.object({
+  consent: z.enum(['accepted', 'declined']).nullable(),
+  account: uuid.nullable(),
+  signedIn: z.boolean(),
+})
+
+export const trsPrivacySchema = z.object({
+  showBadge: z.boolean(),
+  showCapeToOthers: z.boolean(),
+  presenceVisibility: z.enum(['friends', 'nobody']),
+  shareServer: z.boolean(),
+  /** Lesebestätigungen im Chat (gegenseitig). */
+  chatReadReceipts: z.boolean().default(true),
+  /** „Schreibt …“ im Chat (gegenseitig). */
+  chatTypingIndicator: z.boolean().default(true),
+})
+
+export const trsMeSchema = z.object({
+  uuid,
+  name: text(16),
+  admin: z.boolean(),
+  /** Alte Team-Rolle (API §22.1) – nur noch Anzeige; maßgeblich ist `team`. */
+  role: z.enum(['admin', 'moderator']).nullable().catch(null).default(null),
+  /** Rollen, Rechte, Rang und Straf-Grenzen (§24.2); `null` = kein Team-Mitglied. */
+  team: myTeamSchema.nullable().catch(null).default(null),
+  createdAt: text(40).nullable(),
+  settings: trsPrivacySchema,
+  activeCapeId: capeId.nullable(),
+  /** Events, die für diesen Spieler aktiv sind (API §31); ältere Server: leer. */
+  events: z.array(eventId).max(16).catch([]).default([]),
+})
+
+const userRef = z.object({ uuid, name: text(16) })
+
+/** Bei einem geteilten Umhang: wer ihn dir gegeben hat und wer ihn gemacht hat. */
+export const trsCapeShareSourceSchema = z.object({ from: userRef, creator: userRef })
+
+export const trsCapeSchema = z.object({
+  id: capeId,
+  name: text(48),
+  kind: z.enum(['builtin', 'upload', 'other']),
+  unlock: z.enum(['free', 'code', 'admin', 'owner', 'event', 'reward', 'other']).catch('other'),
+  /** Bei `event`: welches Event den Umhang gratis macht. */
+  unlockEvent: eventId.nullable().catch(null).default(null),
+  /** Bei `reward`: wofür (`halloween2026`) – nur als Belohnung, nicht einlösbar. */
+  rewardOf: capeId.nullable().catch(null).default(null),
+  status: z.enum(['approved', 'pending', 'rejected', 'other']),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  scale: capeScale,
+  frames: z.number().int().min(1).max(64),
+  frameTimeMs: z.number().int().min(20).max(10_000).nullable(),
+  owned: z.boolean(),
+  active: z.boolean(),
+  rejectReason: text(200).nullable(),
+  texture: pngDataUrl,
+  /** An Freunde weitergebbar (eigener freigegebener Upload oder angenommener geteilter Umhang). */
+  shareable: z.boolean(),
+  /** Von einem Freund geteilt – sonst null. */
+  shared: trsCapeShareSourceSchema.nullable(),
+  /** Inhaber, die man sieht (als Ersteller alle, sonst der eigene Ast). */
+  holders: z.number().int().min(0).max(1000),
+})
+
+const offerTime = text(40).nullable()
+export const trsIncomingOfferSchema = z.object({ cape: trsCapeSchema, from: userRef, creator: userRef, createdAt: offerTime })
+export const trsOutgoingOfferSchema = z.object({ cape: trsCapeSchema, to: userRef, createdAt: offerTime })
+export const trsCapeOffersSchema = z.object({
+  incoming: z.array(trsIncomingOfferSchema),
+  outgoing: z.array(trsOutgoingOfferSchema),
+})
+
+export const trsCapeHolderSchema = z.object({
+  uuid,
+  name: text(16),
+  status: z.enum(['offered', 'accepted']),
+  grantedBy: userRef,
+  createdAt: offerTime,
+  acceptedAt: offerTime,
+})
+export const trsCapeHoldersSchema = z.object({
+  holders: z.array(trsCapeHolderSchema),
+  count: z.number().int().min(0),
+  limit: z.number().int().min(0),
+})
+
+export const trsRedeemSchema = z.object({
+  kind: z.enum(['cape', 'cosmetic']),
+  capeId: capeId.nullable(),
+  cosmeticId: capeId.nullable(),
+  name: text(48),
+  alreadyOwned: z.boolean(),
+  /** Kopf-Kosmetik, die der TRS Client zeichnet (Quietscheente, v2-Modelle) – kann gleich aufgesetzt werden. */
+  wearableHat: z.boolean(),
+})
+
+/** Eigene Kopf-Kosmetik (nur Teile, die der TRS Client zeichnen kann). */
+/** Kopf-Kosmetik: `hat` (Kopf) oder `companion` (Begleiter, z. B. Fledermaus). */
+export const trsCosmeticSlotSchema = z.enum(['hat', 'companion', 'wings']).catch('hat').default('hat')
+export const trsHatSchema = z.object({ id: capeId, name: text(48), slot: trsCosmeticSlotSchema, template: text(32), equipped: z.boolean() })
+export type TrsHat = z.infer<typeof trsHatSchema>
+
+/** Wie man an ein Kosmetik-Teil kommt (unbekannte Arten → `other`). */
+export const trsCosmeticUnlockSchema = z.enum(['free', 'code', 'admin', 'achievement', 'owner', 'event', 'reward', 'other']).catch('other')
+export type TrsCosmeticUnlock = z.infer<typeof trsCosmeticUnlockSchema>
+
+/** Kopf-Kosmetik für die Skins-Seite: besessen oder gesperrt, v2 = 3D-Modell mit Vorschau. */
+export const trsHeadCosmeticSchema = z.object({
+  id: capeId,
+  name: text(48),
+  format: z.union([z.literal(1), z.literal(2)]),
+  slot: trsCosmeticSlotSchema,
+  template: text(32).nullable(),
+  unlock: trsCosmeticUnlockSchema,
+  /** Bei `event`: welches Event das Teil gratis macht (solange es läuft, danach behalten). */
+  unlockEvent: eventId.nullable().catch(null).default(null),
+  owned: z.boolean(),
+  equipped: z.boolean(),
+  /** Der Launcher kann das Modell in der 3D-Vorschau zeigen. */
+  preview: z.boolean(),
+  hash: z.string().regex(/^[A-Za-z0-9]{1,64}$/).nullable(),
+  card: pngDataUrl,
+  cardNight: pngDataUrl,
+  frames: z.number().int().min(1).max(16),
+  glowFrames: z.number().int().min(0).max(16),
+})
+export type TrsHeadCosmetic = z.infer<typeof trsHeadCosmeticSchema>
+
+/** v2-Modell (grob im Kern geprüft, vollständig vor dem Bauen) + Texturen als PNG-Data-URLs. */
+export const trsHeadCosmeticModelSchema = z.object({
+  id: capeId,
+  hash: z.string().regex(/^[A-Za-z0-9]{1,64}$/),
+  model: z.record(z.string(), z.unknown()),
+  texture: z.string().startsWith('data:image/png;base64,'),
+  glow: pngDataUrl,
+})
+export type TrsHeadCosmeticModel = z.infer<typeof trsHeadCosmeticModelSchema>
+
+export const trsPlayerCapeSchema = z.object({
+  uuid,
+  badge: z.boolean(),
+  capeId: capeId.nullable(),
+  upload: z.boolean(),
+  scale: capeScale,
+  frames: z.number().int().min(1).max(64),
+  frameTimeMs: z.number().int().nullable(),
+  texture: pngDataUrl,
+  /** Profil-Abzeichen (`halloween2026`, `pumpkinhunter2026` …); ältere Kerne: leer. */
+  badges: z.array(capeId).max(16).catch([]).default([]),
+  /** Sichtbare Spuk-Effekte (`hits`, `trail`), nur während Halloween. */
+  fx: z.array(z.string().max(16)).max(4).catch([]).default([]),
+})
+
+export const trsGameSchema = z.object({
+  version: text(32),
+  loader: z.enum(['vanilla', 'fabric', 'quilt', 'forge', 'neoforge']),
+  server: text(261).optional(),
+})
+
+export const trsPresenceSchema = z.object({
+  state: z.enum(['online', 'in-game']),
+  game: trsGameSchema.nullable(),
+  updatedAt: text(40).nullable(),
+})
+
+export const trsFriendSchema = z.object({
+  uuid,
+  name: text(16),
+  since: text(40).nullable(),
+  presence: trsPresenceSchema.nullable(),
+})
+
+const requestEntry = z.object({ uuid, name: text(16), createdAt: text(40).nullable() })
+
+export const trsFriendsSchema = z.object({
+  friends: z.array(trsFriendSchema),
+  requests: z.object({ incoming: z.array(requestEntry), outgoing: z.array(requestEntry) }),
+  /** Offene Umhang-Angebote an mich (Details über `capeOffers`). */
+  capeOffers: z.number().int().min(0).max(1000),
+})
+
+export const trsUserRefSchema = userRef
+export const trsFriendRequestResultSchema = z.object({ status: z.enum(['sent', 'accepted']), user: trsUserRefSchema })
+export const trsBlockedSchema = z.object({ uuid, name: text(16), since: text(40).nullable() })
+
+const count = z.number().int().min(0)
+export const trsAdminStatsSchema = z.object({
+  users: z.object({ total: count, banned: count, activeLast24h: count, online: count }),
+  sessions: count,
+  capes: z.object({ builtin: count, approved: count, pending: count, rejected: count, reported: count, activeUsers: count }),
+  codes: z.object({ active: count, redemptions: count }),
+  friendships: count,
+  pendingFriendRequests: count,
+  eventStreams: count,
+  /** Chat (ältere Server: `null`). */
+  chat: z
+    .object({
+      conversations: count,
+      groups: count,
+      messages: count,
+      messagesLast24h: count,
+      images: count,
+      storageBytes: count,
+      storageLimitBytes: count,
+    })
+    .nullable()
+    .default(null),
+  /** Chat-Meldungen (ältere Server: `null`). */
+  reports: z.object({ open: count, inReview: count, resolved: count, activeMutes: count }).nullable().default(null),
+})
+
+export const trsAdminCapeSchema = trsCapeSchema.extend({
+  owner: trsUserRefSchema.nullable(),
+  createdAt: text(40).nullable(),
+  reviewedAt: text(40).nullable(),
+  reviewedBy: text(64).nullable(),
+  reports: z.object({ count, reasons: z.record(z.string(), count) }),
+  /** Größe der gespeicherten Datei (ältere Server: `null`). */
+  bytes: count.nullable(),
+  /** Alle Uploads des Hochladers nach Status (inklusive dieses). */
+  ownerStats: z.object({ uploads: count, approved: count, pending: count, rejected: count }).nullable(),
+})
+
+// Gewählte Dateien für den Umhang-Dialog (vom Kern geprüft; Bilder als Data-URL).
+const imageDataUrl = z.string().regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/)
+const sourceName = text(64)
+/** Bis 8192 für Bilder; fertige Umhang-Streifen (1024 × 512·32) sind bis 16384 hoch – wie der Kern. */
+const sourceSide = z.number().int().min(1).max(16384)
+export const trsCapeSourceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('image'), name: sourceName, dataUrl: imageDataUrl, width: sourceSide, height: sourceSide }),
+  z.object({
+    kind: z.literal('animation'),
+    name: sourceName,
+    /** Herkunft (nur Anzeige). */
+    format: z.enum(['gif', 'apng', 'video']),
+    width: sourceSide,
+    height: sourceSide,
+    frames: z.array(imageDataUrl).min(1).max(32),
+    /** Standzeit je gelieferter Frame (ms). */
+    delaysMs: z.array(count).max(32),
+    durationMs: count,
+    sourceFrames: z.number().int().min(1),
+  }),
+  z.object({ kind: z.literal('studio'), name: sourceName, frames: z.number().int().min(1).max(64), scale: z.number().int().min(1).max(16) }),
+])
+
+/** Gewähltes Video (Pfad bleibt im Kern, hier nur Kennung + Eckdaten). */
+export const trsCapeVideoSchema = z.object({
+  token: z.string().regex(/^[0-9a-f]{32}$/),
+  name: sourceName,
+  durationMs: z.number().int().min(1),
+  width: z.number().int().min(1).max(16_384),
+  height: z.number().int().min(1).max(16_384),
+})
+export type TrsCapeVideo = z.infer<typeof trsCapeVideoSchema>
+
+export const trsCodeSchema = z.object({
+  id: z.number().int().positive(),
+  hint: text(8),
+  /** Kosmetik- und Emote-Codes haben keinen Umhang (§8). */
+  capeId: capeId.nullable().default(null),
+  cosmeticId: text(40).nullable().default(null),
+  maxUses: count,
+  uses: count,
+  expiresAt: text(40).nullable(),
+  revokedAt: text(40).nullable(),
+  note: text(200).nullable(),
+  createdAt: text(40).nullable(),
+  createdBy: text(80).nullable(),
+  code: text(32).optional(),
+})
+
+export const trsAdminUserSchema = z.object({
+  uuid,
+  name: text(16).nullable(),
+  known: z.boolean(),
+  admin: z.boolean(),
+  banned: z
+    .object({ reason: text(200).nullable(), bannedAt: text(40).nullable(), bannedBy: text(80).nullable() })
+    .nullable(),
+  createdAt: text(40).nullable(),
+  lastLoginAt: text(40).nullable(),
+  settings: trsPrivacySchema.nullable(),
+  activeCapeId: capeId.nullable(),
+  grantedCapes: z.array(z.object({ capeId, source: text(40), grantedAt: text(40).nullable() })),
+  uploads: count,
+  friends: count,
+  sessions: count,
+  online: z.boolean(),
+})
+
+/** Stand der TRS-Synchronisation (Skins, Presets, Theme/Sprache). */
+export const trsSyncStatusSchema = z.object({
+  active: z.boolean(),
+  syncing: z.boolean(),
+  lastSyncAt: text(40).nullable(),
+  problem: z.enum(['offline', 'error']).nullable(),
+})
+
+/** Event `trs-sync` nach jedem Abgleich: was sich lokal geändert hat. */
+export const trsSyncEventSchema = z.object({
+  account: uuid,
+  changes: z.object({ skins: z.boolean(), presets: z.boolean(), settings: z.boolean() }),
+  status: trsSyncStatusSchema,
+})
+
+export type TrsStatus = z.infer<typeof trsStatusSchema>
+export type TrsPrivacy = z.infer<typeof trsPrivacySchema>
+/** Event in der Team-Verwaltung (`GET /v1/admin/events`). */
+export const trsAdminEventSchema = z.object({
+  id: eventId,
+  enabled: z.boolean(),
+  updatedAt: z.union([z.string().max(40), z.number()]).nullable().catch(null).default(null),
+  players: z
+    .array(
+      z.object({
+        uuid,
+        name: text(16).catch(''),
+        addedAt: z.union([z.string().max(40), z.number()]).nullable().catch(null).default(null),
+      }),
+    )
+    .max(500)
+    .catch([])
+    .default([]),
+})
+export type TrsAdminEvent = z.infer<typeof trsAdminEventSchema>
+export type TrsCosmeticSlot = z.infer<typeof trsCosmeticSlotSchema>
+
+export type TrsMe = z.infer<typeof trsMeSchema>
+export type TrsCape = z.infer<typeof trsCapeSchema>
+export type TrsIncomingOffer = z.infer<typeof trsIncomingOfferSchema>
+export type TrsOutgoingOffer = z.infer<typeof trsOutgoingOfferSchema>
+export type TrsCapeOffers = z.infer<typeof trsCapeOffersSchema>
+export type TrsCapeHolder = z.infer<typeof trsCapeHolderSchema>
+export type TrsCapeHolders = z.infer<typeof trsCapeHoldersSchema>
+export type TrsRedeem = z.infer<typeof trsRedeemSchema>
+export type TrsPlayerCape = z.infer<typeof trsPlayerCapeSchema>
+export type TrsGame = z.infer<typeof trsGameSchema>
+export type TrsPresence = z.infer<typeof trsPresenceSchema>
+export type TrsFriend = z.infer<typeof trsFriendSchema>
+export type TrsFriends = z.infer<typeof trsFriendsSchema>
+export type TrsUserRef = z.infer<typeof trsUserRefSchema>
+export type TrsBlocked = z.infer<typeof trsBlockedSchema>
+export type TrsAdminStats = z.infer<typeof trsAdminStatsSchema>
+export type TrsAdminCape = z.infer<typeof trsAdminCapeSchema>
+export type TrsCode = z.infer<typeof trsCodeSchema>
+export type TrsCapeSource = z.infer<typeof trsCapeSourceSchema>
+export type TrsAdminUser = z.infer<typeof trsAdminUserSchema>
+export type TrsSyncStatus = z.infer<typeof trsSyncStatusSchema>
+export type TrsSyncEvent = z.infer<typeof trsSyncEventSchema>
+export type TrsReportReason = 'inappropriate' | 'copyright' | 'impersonation' | 'other'
+export type TrsReviewList = 'pending' | 'approved' | 'rejected' | 'reported'
+
+/** Antwort des Kerns prüfen; kaputte Daten werden zu einem verständlichen Fehler. */
+export function trsParse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
+  const r = schema.safeParse(value)
+  if (!r.success) throw new Error(t('trs.invalidData'))
+  return r.data
+}
+
+// --- Eingaben -----------------------------------------------------------------------
+
+const noControl = /^[^\u0000-\u001f\u007f​-‏‪-‮⁠-⁯﻿]*$/
+
+export const trsPlayerNameSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_]{1,16}$/, { error: () => t('trs.validation.playerName') })
+
+/** Name oder UUID (mit/ohne Bindestriche). */
+export const trsTargetSchema = z
+  .string()
+  .trim()
+  .refine(
+    (s) => /^[A-Za-z0-9_]{1,16}$/.test(s) || /^[0-9a-fA-F]{32}$/.test(s) || /^[0-9a-fA-F-]{36}$/.test(s),
+    { error: () => t('trs.validation.target') },
+  )
+
+/** Einlösecode wie der Server: Groß, ohne Trenner, O→0, I/L→1, 20 Zeichen Crockford-Base32. */
+export function trsNormalizeCode(input: string): string | null {
+  const s = input
+    .toUpperCase()
+    .replace(/[\s-]/g, '')
+    .replace(/O/g, '0')
+    .replace(/[IL]/g, '1')
+  return /^[0-9A-HJKMNP-TV-Z]{20}$/.test(s) ? s : null
+}
+
+export const trsRedeemCodeSchema = z
+  .string()
+  .max(64, { error: () => t('trs.validation.codeTooLong') })
+  .refine((s) => trsNormalizeCode(s) !== null, { error: () => t('trs.validation.codeFormat') })
+
+export const trsCapeNameSchema = z
+  .string()
+  .trim()
+  .max(32, { error: () => t('trs.validation.max32') })
+  .regex(/^[\p{L}\p{N} _.,'!?&()+-]*$/u, { error: () => t('trs.validation.capeNameChars') })
+
+export const trsNoteSchema = z
+  .string()
+  .trim()
+  .max(200, { error: () => t('trs.validation.max200') })
+  .regex(noControl, { error: () => t('trs.validation.invalidChars') })
+
+export const trsNewCodesSchema = z.object({
+  capeId: capeId,
+  maxUses: z
+    .number()
+    .int()
+    .min(1, { error: () => t('trs.validation.minUses') })
+    .max(100_000, { error: () => t('trs.validation.maxUses') }),
+  count: z
+    .number()
+    .int()
+    .min(1, { error: () => t('trs.validation.minCount') })
+    .max(100, { error: () => t('trs.validation.maxCount') }),
+  expiresAt: z
+    .string()
+    .nullable()
+    .refine((s) => s === null || !Number.isNaN(Date.parse(s)), { error: () => t('trs.validation.invalidExpiry') })
+    .refine((s) => s === null || Date.parse(s) > Date.now(), { error: () => t('trs.validation.expiryPast') }),
+  note: trsNoteSchema.nullable(),
+})
+
+// --- Helfer -------------------------------------------------------------------------
+
+/** Aktueller Frame eines animierten Umhangs – für alle Spieler gleich (Wanduhr). */
+export function trsFrameIndex(now: number, frames: number, frameTimeMs: number | null): number {
+  if (frames <= 1 || !frameTimeMs || frameTimeMs <= 0) return 0
+  return Math.floor(now / frameTimeMs) % frames
+}
+
+/** Kurzlabel, wie man an den Umhang kommt. */
+export function trsUnlockLabel(cape: Pick<TrsCape, 'unlock' | 'kind'> & { shared?: TrsCape['shared']; rewardOf?: string | null }): string {
+  if (cape.shared) return t('trs.unlock.shared')
+  if (cape.kind === 'upload') return t('trs.unlock.own')
+  switch (cape.unlock) {
+    case 'free':
+      return t('trs.unlock.free')
+    case 'code':
+      return t('trs.unlock.code')
+    case 'admin':
+      return t('trs.unlock.team')
+    case 'event':
+      return t('trs.unlock.event')
+    case 'reward':
+      return cape.rewardOf && !cape.rewardOf.startsWith('halloween') ? t('trs.unlock.reward') : t('trs.unlock.halloweenReward')
+    default:
+      return t('trs.unlock.locked')
+  }
+}
+
+/** Status eines eigenen Uploads in Worten. */
+export function trsStatusLabel(status: TrsCape['status']): string | null {
+  if (status === 'pending') return t('trs.status.pending')
+  if (status === 'rejected') return t('trs.status.rejected')
+  return null
+}
+
+/** „Spielt 1.21.1 (Fabric) auf play.example.net“ usw. */
+export function trsPresenceText(presence: TrsPresence | null): string {
+  if (!presence) return t('common.status.offline')
+  if (presence.state === 'online') return t('trs.presence.online')
+  const game = presence.game
+  if (!game) return t('trs.presence.inGame')
+  const version = game.version
+  const server = game.server
+  if (game.loader === 'vanilla') {
+    return server ? t('trs.presence.playingServer', { version, server }) : t('trs.presence.playing', { version })
+  }
+  const loader = loaderLabels[game.loader]
+  return server
+    ? t('trs.presence.playingLoaderServer', { version, loader, server })
+    : t('trs.presence.playingLoader', { version, loader })
+}
+
+/** Sortierung: im Spiel, online, offline – innerhalb nach Name. */
+export function trsSortFriends<T extends { name: string; presence: TrsPresence | null }>(list: T[]): T[] {
+  const rank = (f: T) => (f.presence?.state === 'in-game' ? 0 : f.presence ? 1 : 2)
+  return [...list].sort((a, b) => rank(a) - rank(b) || compareText(a.name, b.name))
+}
+
+interface InstanceLike {
+  id: string
+  gameVersion: string
+  loader: { kind: string }
+}
+
+/**
+ * Passende Instanz zum Beitreten: gleiche Version + gleicher Loader, sonst
+ * gleiche Version, sonst die zuletzt gespielte (die Liste ist danach sortiert).
+ */
+export function trsJoinInstance<T extends InstanceLike>(instances: T[], game: TrsGame | null): T | null {
+  if (!instances.length) return null
+  if (game) {
+    const exact = instances.find((i) => i.gameVersion === game.version && i.loader.kind === game.loader)
+    if (exact) return exact
+    const sameVersion = instances.find((i) => i.gameVersion === game.version)
+    if (sameVersion) return sameVersion
+  }
+  return instances[0] ?? null
+}
+
+/** Fehler, die still als Zustand angezeigt werden statt als Meldung. */
+export function trsIsQuiet(kind: string | undefined): boolean {
+  return kind === 'trs_offline' || kind === 'trs_disabled' || kind === 'trs_no_account'
+}
+
+/**
+ * Dezenter Hinweis zur Synchronisation („Mit TRS-Konto synchronisiert · vor 2 Minuten“).
+ * `null` = aus (keine Einwilligung, Schalter aus oder kein Account).
+ */
+export function trsSyncLabel(status: TrsSyncStatus | null): string | null {
+  if (!status?.active) return null
+  if (status.syncing) return t('trsSync.syncing')
+  if (status.problem) return t('trsSync.offline')
+  if (status.lastSyncAt) return t('trsSync.synced', { time: formatRelative(status.lastSyncAt, true) })
+  return t('trsSync.pending')
+}
+
+/** Datum kurz in der eingestellten Sprache („23.09.2026“ / „9/23/26“), unbekannt → „–“. */
+export function trsDate(iso: string | null | undefined): string {
+  return formatShortDate(iso)
+}
+
+/**
+ * Adresse der TRS API und der Website. Die alte Adresse `api.theredstonee.de`
+ * bleibt parallel erreichbar; alle Anfragen stellt ohnehin der Kern.
+ */
+export const TRS_HOST = 'trs-launcher.theredstonee.de'
+
+export const TRS_PRIVACY_URL ='https://github.com/theredstonee/TRS-Launcher/blob/main/PRIVACY.md#trs-services'

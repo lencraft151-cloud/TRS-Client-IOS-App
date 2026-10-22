@@ -1,0 +1,149 @@
+package dev.theredstonee.trsclient.core.clips;
+
+import dev.theredstonee.trsclient.core.i18n.I18n;
+import dev.theredstonee.trsclient.core.module.TrsModules;
+import dev.theredstonee.trsclient.core.module.HudModule;
+import dev.theredstonee.trsclient.core.ui.Canvas;
+import dev.theredstonee.trsclient.core.ui.ColorMath;
+import dev.theredstonee.trsclient.core.ui.TextWidth;
+
+/**
+ * HUD-Anzeige "Clips & Aufnahme": roter Punkt + Zeit während der Aufnahme, dezentes Puffer-Symbol,
+ * Einblendung "Clip gespeichert (30 s)". Gezeichnet über {@link Canvas} bei (0, 0), unskaliert.
+ */
+public final class ClipPanel {
+	private static final int PAD_X = 5;
+	private static final int PAD_Y = 4;
+	private static final int LINE_H = 10;
+	private static final int DOT = 7;
+	/** So lange steht eine Meldung im HUD. */
+	static final long NOTICE_MS = 4000;
+	private static final int RED = 0xFFE5322D;
+	private static final int OK = 0xFF55D86A;
+	private static final int WARN = 0xFFF2C744;
+
+	private final HudModule module;
+	private final TrsModules modules;
+	public ClipPanel(TrsModules modules) {
+		this.modules = modules;
+		this.module = modules.clips;
+	}
+
+	/** Immer die aktuelle Instanz (init kann nach dem HUD-Aufbau laufen). */
+	private static Clips clips() {
+		return Clips.get();
+	}
+
+	private boolean bufferIcon() {
+		return modules.clipsBufferIcon.get();
+	}
+
+	/** Zeile oben: Aufnahme oder Puffer; null = keine. Je Bild mehrmals gefragt – nur bei Änderung neu gebaut. */
+	String statusLine(boolean preview, long now) {
+		ClipStatus s = clips().status();
+		long key;
+		if (s.recording) {
+			// Den Aufnahme-Indikator ("REC m:ss") zeichnet der Launcher als eigenes Overlay-Fenster,
+			// das aus der Aufnahme ausgeschlossen ist – im echten Spiel also nie ins Bild, sonst wäre
+			// es im Clip zu sehen. Im HUD-Editor (preview) bleibt die Anzeige zur Vorschau erhalten.
+			if (!preview) return null;
+			key = 1L << 40 | (s.recordingMillis(now) / 1000);
+		}
+		else if (s.buffer && bufferIcon()) key = 2L << 40 | s.clipSeconds;
+		else if (preview) key = 3L << 40;
+		else if (s.connected && "ffmpeg".equals(s.reason) && s.progress >= 0) key = 4L << 40 | s.progress;
+		else return null;
+		int gen = I18n.generation();
+		if (key == lineKey && gen == lineGeneration && lineText != null) return lineText;
+		String text;
+		if (s.recording) text = I18n.tr("hud.clips.rec", ClipNotice.clock(s.recordingMillis(now)));
+		else if (s.buffer && bufferIcon()) text = I18n.tr("hud.clips.buffer", ClipNotice.duration(s.clipSeconds));
+		else if (preview) text = I18n.tr("hud.clips.rec", "0:42");
+		else text = I18n.tr("hud.clips.ffmpeg", String.valueOf(s.progress));
+		lineKey = key;
+		lineGeneration = gen;
+		lineText = text;
+		return text;
+	}
+
+	private long lineKey = -1;
+	private int lineGeneration = -1;
+	private String lineText;
+
+	private boolean recordingLook(boolean preview) {
+		ClipStatus s = clips().status();
+		return s.recording || (preview && !(s.buffer && bufferIcon()));
+	}
+
+	/** Im Spiel sichtbar? */
+	public boolean visible() {
+		long now = System.currentTimeMillis();
+		return statusLine(false, now) != null || clips().notice(now) != null;
+	}
+
+	public int width(TextWidth tw, boolean preview) {
+		long now = System.currentTimeMillis();
+		int w = 0;
+		String status = statusLine(preview, now);
+		if (status != null) w = DOT + 4 + tw.width(status);
+		ClipNotice notice = clips().notice(now);
+		if (notice != null) w = Math.max(w, DOT + 4 + tw.width(notice.text()));
+		return w + PAD_X * 2;
+	}
+
+	public int height(boolean preview) {
+		long now = System.currentTimeMillis();
+		int rows = (statusLine(preview, now) != null ? 1 : 0) + (clips().notice(now) != null ? 1 : 0);
+		return Math.max(1, rows) * LINE_H - 2 + PAD_Y * 2;
+	}
+
+	public void draw(Canvas c, TextWidth tw, boolean preview) {
+		long now = System.currentTimeMillis();
+		int w = width(tw, preview);
+		int h = height(preview);
+		int bg = module.backgroundArgb();
+		boolean shadow = module.shadow();
+		int text = module.textColor.argb();
+		if (bg != 0) c.fill(0, 0, w, h, bg);
+		int y = PAD_Y;
+		String status = statusLine(preview, now);
+		if (status != null) {
+			if (recordingLook(preview)) {
+				// Roter Punkt, blinkt im Sekundentakt.
+				boolean on = (now / 500) % 2 == 0 || preview;
+				dot(c, PAD_X, y, on ? RED : ColorMath.withAlpha(RED, 90));
+				c.text(status, PAD_X + DOT + 4, y, text, shadow);
+			} else {
+				// Puffer: Ring, gedämpft.
+				ring(c, PAD_X, y, ColorMath.withAlpha(text, 150));
+				c.text(status, PAD_X + DOT + 4, y, ColorMath.withAlpha(text, 170), shadow);
+			}
+			y += LINE_H;
+		}
+		ClipNotice notice = clips().notice(now);
+		if (notice != null) {
+			int color = notice.success() ? OK : (notice.type == ClipNotice.Type.FAILED ? RED : WARN);
+			dot(c, PAD_X, y, color);
+			c.text(notice.text(), PAD_X + DOT + 4, y, text, shadow);
+		}
+	}
+
+	/** 7×7-Pixelkreis. */
+	private static void dot(Canvas c, int x, int y, int argb) {
+		c.fill(x + 2, y, x + 5, y + 7, argb);
+		c.fill(x + 1, y + 1, x + 6, y + 6, argb);
+		c.fill(x, y + 2, x + 7, y + 5, argb);
+	}
+
+	/** 7×7-Ring. */
+	private static void ring(Canvas c, int x, int y, int argb) {
+		c.fill(x + 2, y, x + 5, y + 1, argb);
+		c.fill(x + 2, y + 6, x + 5, y + 7, argb);
+		c.fill(x, y + 2, x + 1, y + 5, argb);
+		c.fill(x + 6, y + 2, x + 7, y + 5, argb);
+		c.fill(x + 1, y + 1, x + 2, y + 2, argb);
+		c.fill(x + 5, y + 1, x + 6, y + 2, argb);
+		c.fill(x + 1, y + 5, x + 2, y + 6, argb);
+		c.fill(x + 5, y + 5, x + 6, y + 6, argb);
+	}
+}

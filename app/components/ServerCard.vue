@@ -1,0 +1,73 @@
+<script setup lang="ts">
+import type { Server } from '~/types'
+
+const props = defineProps<{ server: Server; joinDisabled?: boolean; joinHint?: string; compact?: boolean }>()
+const emit = defineEmits<{ join: [server: Server]; edit: [server: Server] }>()
+
+const servers = useServersStore()
+// Beitreten startet das Spiel – am Handy (noch) nicht.
+const canLaunch = computed(() => platformCaps.value.gameLaunch)
+const status = computed(() => servers.statuses[props.server.id])
+
+// Das Backend lässt nur geprüfte PNG-Data-URLs durch; hier zur Sicherheit noch einmal.
+const favicon = computed(() => {
+  const icon = status.value?.favicon
+  return icon?.startsWith('data:image/png;base64,') ? icon : null
+})
+
+const pingClass = computed(() => {
+  const ms = status.value?.latencyMs ?? 0
+  return ms < 80 ? 'text-ok' : ms < 180 ? 'text-lamp-400' : 'text-redstone-300'
+})
+</script>
+
+<template>
+  <article class="card flex items-center gap-3 p-3 transition-colors hover:border-base-700">
+    <div class="relative shrink-0">
+      <img v-if="favicon" :src="favicon" alt="" class="size-12 ring-2 ring-base-800 [image-rendering:pixelated]" />
+      <div v-else class="display flex size-12 items-center justify-center bg-base-800 text-xl text-base-600 ring-2 ring-base-700">
+        {{ server.name.charAt(0).toUpperCase() }}
+      </div>
+      <span
+        class="absolute -right-1 -bottom-1 size-3 border-2 border-base-900"
+        :class="status === undefined ? 'animate-lamp bg-base-600' : status.online ? 'bg-ok shadow-[0_0_8px_var(--color-ok)]' : 'bg-redstone-500'"
+        :title="status === undefined ? t('servers.card.checking') : status.online ? t('common.status.online') : t('servers.card.unreachable')"
+      />
+    </div>
+
+    <div class="min-w-0 flex-1">
+      <div class="flex items-baseline gap-2">
+        <h3 class="truncate text-sm font-medium">{{ server.name }}</h3>
+        <span v-if="!compact" class="truncate font-mono text-[11px] text-base-600 mobile:hidden">{{ server.address }}</span>
+      </div>
+      <template v-if="status === undefined">
+        <div class="skeleton mt-1.5 h-3 w-40" />
+      </template>
+      <p v-else-if="status.online" class="truncate text-xs text-base-400" :title="status.motd">
+        {{ status.motd.split('\n')[0] || status.version }}
+      </p>
+      <p v-else class="text-xs text-base-600">{{ t('servers.card.unreachable') }}</p>
+    </div>
+
+    <div v-if="status?.online" class="shrink-0 text-right text-xs">
+      <p class="display tabular-nums text-base-50">{{ formatCount(status.playersOnline) }}<span class="text-base-600"> / {{ formatCount(status.playersMax) }}</span></p>
+      <p class="tabular-nums" :class="pingClass">{{ status.latencyMs }} ms</p>
+      <p
+        v-if="status.fastConnect && !compact"
+        class="mt-0.5 text-[10px] whitespace-nowrap tabular-nums text-base-600"
+        :title="t('servers.card.fastConnectHint', { n: status.fastConnect.addresses })"
+      >
+        {{ t('servers.card.fastConnect', { family: familyLabel(status.fastConnect.family), ms: status.fastConnect.connectMs }) }}
+      </p>
+    </div>
+
+    <div class="flex shrink-0 items-center gap-1.5">
+      <button v-if="canLaunch" class="btn btn-primary px-3 py-1.5 text-xs" :disabled="joinDisabled" :title="joinHint" @click="emit('join', server)">
+        {{ t('servers.card.join') }}
+      </button>
+      <button v-if="!compact" class="btn btn-ghost px-2 py-1.5 mobile:w-11" :title="t('common.actions.edit')" :aria-label="t('common.actions.edit')" @click="emit('edit', server)">
+        <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" /></svg>
+      </button>
+    </div>
+  </article>
+</template>

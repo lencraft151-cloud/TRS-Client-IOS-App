@@ -1,0 +1,42 @@
+# Nuxt
+node_modules
+.nuxt
+.output
+.data
+.nitro
+.cache
+dist
+
+# Tauri / Rust
+src-tauri/target
+src-tauri/gen/schemas
+
+# Env / Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.key.pub
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Lokale Werkzeug-Daten
+.claude/
+
+# Gebaute Installer
+release/
+
+# Sperre für Minecraft-Autotests (nie parallel)
+.autotest-lock/
+
+# Beispiel-Logs für die Absturz-Tests gehören ins Repo
+!src-tauri/crates/core/src/crash/fixtures/*.log
+
+# Präsentation des Messe-Builds (scripts/messe/import-pitch.mjs)
+.messe-pitch/

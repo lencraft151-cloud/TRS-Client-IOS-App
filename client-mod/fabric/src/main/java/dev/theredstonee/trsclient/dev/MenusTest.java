@@ -1,0 +1,535 @@
+package dev.theredstonee.trsclient.dev;
+
+import dev.theredstonee.trsclient.TrsClient;
+import dev.theredstonee.trsclient.compat.Mc;
+import dev.theredstonee.trsclient.core.menus.ServerPins;
+import dev.theredstonee.trsclient.core.online.Friends;
+import dev.theredstonee.trsclient.core.online.TrsOnline;
+import dev.theredstonee.trsclient.core.clips.ClipPreview;
+import dev.theredstonee.trsclient.core.ui.clips.ClipsUi;
+import dev.theredstonee.trsclient.core.ui.social.SocialUi;
+import dev.theredstonee.trsclient.core.ui.menus.MenuSkin;
+import dev.theredstonee.trsclient.screen.MenuScreens;
+import dev.theredstonee.trsclient.screen.TrsTitleScreen;
+import dev.theredstonee.trsclient.screen.TrsUiScreen;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
+import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.ServerList;
+//? if >=1.21 {
+import net.minecraft.client.gui.screens.options.OptionsScreen;
+import net.minecraft.client.gui.screens.options.VideoSettingsScreen;
+//?} else {
+/*import net.minecraft.client.gui.screens.OptionsScreen;
+import net.minecraft.client.gui.screens.VideoSettingsScreen;
+*///?}
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * Selbsttest Menüs ({@code -PtrsAutotestOnly=menus}): Serverliste (angeheftet, Freunde auf dem Server),
+ * Einstellungen, Weltenliste, Freunde (mit API-Attrappe), Clips &amp; Bilder, Ressourcen-Überblendung,
+ * Ladebildschirm, Pausenmenü mit TRS-Knöpfen, Server-Info. Beendet das Spiel direkt nach den Bildern.
+ * Screenshots: trsclient-&lt;mc&gt;-menus-*.png.
+ */
+public final class MenusTest {
+	private static final String FRIEND_SERVER = "play.trs-test.net";
+	private int phase;
+	private int wait;
+	private int waited;
+	private Path clipDir;
+	private Path clipsJson;
+	/** Unterschritte in Phase 12 (Bild groß, Clip-Vorschau). */
+	private int clipStep;
+	/** Unterschritte in Phase 2 (Direkt verbinden, Server hinzufügen, Löschen-Dialog). */
+	private int mpStep;
+
+	public static void install() {
+		MenusTest test = new MenusTest();
+		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(test::tick);
+	}
+
+	/**
+	 * {@code -PtrsAutotestOnly=addserver}: „Server hinzufügen“ und „Direkt verbinden“ im breiten Fenster (1920×1080,
+	 * GUI-Größe 2) mit einem fremden Knopf oben rechts wie „Set version“ von ViaFabricPlus, dazu schmal (GUI-Größe 4).
+	 * Die Formular-Fläche muss kompakt um das Formular bleiben. Screenshots trsclient-&lt;mc&gt;-menus-*-wide/-narrow.png.
+	 */
+	public static void installAddServer() {
+		final MenusTest test = new MenusTest();
+		test.phase = 100;
+		net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(test::tick);
+	}
+
+	/** Fremder Knopf in der Ecke oben rechts (wie ViaFabricPlus' „Set version“). */
+	private static void foreignCornerButton(Screen s) {
+		Object b;
+		//? if >=1.19.3 {
+		b = net.minecraft.client.gui.components.Button.builder(net.minecraft.network.chat.Component.literal("Set version"), x -> { })
+				.bounds(s.width - 98 - 5, 5, 98, 20).build();
+		//?} elif >=1.19 {
+		/*b = new net.minecraft.client.gui.components.Button(s.width - 98 - 5, 5, 98, 20,
+				net.minecraft.network.chat.Component.literal("Set version"), x -> { });
+		*///?} elif >=1.16 {
+		/*b = new net.minecraft.client.gui.components.Button(s.width - 98 - 5, 5, 98, 20,
+				new net.minecraft.network.chat.TextComponent("Set version"), x -> { });
+		*///?} else
+		/*b = new net.minecraft.client.gui.components.Button(s.width - 98 - 5, 5, 98, 20, "Set version", x -> { });*/
+		((dev.theredstonee.trsclient.menus.WidgetHost) (Object) s).trsclient$addWidget(b);
+	}
+
+	private static void windowSize(int w, int h) {
+		//? if >=26.3 {
+		/*org.lwjgl.sdl.SDLVideo.SDL_SetWindowSize(Mc.window().handle(), w, h);
+		*///?} elif >=1.21.9 {
+		/*org.lwjgl.glfw.GLFW.glfwSetWindowSize(Mc.window().handle(), w, h);
+		*///?} else
+		org.lwjgl.glfw.GLFW.glfwSetWindowSize(Mc.window().getWindow(), w, h);
+	}
+
+	private static void guiScale(Minecraft mc, int scale) {
+		//? if >=1.19 {
+		mc.options.guiScale().set(scale);
+		//?} else
+		/*mc.options.guiScale = scale;*/
+		//? if >=26.1 {
+		/*mc.resizeGui();
+		*///?} else
+		mc.resizeDisplay();
+	}
+
+	/** Ablauf von {@link #installAddServer()} (Phasen ab 100). */
+	private void addServerStep(Minecraft mc) {
+		Screen screen = Mc.screen();
+		switch (phase) {
+			case 100:
+				if (Mc.overlay() != null || screen == null) return;
+				mc.options.pauseOnLostFocus = false;
+				windowSize(1920, 1080);
+				phase++;
+				wait = 20;
+				return;
+			case 101:
+				guiScale(mc, 2);
+				Mc.setScreen(addServer(new JoinMultiplayerScreen(new TrsTitleScreen())));
+				phase++;
+				wait = 10;
+				return;
+			case 102:
+				foreignCornerButton(screen);
+				log("Fenster " + Mc.window().getWidth() + "×" + Mc.window().getHeight() + ", GUI " + screen.width + "×" + screen.height);
+				phase++;
+				wait = 10;
+				return;
+			case 103:
+				shot(mc, "add-server-wide");
+				Mc.setScreen(directJoin(new JoinMultiplayerScreen(new TrsTitleScreen())));
+				phase++;
+				wait = 10;
+				return;
+			case 104:
+				foreignCornerButton(screen);
+				phase++;
+				wait = 10;
+				return;
+			case 105:
+				shot(mc, "direct-connect-wide");
+				guiScale(mc, 4);
+				Mc.setScreen(addServer(new JoinMultiplayerScreen(new TrsTitleScreen())));
+				phase++;
+				wait = 10;
+				return;
+			case 106:
+				foreignCornerButton(screen);
+				log("GUI schmal " + screen.width + "×" + screen.height);
+				phase++;
+				wait = 10;
+				return;
+			case 107:
+				shot(mc, "add-server-narrow");
+				guiScale(mc, 0);
+				phase++;
+				wait = 5;
+				return;
+			case 108:
+				log("Formular-Test fertig");
+				mc.stop();
+				phase = 999;
+				return;
+			default:
+		}
+	}
+
+	private static void log(String text) {
+		TrsClient.LOGGER.info("[Autotest] Menüs: {}", text);
+	}
+
+	private void shot(Minecraft mc, String name) {
+		AutoTest.shot(mc, "trsclient-menus-" + name);
+		log("Bild " + name + " (Hintergrund Ø " + Math.round(MenuSkin.averageMicros()) + " µs)");
+	}
+
+	private boolean waitFor(boolean ready, int maxTries) {
+		if (!ready && waited++ < maxTries) {
+			wait = 5;
+			return false;
+		}
+		waited = 0;
+		return true;
+	}
+
+	private void tick(Minecraft mc) {
+		if (wait > 0) {
+			wait--;
+			return;
+		}
+		try {
+			if (phase >= 100) addServerStep(mc);
+			else step(mc);
+		} catch (RuntimeException e) {
+			TrsClient.LOGGER.error("[Autotest] Menüs: Fehler in Phase {}", phase, e);
+			cleanup();
+			mc.stop();
+			phase = 999;
+		}
+	}
+
+	private void step(Minecraft mc) {
+		Screen screen = Mc.screen();
+		switch (phase) {
+			case 0:
+				if (Mc.overlay() != null || screen == null) return;
+				mc.options.pauseOnLostFocus = false;
+				//? if >=1.19 {
+				mc.options.renderDistance().set(2);
+				//?}
+				fixtures(mc);
+				Mc.setScreen(new TrsTitleScreen());
+				phase++;
+				wait = 10;
+				return;
+			case 1:
+				Mc.setScreen(new JoinMultiplayerScreen(new TrsTitleScreen()));
+				phase++;
+				wait = 60;
+				return;
+			case 2:
+				// Serverliste → Direkt verbinden → Server hinzufügen → „Server löschen?“ (Formulare, Textfelder, Dialog).
+				if (mpStep == 0) {
+					shot(mc, "multiplayer");
+					Mc.setScreen(directJoin(screen));
+					mpStep = 1;
+					wait = 15;
+					return;
+				}
+				if (mpStep == 1) {
+					shot(mc, "direct-connect");
+					Mc.setScreen(addServer(screen));
+					mpStep = 2;
+					wait = 15;
+					return;
+				}
+				if (mpStep == 2) {
+					shot(mc, "add-server");
+					Mc.setScreen(deleteServer());
+					mpStep = 3;
+					wait = 10;
+					return;
+				}
+				shot(mc, "delete-server");
+				Mc.setScreen(options(new TrsTitleScreen(), mc));
+				phase++;
+				wait = 15;
+				return;
+			case 3:
+				shot(mc, "options");
+				//? if >=1.21 {
+				Mc.setScreen(new VideoSettingsScreen(screen, mc, mc.options));
+				//?} else
+				/*Mc.setScreen(new VideoSettingsScreen(screen, mc.options));*/
+				phase++;
+				wait = 15;
+				return;
+			case 4:
+				shot(mc, "options-video");
+				Mc.setScreen(new SelectWorldScreen(new TrsTitleScreen()));
+				phase++;
+				wait = 30;
+				return;
+			case 5:
+				shot(mc, "worlds");
+				Mc.setScreen(MenuScreens.friends(new TrsTitleScreen()));
+				phase++;
+				wait = 10;
+				return;
+			case 6: {
+				TrsOnline online = TrsOnline.current();
+				Friends.Snapshot s = online == null ? null : online.friends().snapshot();
+				if (!waitFor(s != null && s.view != null, 120)) return;
+				// Freunde sind jetzt ein Reiter des Sozial-Bildschirms.
+				if (socialUi(Mc.screen()) != null) socialUi(Mc.screen()).showTab(1);
+				wait = 40; // Gesichter
+				phase++;
+				return;
+			}
+			case 7:
+				shot(mc, "friends");
+				if (socialUi(screen) != null) socialUi(screen).showFriendsTab(1);
+				phase++;
+				wait = 10;
+				return;
+			case 8:
+				shot(mc, "friends-requests");
+				if (socialUi(screen) != null) socialUi(screen).showFriendsTab(2);
+				phase++;
+				wait = 30;
+				return;
+			case 9:
+				shot(mc, "friends-blocked");
+				Mc.setScreen(MenuScreens.clips(new TrsTitleScreen()));
+				phase++;
+				wait = 10;
+				return;
+			case 10:
+				if (!waitFor(clipsUi(Mc.screen()) != null && clipsUi(Mc.screen()).settled(), 100)) return;
+				wait = 10;
+				phase++;
+				return;
+			case 11:
+				shot(mc, "clips");
+				clipsUi(screen).openFirstImage();
+				phase++;
+				wait = 25;
+				return;
+			case 12:
+				// Bild groß → Clip-Vorschau (über den TRS-Link, falls das Spiel mit Launcher-Attrappe läuft) → weiter.
+				if (clipStep == 0) {
+					shot(mc, "clips-preview");
+					Mc.setScreen(MenuScreens.clips(new TrsTitleScreen()));
+					clipStep = 1;
+					wait = 20;
+					return;
+				}
+				if (clipStep == 1) {
+					if (clipsUi(screen) != null) clipsUi(screen).openFirstClip();
+					clipStep = 2;
+					wait = 5;
+					return;
+				}
+				if (clipStep == 2) {
+					ClipsUi ui = clipsUi(screen);
+					ClipPreview.State st = ui == null ? null : ui.clipPreview().state();
+					if (!waitFor(st == null || (st != ClipPreview.State.LOADING && st != ClipPreview.State.IDLE), 200)) return;
+					log("Clip-Vorschau: " + st + (ui == null ? "" : " " + ui.clipPreview().code()));
+					clipStep = 3;
+					wait = 25; // Zeitraffer ein paar Bilder laufen lassen
+					return;
+				}
+				shot(mc, "clips-clip");
+				Mc.setScreen(MenuScreens.clips(new TrsTitleScreen()));
+				phase++;
+				wait = 20;
+				return;
+			case 13:
+				if (clipsUi(screen) != null) clipsUi(screen).confirmFirst();
+				phase++;
+				wait = 5;
+				return;
+			case 14:
+				shot(mc, "clips-delete");
+				Mc.setScreen(new TrsTitleScreen());
+				mc.reloadResourcePacks();
+				phase++;
+				wait = 3;
+				return;
+			case 15:
+				if (!waitFor(Mc.overlay() != null, 40)) return;
+				shot(mc, "reload");
+				phase++;
+				return;
+			case 16:
+				if (!waitFor(Mc.overlay() == null, 400)) return;
+				AutoTest.startWorld(mc);
+				phase++;
+				return;
+			case 17:
+				// Ladebildschirm abpassen (während die Welt entsteht bzw. lädt).
+				if (screen instanceof LevelLoadingScreen) {
+					wait = 2;
+					phase++;
+					return;
+				}
+				if (mc.level != null && waited++ > 20) {
+					log("Ladebildschirm verpasst");
+					phase += 2;
+				}
+				return;
+			case 18:
+				if (screen instanceof LevelLoadingScreen) shot(mc, "loading");
+				phase++;
+				return;
+			case 19:
+				if (!waitFor(mc.level != null && mc.player != null && Mc.screen() == null, 600)) return;
+				wait = 40;
+				phase++;
+				return;
+			case 20:
+				Mc.setScreen(new PauseScreen(true));
+				phase++;
+				wait = 15;
+				return;
+			case 21:
+				shot(mc, "pause");
+				Mc.setScreen(MenuScreens.serverInfo(screen));
+				phase++;
+				wait = 15;
+				return;
+			case 22:
+				shot(mc, "serverinfo");
+				Mc.setScreen(options(new PauseScreen(true), mc));
+				phase++;
+				wait = 15;
+				return;
+			case 23:
+				shot(mc, "options-ingame");
+				log("fertig");
+				cleanup();
+				phase++;
+				mc.stop();
+				return;
+			default:
+		}
+	}
+
+	private static ServerData testServer() {
+		//? if >=1.20.2 {
+		return new ServerData("TRS Testserver", FRIEND_SERVER, ServerData.Type.OTHER);
+		//?} else
+		/*return new ServerData("TRS Testserver", FRIEND_SERVER, false);*/
+	}
+
+	private static Screen directJoin(Screen parent) {
+		//? if >=1.15 {
+		return new net.minecraft.client.gui.screens.DirectJoinServerScreen(parent, b -> { }, testServer());
+		//?} else
+		/*return new net.minecraft.client.gui.screens.DirectJoinServerScreen(b -> { }, testServer());*/
+	}
+
+	private static Screen addServer(Screen parent) {
+		//? if >=1.21.9 {
+		/*return new net.minecraft.client.gui.screens.ManageServerScreen(parent,
+				net.minecraft.network.chat.Component.translatable("manageServer.add.title"), b -> { }, testServer());
+		*///?} elif >=1.15 {
+		return new net.minecraft.client.gui.screens.EditServerScreen(parent, b -> { }, testServer());
+		//?} else
+		/*return new net.minecraft.client.gui.screens.EditServerScreen(b -> { }, testServer());*/
+	}
+
+	/** „Server löschen?“ wie aus der Serverliste (Vanilla-Schlüssel). */
+	private static Screen deleteServer() {
+		//? if >=1.19 {
+		return new net.minecraft.client.gui.screens.ConfirmScreen(b -> { },
+				net.minecraft.network.chat.Component.translatable("selectServer.deleteQuestion"),
+				net.minecraft.network.chat.Component.translatable("selectServer.deleteWarning", "TRS Testserver"));
+		//?} else
+		/*return new net.minecraft.client.gui.screens.ConfirmScreen(b -> { }, new net.minecraft.network.chat.TranslatableComponent("selectServer.deleteQuestion"), new net.minecraft.network.chat.TranslatableComponent("selectServer.deleteWarning", "TRS Testserver"));*/
+	}
+
+	private static Screen options(Screen parent, Minecraft mc) {
+		//? if >=26.1 && <26.3 {
+		/*return new OptionsScreen(parent, mc.options, false);
+		*///?} else
+		return new OptionsScreen(parent, mc.options);
+	}
+
+	private static SocialUi socialUi(Screen s) {
+		return s instanceof TrsUiScreen && ((TrsUiScreen) s).ui() instanceof SocialUi ? (SocialUi) ((TrsUiScreen) s).ui() : null;
+	}
+
+	private static ClipsUi clipsUi(Screen s) {
+		return s instanceof TrsUiScreen && ((TrsUiScreen) s).ui() instanceof ClipsUi ? (ClipsUi) ((TrsUiScreen) s).ui() : null;
+	}
+
+	// --- Testdaten ---
+
+	/** Server mit TRS-Freunden (angeheftet), ein Clip-Ordner mit zwei MP4-Attrappen, clips.json dazu. */
+	private void fixtures(Minecraft mc) {
+		ServerList list = new ServerList(mc);
+		list.load();
+		boolean have = false;
+		for (int i = 0; i < list.size(); i++) if (FRIEND_SERVER.equals(list.get(i).ip)) have = true;
+		if (!have) {
+			//? if >=1.20.2 {
+			list.add(new ServerData("TRS Testserver (Freunde)", FRIEND_SERVER, ServerData.Type.OTHER), false);
+			//?} elif >=1.19 {
+			/*list.add(new ServerData("TRS Testserver (Freunde)", FRIEND_SERVER, false), false);
+			*///?} else
+			/*list.add(new ServerData("TRS Testserver (Freunde)", FRIEND_SERVER, false));*/
+			list.save();
+		}
+		Path config = mc.gameDirectory.toPath().toAbsolutePath().resolve("config");
+		ServerPins pins = ServerPins.shared(config);
+		if (!pins.isPinned(FRIEND_SERVER)) pins.toggle(FRIEND_SERVER);
+		try {
+			clipDir = mc.gameDirectory.toPath().toAbsolutePath().resolve("trs-autotest-clips");
+			Files.createDirectories(clipDir);
+			Files.write(clipDir.resolve("Survival 2026-09-25 18-04-11.mp4"), mp4(15_000));
+			Files.write(clipDir.resolve("Redstone-Uhr 2026-09-24 21-40-02.mp4"), mp4(92_500));
+			clipsJson = config.resolve("trsclient").resolve("clips.json");
+			if (!Files.exists(clipsJson)) {
+				Files.createDirectories(clipsJson.getParent());
+				String dir = clipDir.toString().replace("\\", "\\\\");
+				Files.write(clipsJson, ("{\"version\":2,\"enabled\":false,\"clipsDir\":\"" + dir + "\"}").getBytes(StandardCharsets.UTF_8));
+			} else {
+				clipsJson = null; // fremde Datei (z. B. vom Launcher) nicht anfassen
+			}
+			Path shots = mc.gameDirectory.toPath().resolve("screenshots");
+			Files.createDirectories(shots);
+		} catch (IOException e) {
+			log("Testdaten: " + e);
+		}
+	}
+
+	private void cleanup() {
+		try {
+			if (clipsJson != null) Files.deleteIfExists(clipsJson);
+		} catch (IOException ignored) {
+			// egal
+		}
+	}
+
+	/** Minimale MP4: ftyp + moov/mvhd mit Dauer (ms, Zeitbasis 1000). */
+	static byte[] mp4(int durationMs) {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		box(out, "ftyp", new byte[]{'i', 's', 'o', 'm', 0, 0, 2, 0, 'i', 's', 'o', 'm'});
+		byte[] mvhd = new byte[100];
+		mvhd[15] = (byte) 0xE8; // timescale 1000 bei Offset 12..15 (Version 0)
+		mvhd[14] = 0x03;
+		mvhd[16] = (byte) (durationMs >>> 24);
+		mvhd[17] = (byte) (durationMs >>> 16);
+		mvhd[18] = (byte) (durationMs >>> 8);
+		mvhd[19] = (byte) durationMs;
+		ByteArrayOutputStream moov = new ByteArrayOutputStream();
+		box(moov, "mvhd", mvhd);
+		box(out, "moov", moov.toByteArray());
+		return out.toByteArray();
+	}
+
+	private static void box(ByteArrayOutputStream out, String type, byte[] body) {
+		int size = body.length + 8;
+		out.write(size >>> 24);
+		out.write(size >>> 16);
+		out.write(size >>> 8);
+		out.write(size);
+		byte[] t = type.getBytes(StandardCharsets.US_ASCII);
+		out.write(t, 0, 4);
+		out.write(body, 0, body.length);
+	}
+}

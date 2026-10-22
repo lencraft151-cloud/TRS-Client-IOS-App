@@ -1,0 +1,1947 @@
+{
+  "version": "0.19.5",
+  "builds": [
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.14.4"
+      ],
+      "file": "trsclient-fabric-1.14.4.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "sha256": "2569224afbfdc059e2595f4b784c8eb342c2c3aea1f8002c5564ea5348cc54e2",
+      "size": 4749627
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.15.2"
+      ],
+      "file": "trsclient-fabric-1.15.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "sha256": "e30734f3905bc7994ec34c7333f2b5e81215c80518cc1ec5fe1079acfb86fc2f",
+      "size": 4765260
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.16.2"
+      ],
+      "file": "trsclient-fabric-1.16.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.6.6"
+        }
+      ],
+      "sha256": "f96d9525865a0e637882de66a0c6056f10bd84b8e30a2f3bd87661f4f5ca1096",
+      "size": 5067961
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.16.3"
+      ],
+      "file": "trsclient-fabric-1.16.3.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.6.6"
+        }
+      ],
+      "sha256": "e42e32a191ca45b3a1024119a2aab1a9faa378e66bedbd981d34866bd8e59f8b",
+      "size": 5067961
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.16.4"
+      ],
+      "file": "trsclient-fabric-1.16.4.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.6.6"
+        }
+      ],
+      "sha256": "55e76ebe04e31af4a68759a4bee2bebc3dc122c93d84e51bc5484e6fe697c063",
+      "size": 5068986
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.16.5"
+      ],
+      "file": "trsclient-fabric-1.16.5.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.6.6"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "2.1.1"
+        }
+      ],
+      "sha256": "fe123ebad25b3c9c363b0ce8960136d66bf78018c4588e4b685a6ed940f97ecc",
+      "size": 5162510
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.17"
+      ],
+      "file": "trsclient-fabric-1.17.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.7.5"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "3.0.1"
+        }
+      ],
+      "sha256": "4720088feb885b6b9c09e8225230ee1dce2fa2a1118512f800d9e65ff75b07fe",
+      "size": 5258082
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.17.1"
+      ],
+      "file": "trsclient-fabric-1.17.1.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.7.5"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "3.0.3"
+        }
+      ],
+      "sha256": "ea824fcc3938fa3380f152949ccd20f1bc9015cccf6d958135edc02772a3606b",
+      "size": 5259700
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.18"
+      ],
+      "file": "trsclient-fabric-1.18.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.7.6-rc1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "4.0.0"
+        }
+      ],
+      "sha256": "b55f0be331caec158823909f80b9a604882902b56927ea633fcd39f0e5d0009f",
+      "size": 5217486
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.18.1"
+      ],
+      "file": "trsclient-fabric-1.18.1.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.7.8"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "4.1.2"
+        }
+      ],
+      "sha256": "62aaa51dea52e4ebbba2a03db0aeccd68e6c2092fcfb385788a0ef679ff281b3",
+      "size": 5271813
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.18.2"
+      ],
+      "file": "trsclient-fabric-1.18.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.10.3"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "4.2.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.1.12"
+        }
+      ],
+      "sha256": "243831d1f87900820ee687374026ba56114029cc149e88c9a53880054b7a7f12",
+      "size": 5528536
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.19"
+      ],
+      "file": "trsclient-fabric-1.19.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.8.1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "4.2.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.4.0+1.19.2"
+        }
+      ],
+      "sha256": "9cf67487659476ce338019cbacca6b3fcea3bffb7da8580146638dd1c677811e",
+      "size": 5669220
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.19.1"
+      ],
+      "file": "trsclient-fabric-1.19.1.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.8.3"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "4.2.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.4.0+1.19.2"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.1.4"
+        }
+      ],
+      "sha256": "92bd03aae6fa7f53d7c3cdc7ad2f2a48540742f091b87c6a5cba4a249c8140a6",
+      "size": 6077779
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.19.2"
+      ],
+      "file": "trsclient-fabric-1.19.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.11.1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "5.0.3"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.4.0+1.19.2"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.1.4"
+        }
+      ],
+      "sha256": "5efeeb9e9c6abf76dac4bc9f67cc6c533b1e9739a8f81df40b104b0adc0b9bb1",
+      "size": 6191797
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.19.3"
+      ],
+      "file": "trsclient-fabric-1.19.3.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.11.1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "5.1.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.1.12"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.1.4"
+        }
+      ],
+      "sha256": "2e9f76fe0c16c87d031d7fe2bccf998eea48eb70cea1ca8d8bc4da588dabb7f8",
+      "size": 5990095
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.19.4"
+      ],
+      "file": "trsclient-fabric-1.19.4.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.11.1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "5.2.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.2.11+1.19.4"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.1.4"
+        }
+      ],
+      "sha256": "22c5952f6597f034ea666314851fc99a4fb049aaf96df6d9e1fb693a96aab84b",
+      "size": 6177278
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.20.1"
+      ],
+      "file": "trsclient-fabric-1.20.1.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.11.4"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "6.0.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.5.5+1.20.4"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.25.2+mc1.20.1"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "5f752ee4c7ccc44203514df38cb97c59fd8d9130fce0727211035759aaa8ab20",
+      "size": 6718576
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.20.2"
+      ],
+      "file": "trsclient-fabric-1.20.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.12.0"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "6.0.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.5.5+1.20.4"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.10.1+mc1.20.2"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "b7cc0292c2f2799926c2a05bb111dd8ae45a227160f5d816660fa328fa9f70c0",
+      "size": 6564551
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.20.3"
+      ],
+      "file": "trsclient-fabric-1.20.3.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.12.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.5.5+1.20.4"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.10.0+mc1.20.3"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "1a16b72473faf8f46a137e95f90ad6b28e9b71e4e5a3a4820546a7d6373658d4",
+      "size": 6541029
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.20.4"
+      ],
+      "file": "trsclient-fabric-1.20.4.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.12.1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "6.0.3"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.5.5+1.20.4"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.17.0+mc1.20.4"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "73fdbe99b70b50b995f9739dcf536e26e2be4f29b43c939200533c9cd37d9d42",
+      "size": 6504023
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.20.5"
+      ],
+      "file": "trsclient-fabric-1.20.5.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.12.5"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "6.1.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.3.0+1.20.6"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.17.0+mc1.20.5"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "219f742fce5ab531ff1613d66365334ccba9e7432e6ed9e4b8008d67140658e1",
+      "size": 6347036
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.20.6"
+      ],
+      "file": "trsclient-fabric-1.20.6.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.12.5"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "6.1.1"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.3.0+1.20.6"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.18.0+mc1.20.6"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "659d55d3fd7f521e66275c6c9997f878b831230768fe180139a9a7ec414168b1",
+      "size": 6359723
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21"
+      ],
+      "file": "trsclient-fabric-1.21.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.15.2+mc1.21.1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "7.0.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.6.14+1.21.1"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.19.1+mc1.21"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.1.4"
+        }
+      ],
+      "sha256": "dad94a3c1a1c86b55ecad867447636d38371dec8a677c667ffe160b37685132a",
+      "size": 6315946
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.1"
+      ],
+      "file": "trsclient-fabric-1.21.1.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.15.4+mc1.21.1"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "7.0.3"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.6.14+1.21.1"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.25.1+mc1.21.1"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "46a7ad0753830bc7d71a30548464f2053d03a3e86003ce267c5242ce8e468a9c",
+      "size": 6553527
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.2"
+      ],
+      "file": "trsclient-fabric-1.21.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.14.6+mc1.21.3"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.7.2+1.21.3"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "73540017e8201fb5fcad56a47975000767f472bb2a4adca5e0b886216b3ddaf2",
+      "size": 5876473
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.3"
+      ],
+      "file": "trsclient-fabric-1.21.3.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.14.6+mc1.21.3"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "7.1.0-hotfix"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.7.2+1.21.3"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "7615146a7fec91e881d0922c7509959f6909eb1c021db7873ea49f83d031b9b4",
+      "size": 5969418
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.4"
+      ],
+      "file": "trsclient-fabric-1.21.4.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.15.3+mc1.21.4"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "7.1.3"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.8.7+1.21.4"
+        },
+        {
+          "id": "modernfix",
+          "name": "ModernFix",
+          "version": "5.20.3+mc1.21.4"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "b1fdbe54894cb0a4be0a5d8378ec97f586c51bf812d3ccb72f2e5fa396de2e1e",
+      "size": 6500668
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.5"
+      ],
+      "file": "trsclient-fabric-1.21.5.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.16.3+mc1.21.5"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "8.0.4"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.9.7+1.21.5"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "a16b66e3f53f0a29655de99115d324f7ab65f4381a0797cc2a90ceab0fdbd9f9",
+      "size": 5984433
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.6"
+      ],
+      "file": "trsclient-fabric-1.21.6.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.17.0+mc1.21.6"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "8.0.4"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.10.3+1.21.6"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "2aa5a8495c8b39ca220a6065f88a953c4a6b6d2c1338fddc3456ac1e37bdb699",
+      "size": 5960310
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.7"
+      ],
+      "file": "trsclient-fabric-1.21.7.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.18.0+mc1.21.7"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "8.0.4"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.11.2+1.21.7"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "9fe9f4b32cf464b10f8958181625af40093ba7d161bab9b18c6f636f72b89adf",
+      "size": 5960313
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.8"
+      ],
+      "file": "trsclient-fabric-1.21.8.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.18.1+mc1.21.8"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "8.0.4"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.12.6+1.21.8"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "1f57f81625240459bda1ccf7edd5008cf6b2e32d6d55d2654d0aac0c21e16d92",
+      "size": 6106897
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.9"
+      ],
+      "file": "trsclient-fabric-1.21.9.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.19.2+mc1.21.9"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "8.1.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.13.6+1.21.10"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.3.3"
+        }
+      ],
+      "sha256": "5dd66dff41be54e0865b5830f3388f8822a9322393b3953eaeed22f9255e084a",
+      "size": 6092855
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.10"
+      ],
+      "file": "trsclient-fabric-1.21.10.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.20.1+mc1.21.10"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "8.1.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.13.6+1.21.10"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "0cd006ec5b81baf8aea305c7fb33a1bd66e980c488b5880b564ab1a391876f48",
+      "size": 6105826
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "1.21.11"
+      ],
+      "file": "trsclient-fabric-1.21.11.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.21.4+mc1.21.11"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "8.2.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.14.3+1.21.11"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "fdc40cf25e8cc3e37418a892a7d024800dbe8c03d6d4cd0b22a36305ab66dca7",
+      "size": 6149038
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "26.1"
+      ],
+      "file": "trsclient-fabric-26.1.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.24.7+mc26.1.2"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "9.0.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.15.3+26.1"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "75e436bca621b3733a403182d70fa42b19b75dc25f8f25f2c587851cf7315bf0",
+      "size": 5962314
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "26.1.1"
+      ],
+      "file": "trsclient-fabric-26.1.1.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.24.7+mc26.1.2"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "9.0.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.15.3+26.1"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "50fd6a08642a3792fc6df7c84d2ae3174fc561f79276f722d6452edfe6885b42",
+      "size": 5962316
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "26.1.2"
+      ],
+      "file": "trsclient-fabric-26.1.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.24.7+mc26.1.2"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "9.0.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.15.3+26.1"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "1fedd4aa9d7806369ed1a466e3f17f1aa68e8222034411c5795e2c85dd713ab0",
+      "size": 5962319
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "26.2"
+      ],
+      "file": "trsclient-fabric-26.2.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.25.3+mc26.2"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "9.0.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.16.5+26.2"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "d7d6dada352191fc33a32b787bbf623010bc9479c20acbbadb49eb98e79e4c23",
+      "size": 5758449
+    },
+    {
+      "loader": "fabric",
+      "minecraft": [
+        "26.3"
+      ],
+      "file": "trsclient-fabric-26.3.jar",
+      "requires": [
+        "fabric-api"
+      ],
+      "bundled": [
+        {
+          "id": "lithium",
+          "name": "Lithium",
+          "version": "0.26.1+mc26.3"
+        },
+        {
+          "id": "ferritecore",
+          "name": "FerriteCore",
+          "version": "9.0.0"
+        },
+        {
+          "id": "immediatelyfast",
+          "name": "ImmediatelyFast",
+          "version": "1.17.1+26.3"
+        },
+        {
+          "id": "badoptimizations",
+          "name": "BadOptimizations",
+          "version": "2.4.1"
+        }
+      ],
+      "sha256": "b4fe7ab12540985410be22410f00d50a140a0680b05805b683b3485f0f1decc9",
+      "size": 5752078
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.13.2"
+      ],
+      "file": "trsclient-forge-1.13.2.jar",
+      "requires": [],
+      "forge": "1.13.2-25.0.223",
+      "sha256": "80bdeb2717b236eb284e07e3a63d684f7c96afc3844ebdddb272bfa745e13eb9",
+      "size": 4135471
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.14.4"
+      ],
+      "file": "trsclient-forge-1.14.4.jar",
+      "requires": [],
+      "forge": "1.14.4-28.2.26",
+      "sha256": "6ae70f94a81dd6eb56a732292de760f66c5575af8219c0c6861397a0e8f367aa",
+      "size": 4451217
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.15.2"
+      ],
+      "file": "trsclient-forge-1.15.2.jar",
+      "requires": [],
+      "forge": "1.15.2-31.2.57",
+      "sha256": "5de9c46f910acc1b62faed0145fcd9890deb11805e5b078ed42a46454296df0e",
+      "size": 4548166
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.16.2"
+      ],
+      "file": "trsclient-forge-1.16.2.jar",
+      "requires": [],
+      "forge": "1.16.2-33.0.61",
+      "sha256": "927fc8bc8986780ebb259777702a7436c0ff0e327cb52ca3dfd30236b7517b98",
+      "size": 4563742
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.16.4"
+      ],
+      "file": "trsclient-forge-1.16.4.jar",
+      "requires": [],
+      "forge": "1.16.4-35.1.4",
+      "sha256": "9a91fa29a27d5c511ad27d58b54871596ee12247222f557943f119c3cd19aaa7",
+      "size": 4564741
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.16.5"
+      ],
+      "file": "trsclient-forge-1.16.5.jar",
+      "requires": [],
+      "forge": "1.16.5-36.2.34",
+      "sha256": "88e4aa6b18b6e5991de1b9961eee653bc6fd21df7f39998485bf25fd1ad321ba",
+      "size": 4564740
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.17.1"
+      ],
+      "file": "trsclient-forge-1.17.1.jar",
+      "requires": [],
+      "forge": "1.17.1-37.1.1",
+      "sha256": "3990420afa42e131d31fe70ac813a07ed3b07cd3f843b64dbef9470bba252a4e",
+      "size": 4590844
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.18"
+      ],
+      "file": "trsclient-forge-1.18.jar",
+      "requires": [],
+      "forge": "1.18-38.0.17",
+      "sha256": "5605f0a0412100f5b2711a642415665510d5048690c7cdbde51b3f4a56f74015",
+      "size": 4591333
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.18.1"
+      ],
+      "file": "trsclient-forge-1.18.1.jar",
+      "requires": [],
+      "forge": "1.18.1-39.1.0",
+      "sha256": "4e6e04a0433023ca987b00203f9d52a7d8a3589af1188e9cba143e28de755337",
+      "size": 4591334
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.18.2"
+      ],
+      "file": "trsclient-forge-1.18.2.jar",
+      "requires": [],
+      "forge": "1.18.2-40.3.0",
+      "sha256": "03c88e6d46d5a93aa0805911ab484d44d1237b51484312c56175902c0a21f51d",
+      "size": 4591780
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.19"
+      ],
+      "file": "trsclient-forge-1.19.jar",
+      "requires": [],
+      "forge": "1.19-41.1.0",
+      "sha256": "b575f92c619e5e7689bbe5d301b4ef5088201e3e0cfb1e6fd537cdb31fb88bc4",
+      "size": 4592342
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.19.1"
+      ],
+      "file": "trsclient-forge-1.19.1.jar",
+      "requires": [],
+      "forge": "1.19.1-42.0.9",
+      "sha256": "b08737d1dbb2f93dfe4afde6f6fe0988d129bf04c0272343f5048e694509c741",
+      "size": 4593646
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.19.2"
+      ],
+      "file": "trsclient-forge-1.19.2.jar",
+      "requires": [],
+      "forge": "1.19.2-43.5.0",
+      "sha256": "ae671b69afef344b6a4d08b2d3c925ff50b02145eaddc7c9a27fb8deb5ff9387",
+      "size": 4593889
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.19.3"
+      ],
+      "file": "trsclient-forge-1.19.3.jar",
+      "requires": [],
+      "forge": "1.19.3-44.1.0",
+      "sha256": "6e01a1af63c47762874135960246d47d0aeb76f3346244393aa6bd55b80fab57",
+      "size": 4593992
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.19.4"
+      ],
+      "file": "trsclient-forge-1.19.4.jar",
+      "requires": [],
+      "forge": "1.19.4-45.4.0",
+      "sha256": "820709d328197378274cd46e6f9e5212f315e8ddd82ef3e81cbed9d13b5a05ec",
+      "size": 4592692
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.20"
+      ],
+      "file": "trsclient-forge-1.20.jar",
+      "requires": [],
+      "forge": "1.20-46.0.14",
+      "sha256": "f5c26b206fdc8916126db8297ce8a8126984f5b8c6bcf185b043fc92206b7c27",
+      "size": 4539678
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.20.1"
+      ],
+      "file": "trsclient-forge-1.20.1.jar",
+      "requires": [],
+      "forge": "1.20.1-47.4.10",
+      "sha256": "f9ed2f0f77c1c71e6c09fc92915bd2e9d26978dfec4bd7695fe3eac0c62f585a",
+      "size": 4539731
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.20.2"
+      ],
+      "file": "trsclient-forge-1.20.2.jar",
+      "requires": [],
+      "forge": "1.20.2-48.1.0",
+      "sha256": "143bcb7ebd9e81a58213d7ec2f76aa8e8d5970686fe12004f944eb34cc1515c9",
+      "size": 4540975
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.20.3"
+      ],
+      "file": "trsclient-forge-1.20.3.jar",
+      "requires": [],
+      "forge": "1.20.3-49.0.2",
+      "sha256": "6002e3beb455335c079b9cacffce4ddb8f45b4d3ac669e9b94c1f7c80cfa5f48",
+      "size": 4543614
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.20.4"
+      ],
+      "file": "trsclient-forge-1.20.4.jar",
+      "requires": [],
+      "forge": "1.20.4-49.2.0",
+      "sha256": "76c22afb070d3422bb220728ef73ece5102670eae687cc7df3987d8bd6a0d18c",
+      "size": 4543614
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.20.6"
+      ],
+      "file": "trsclient-forge-1.20.6.jar",
+      "requires": [],
+      "forge": "1.20.6-50.2.0",
+      "sha256": "2fedabcfed6a4500511141082ecfb3e91ec003ffa88ffb0defa8cf80267be816",
+      "size": 4514133
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21"
+      ],
+      "file": "trsclient-forge-1.21.jar",
+      "requires": [],
+      "forge": "1.21-51.0.33",
+      "sha256": "7eadeeca64a271f5a21ae284a0a92423b41b5c17e3cb28ad800273418e707efe",
+      "size": 4514040
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.1"
+      ],
+      "file": "trsclient-forge-1.21.1.jar",
+      "requires": [],
+      "forge": "1.21.1-52.1.0",
+      "sha256": "dd51a80fa30b1d178cdfff0f8c073e6ea75cefeff01ae291230b86681cb2af7b",
+      "size": 4514044
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.3"
+      ],
+      "file": "trsclient-forge-1.21.3.jar",
+      "requires": [],
+      "forge": "1.21.3-53.1.0",
+      "sha256": "4ea6271770e3a0c59a235b53242efdb50a516a81d13b2dd8e4eaa8e552c0b139",
+      "size": 4513871
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.4"
+      ],
+      "file": "trsclient-forge-1.21.4.jar",
+      "requires": [],
+      "forge": "1.21.4-54.1.14",
+      "sha256": "3022dcf96500b7960e302efa148fccddfa98e130d7deffe44f21b096f89799b7",
+      "size": 4513865
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.5"
+      ],
+      "file": "trsclient-forge-1.21.5.jar",
+      "requires": [],
+      "forge": "1.21.5-55.1.0",
+      "sha256": "ce9986ff4a266703ab17dd9a74fdd377d96bdcb9af1abb34fe09cbfb52ebba7c",
+      "size": 4515171
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.6"
+      ],
+      "file": "trsclient-forge-1.21.6.jar",
+      "requires": [],
+      "forge": "1.21.6-56.0.9",
+      "sha256": "728bacb43f3d4936b50c1d0caeb84822f5956957c177972ab98ba7f759b32703",
+      "size": 4515554
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.7"
+      ],
+      "file": "trsclient-forge-1.21.7.jar",
+      "requires": [],
+      "forge": "1.21.7-57.0.3",
+      "sha256": "4c6a8d32f056c207872b0333562c401c9ba1c698a343479a41b2e87859ff67b9",
+      "size": 4515554
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.8"
+      ],
+      "file": "trsclient-forge-1.21.8.jar",
+      "requires": [],
+      "forge": "1.21.8-58.1.0",
+      "sha256": "2d7036278f519f719c53f2de20734f790e2735715a40b049917ab3515beb0a67",
+      "size": 4515554
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.9"
+      ],
+      "file": "trsclient-forge-1.21.9.jar",
+      "requires": [],
+      "forge": "1.21.9-59.0.5",
+      "sha256": "b0eeb4245ea8a03d89414b9ce5df00e5cec63324f57b70d8081cc58b5f1d2a48",
+      "size": 4515472
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.10"
+      ],
+      "file": "trsclient-forge-1.21.10.jar",
+      "requires": [],
+      "forge": "1.21.10-60.1.0",
+      "sha256": "9eb5424f1701353d057afad14f84f0f2f75575f9ac7d2b8e956f19d4a2704493",
+      "size": 4515474
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.21.11"
+      ],
+      "file": "trsclient-forge-1.21.11.jar",
+      "requires": [],
+      "forge": "1.21.11-61.2.0",
+      "sha256": "7a7ee921215f60250a57fcadfd87bfa95208d0de4549a106c2b8147bb5ad79ce",
+      "size": 4516044
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "26.1"
+      ],
+      "file": "trsclient-forge-26.1.jar",
+      "requires": [],
+      "forge": "26.1-62.0.9",
+      "sha256": "9b84de126510d0af2dbdc7695186d33a78ecee5c4a420cbe2d6dd550e8681480",
+      "size": 4551530
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "26.1.1"
+      ],
+      "file": "trsclient-forge-26.1.1.jar",
+      "requires": [],
+      "forge": "26.1.1-63.0.2",
+      "sha256": "f82499eb25b01dbef51176a7ed1f82c4ec3fa0f3280cea41d941f8be90a483da",
+      "size": 4551532
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "26.1.2"
+      ],
+      "file": "trsclient-forge-26.1.2.jar",
+      "requires": [],
+      "forge": "26.1.2-64.1.0",
+      "sha256": "77bb2a5c742488f693d0590fdaea22144bace7ee4629eb155269c0d99ede2e5a",
+      "size": 4551534
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "26.2"
+      ],
+      "file": "trsclient-forge-26.2.jar",
+      "requires": [],
+      "forge": "26.2-65.1.0",
+      "sha256": "f066642115d9e326fc728ea7e76298dbeb950d0e1e256479ea2036a36905115c",
+      "size": 4552714
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "26.3"
+      ],
+      "file": "trsclient-forge-26.3.jar",
+      "requires": [],
+      "forge": "26.3-66.0.2",
+      "sha256": "f84b6d7657839180562f0313bda02664b63e428e85d5d20aa5a17dd1b496474a",
+      "size": 4549552
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.7.10"
+      ],
+      "file": "trsclient-forge-1.7.10.jar",
+      "requires": [],
+      "forge": "1.7.10-10.13.4.1614",
+      "sha256": "1f5c8c8fe4d85be6be35f9a35009d51e8a17cf7611fd035e91611deecb8bac4a",
+      "size": 4128400
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.8.9"
+      ],
+      "file": "trsclient-forge-1.8.9.jar",
+      "requires": [],
+      "forge": "1.8.9-11.15.1.2318",
+      "sha256": "947feb139ff324e8ca2dc2342badd7ad036337fed12fbc0fa6c249933f7e835d",
+      "size": 4624251
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.9"
+      ],
+      "file": "trsclient-forge-1.9.jar",
+      "requires": [],
+      "forge": "1.9-12.16.1.1887",
+      "sha256": "d07b04e6341b3845094fd8cd2367556f5bb477107580e7dcd574df6f230fc6c6",
+      "size": 4625170
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.9.4"
+      ],
+      "file": "trsclient-forge-1.9.4.jar",
+      "requires": [],
+      "forge": "1.9.4-12.17.0.2317",
+      "sha256": "da2fbdfba0e0b0fb697e7e23e9e9986eab89a6fce71b9456b0324351db3ec963",
+      "size": 4625174
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.10",
+        "1.10.2"
+      ],
+      "file": "trsclient-forge-1.10.2.jar",
+      "requires": [],
+      "forge": "1.10.2-12.18.3.2511",
+      "sha256": "30e9c17b93eaea896745808013eb0fbcc7c203212f3d94c0907772eadb753ba8",
+      "size": 4629754
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.11",
+        "1.11.2"
+      ],
+      "file": "trsclient-forge-1.11.2.jar",
+      "requires": [],
+      "forge": "1.11.2-13.20.1.2588",
+      "sha256": "1aca38eb3eb4b9b7bf0b71bf95149d3819f29737661a99451b70222b9484154b",
+      "size": 4630493
+    },
+    {
+      "loader": "forge",
+      "minecraft": [
+        "1.12",
+        "1.12.1",
+        "1.12.2"
+      ],
+      "file": "trsclient-forge-1.12.2.jar",
+      "requires": [],
+      "forge": "1.12.2-14.23.5.2859",
+      "sha256": "1481d2cb7829eaddbb3453baa9875f12db3a3d36fef25cdd2a3172a31a7357de",
+      "size": 4630717
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.20.2"
+      ],
+      "file": "trsclient-neoforge-1.20.2.jar",
+      "requires": [],
+      "neoforge": "20.2.93",
+      "sha256": "dd89712dffa2b931945e25de6eaf4a19cb7fd19d8f8e64b779fc1fb50a8424a5",
+      "size": 4508877
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.20.3"
+      ],
+      "file": "trsclient-neoforge-1.20.3.jar",
+      "requires": [],
+      "neoforge": "20.3.8-beta",
+      "sha256": "25a809cafa2829c5c8cc67d8e1cc31c569fcba9242c69144fa3c4845e3d16306",
+      "size": 4511270
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.20.4"
+      ],
+      "file": "trsclient-neoforge-1.20.4.jar",
+      "requires": [],
+      "neoforge": "20.4.251",
+      "sha256": "2ae09ca514c33389f1fce6263bcef613ca26e162cfbd1dd0369d484b27ffebcf",
+      "size": 4511270
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.20.5"
+      ],
+      "file": "trsclient-neoforge-1.20.5.jar",
+      "requires": [],
+      "neoforge": "20.5.21-beta",
+      "sha256": "bbaacd13912ae8975711aef905b40aa1153c04fec37351804eaa95ccc39c3116",
+      "size": 4511538
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.20.6"
+      ],
+      "file": "trsclient-neoforge-1.20.6.jar",
+      "requires": [],
+      "neoforge": "20.6.141",
+      "sha256": "ea4064e4890f555749ed35af4d350727fcc5cb81ac5d108197d94f6ebccaa413",
+      "size": 4511539
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21"
+      ],
+      "file": "trsclient-neoforge-1.21.jar",
+      "requires": [],
+      "neoforge": "21.0.167",
+      "sha256": "055727760dcc35f61a4ace9a37acf91718785535895bfcf9469e13a1ca91a900",
+      "size": 4511436
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.1"
+      ],
+      "file": "trsclient-neoforge-1.21.1.jar",
+      "requires": [],
+      "neoforge": "21.1.251",
+      "sha256": "9e1af179706a2fadd3fc9501325f2eb83c0cd1d4b5d77fe2e94fa245f9a5e8cf",
+      "size": 4511438
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.2"
+      ],
+      "file": "trsclient-neoforge-1.21.2.jar",
+      "requires": [],
+      "neoforge": "21.2.1-beta",
+      "sha256": "f2fb5f5a3f78d3b404d1f149cab15e1781d80fc541f8d0ecad56dd71bdf86fb5",
+      "size": 4511545
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.3"
+      ],
+      "file": "trsclient-neoforge-1.21.3.jar",
+      "requires": [],
+      "neoforge": "21.3.97",
+      "sha256": "f68f7965e0a10f69d08e7a8e7546cf25f9a72ddbb4696344520b6f8082d4b5a9",
+      "size": 4511547
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.4"
+      ],
+      "file": "trsclient-neoforge-1.21.4.jar",
+      "requires": [],
+      "neoforge": "21.4.157",
+      "sha256": "61408c18f3cec0b49266b0f67e186a80bb6c9923a6620eeef25bf523c87152a2",
+      "size": 4511436
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.5"
+      ],
+      "file": "trsclient-neoforge-1.21.5.jar",
+      "requires": [],
+      "neoforge": "21.5.98",
+      "sha256": "9ed9f1242ecf8c9529d92b0842fb56d21c149f9b8fab375c164269c3fd1faeb7",
+      "size": 4512707
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.6"
+      ],
+      "file": "trsclient-neoforge-1.21.6.jar",
+      "requires": [],
+      "neoforge": "21.6.20-beta",
+      "sha256": "2663f4ebf09d4c50c0d50a491d9607417ee8ceab70c1d5da93f74320d6607a4b",
+      "size": 4513046
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.7"
+      ],
+      "file": "trsclient-neoforge-1.21.7.jar",
+      "requires": [],
+      "neoforge": "21.7.25-beta",
+      "sha256": "1d25f5228acbf08a2458ea2e71384a7b6a86b2217e34024f0c4dccd2e9e4c794",
+      "size": 4513046
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.8"
+      ],
+      "file": "trsclient-neoforge-1.21.8.jar",
+      "requires": [],
+      "neoforge": "21.8.54",
+      "sha256": "6a832d145d9b83624e308d4729f630e3bbf04bbe1f377abcd2e7db1d118c7e14",
+      "size": 4513046
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.9"
+      ],
+      "file": "trsclient-neoforge-1.21.9.jar",
+      "requires": [],
+      "neoforge": "21.9.16-beta",
+      "sha256": "786c92151c3fc3b125fb254c44a12f98871fb2f50aa497239c1bd688a40a6820",
+      "size": 4514236
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.10"
+      ],
+      "file": "trsclient-neoforge-1.21.10.jar",
+      "requires": [],
+      "neoforge": "21.10.64",
+      "sha256": "cd35ec146d75e1ca3437b7dcb5bc12339ff8eb65c9225a0fe9540b746d5e7ea1",
+      "size": 4514237
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "1.21.11"
+      ],
+      "file": "trsclient-neoforge-1.21.11.jar",
+      "requires": [],
+      "neoforge": "21.11.45",
+      "sha256": "ddb8da9654a315539b88315f3c28942d971b0bda19cc5ad96ead0e6da8806df1",
+      "size": 4515756
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "26.1"
+      ],
+      "file": "trsclient-neoforge-26.1.jar",
+      "requires": [],
+      "neoforge": "26.1.0.19-beta",
+      "sha256": "b295616bccf0d5a21ddcc8cc3870e413b0911cc5bba95168f2eccada7bf5dc82",
+      "size": 4551376
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "26.1.1"
+      ],
+      "file": "trsclient-neoforge-26.1.1.jar",
+      "requires": [],
+      "neoforge": "26.1.1.15-beta",
+      "sha256": "0a52a37a9adf506a7091e1620f1c733d0fd25120375e426d585428bd058a6312",
+      "size": 4551379
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "26.1.2"
+      ],
+      "file": "trsclient-neoforge-26.1.2.jar",
+      "requires": [],
+      "neoforge": "26.1.2.109",
+      "sha256": "419904d3534659ac6aad3b09c82ca504564eaa22d43b3a029f7803f8fa543a2d",
+      "size": 4551382
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "26.2"
+      ],
+      "file": "trsclient-neoforge-26.2.jar",
+      "requires": [],
+      "neoforge": "26.2.0.88",
+      "sha256": "deb8a1086ee1feba40300c1755f2eb6623142bee77ba2ceedd747b4fd0a69d56",
+      "size": 4552576
+    },
+    {
+      "loader": "neoforge",
+      "minecraft": [
+        "26.3"
+      ],
+      "file": "trsclient-neoforge-26.3.jar",
+      "requires": [],
+      "neoforge": "26.3.0.8-beta",
+      "sha256": "2b391ffd7e7d5e008eeab0c2bf61ffe3b00d8d18cc70c84c86a58dd011aebfa9",
+      "size": 4549213
+    }
+  ]
+}

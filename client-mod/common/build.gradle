@@ -1,0 +1,49 @@
+plugins {
+	id 'java-library'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// Gson liefert Minecraft selbst mit – daher nur zum Kompilieren.
+	compileOnly "com.google.code.gson:gson:${gson_version}"
+	// Netty liefert Minecraft selbst mit (1.8.9: 4.0.23 … 26.3: 4.2.16). Gegen die ÄLTESTE kompilieren, damit der
+	// Welt-Hosting-Kanal (core.hosting.netty) nur API nutzt, die es überall gibt; die Bäume kompilieren ihn gegen ihre
+	// eigene Version erneut.
+	compileOnly 'io.netty:netty-all:4.0.23.Final'
+	// Tests auch gegen neuere Netty-Fassungen: -PtestNetty=4.2.16.Final (Minecraft 26.3) bzw. 4.1.97.Final (1.21.1).
+	testImplementation "io.netty:netty-all:${findProperty('testNetty') ?: '4.0.23.Final'}"
+
+	testImplementation "com.google.code.gson:gson:${gson_version}"
+	testImplementation platform("org.junit:junit-bom:${junit_version}")
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// DPAPI-Test (Kontenspeicher): älteste JNA, die Minecraft mitbringt (1.8.9–1.13: 3.4.0).
+	testRuntimeOnly 'net.java.dev.jna:jna:3.4.0'
+}
+
+// common wird in JEDE Mod-JAR mitkompiliert – auch für Minecraft 1.14–1.16 (Java 8).
+// Deshalb: nur Java-8-Sprache und -API (keine records/var/switch-Ausdrücke/List.of …).
+tasks.named('compileJava') {
+	options.release = 8
+	options.compilerArgs << '-Xlint:-options'
+}
+
+// Schaltungs-Bibliothek: die mitgelieferten Schaltungen liegen als Quelldaten der TRS API in <repo>/data/circuits –
+// nicht im Mod-Jar (die Bibliothek kommt vom Server), aber im Test-Classpath (Simulation, Validierung).
+sourceSets {
+	test {
+		resources.srcDir '../../data'
+	}
+}
+
+test {
+	useJUnitPlatform()
+	// Opt-in-Tests mit Netz (z. B. -Dtrsclient.test.e4mc=true) an die Test-JVM durchreichen.
+	System.properties.findAll { it.key.toString().startsWith('trsclient.test.') }.each { k, v -> systemProperty k, v }
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+	}
+}

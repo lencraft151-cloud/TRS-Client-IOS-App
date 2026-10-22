@@ -1,0 +1,433 @@
+// Build-Skript für JEDE Fabric-Version (:fabric:<minecraft>), ausgeführt von Stonecutter.
+// Quellcode: fabric/src (vorverarbeitet je Version) + common/src/main/java (unverändert).
+// Versionsspezifische Werte: fabric/versions/<minecraft>/gradle.properties
+
+def mc = stonecutter.current.version
+// Ab 26.1 ist Minecraft nicht mehr obfuskiert → Loom ohne Remapping, keine Mappings.
+def unobfuscated = stonecutter.eval(mc, '>=26.1')
+// Bytecode-Level = Java, mit dem Mojang diese Version ausliefert (1.14–1.16: 8, 1.17: 16, 1.18–1.20.4: 17, …).
+def javaVersion = stonecutter.eval(mc, '>=26.1') ? 25 : (stonecutter.eval(mc, '>=1.20.5') ? 21 :
+		(stonecutter.eval(mc, '>=1.18') ? 17 : (stonecutter.eval(mc, '>=1.17') ? 16 : 8)))
+// Kompiliert (und gestartet) wird mindestens mit JDK 17 – javac erzeugt per --release älteren Bytecode.
+def toolchainVersion = Math.max(javaVersion, 17)
+
+apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap'
+
+// Mod-Abhängigkeiten heißen im unobfuskierten Loom einfach implementation/compileOnly/…
+def modImpl = unobfuscated ? 'implementation' : 'modImplementation'
+def modRuntime = unobfuscated ? 'runtimeOnly' : 'modRuntimeOnly'
+
+group = rootProject.maven_group
+version = rootProject.mod_version
+
+base {
+	archivesName = "trsclient-fabric-${mc}"
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(toolchainVersion)
+	}
+	withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release = javaVersion
+	// "--release 8" ist in neuen JDKs veraltet – die Warnung ist hier gewollt.
+	options.compilerArgs << '-Xlint:-options'
+}
+
+// Die versionsunabhängige Logik wird mit dem Java-Level DIESER Version mitkompiliert
+// (1.14–1.16 laufen auf Java 8!) und landet direkt in der Mod-JAR – common ist deshalb reines Java 8.
+sourceSets.main.java.srcDir(rootProject.file('common/src/main/java'))
+sourceSets.main.resources.srcDir(rootProject.file('common/src/main/resources'))
+
+loom {
+	runs {
+		client {
+			// Gemeinsames Spielverzeichnis für alle Versionen: client-mod/run
+			runDir = '../../../run'
+			// Mixin-Anwendung sichtbar im Log (Nachweis, dass alle Mixins greifen).
+			vmArg '-Dmixin.debug.verbose=true'
+			// ./gradlew :fabric:<v>:runClient -PtrsAutotest → Menü, Testwelt, Screenshots, beendet sich selbst.
+			if (project.hasProperty('trsAutotest')) {
+				vmArg '-Dtrsclient.autotest=true'
+			}
+			// -PtrsAutotestOnly=redstone → nur den Redstone-Teil des Autotests
+			if (project.hasProperty('trsAutotestOnly')) {
+				vmArg "-Dtrsclient.autotest.only=${project.trsAutotestOnly}"
+			}
+			// -PtrsAutotestServer=127.0.0.1:25599 → Autotest „reload“ tritt diesem Server bei (Server-Ressourcenpaket)
+			if (project.hasProperty('trsAutotestServer')) {
+				vmArg "-Dtrsclient.autotest.server=${project.trsAutotestServer}"
+			}
+			// -PtrsSys.<name>=<wert> → -D<name>=<wert> (eigene Schalter einzelner Autotests, z. B. fastconnect)
+			project.properties.findAll { it.key.toString().startsWith('trsSys.') }.each { k, v ->
+				vmArg "-D${k.toString().substring(7)}=${v}"
+			}
+			// -PtrsApi=http://127.0.0.1:8787 → TRS API + Mojang-Join gegen eine lokale Attrappe (Umhang-/Abzeichen-Tests)
+			if (project.hasProperty('trsApi')) {
+				vmArg "-Dtrsclient.api.url=${project.trsApi}"
+				vmArg "-Dtrsclient.session.url=${project.trsApi}"
+			}
+			// Benchmark (-PtrsAutotestOnly=bench) realistisch: VSync/FPS-Grenze aus options.txt statt „alles offen“
+			// (-PtrsBenchOptions=vanilla|trs|keep, siehe unten), Bezeichnung des Laufs im Log (-PtrsBenchLabel=…).
+			if (project.hasProperty('trsBenchOptions')) {
+				vmArg '-Dtrsclient.bench.keepOptions=true'
+			}
+			if (project.hasProperty('trsBenchLabel')) {
+				vmArg "-Dtrsclient.bench.label=${project.trsBenchLabel}"
+			}
+			// Realistischer Benchmark (-PtrsAutotestOnly=realbench): Welt mit festem Seed, Dorf-Mitte (x,z oder „locate“),
+			// Vanilla ohne TRS Client, JFR-Aufnahme der Messung; Fenster groß (wird auf Bildschirm 2 maximiert).
+			['trsBenchSeed': 'seed', 'trsBenchCenter': 'center', 'trsBenchJfr': 'jfr', 'trsBenchSeconds': 'seconds', 'trsBenchOff': 'off',
+			 'trsBenchNoMixins': 'noMixins', 'trsBenchNoHud': 'noHud', 'trsBenchLatency': 'latency'].each { prop, key ->
+				if (project.hasProperty(prop)) vmArg "-Dtrsclient.bench.${key}=${project.property(prop)}"
+			}
+			if (project.hasProperty('trsBenchVanilla')) {
+				vmArg '-Dtrsclient.bench.vanilla=true'
+			}
+			if (project.findProperty('trsAutotestOnly') == 'realbench') {
+				programArgs '--width', '1920', '--height', '1080'
+			}
+		}
+		server {
+			ideConfigGenerated = false
+		}
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+// Nur die benötigten Fabric-API-Module (spart je Version das Remappen der kompletten API).
+def fapiModules = [
+		'fabric-api-base',
+		'fabric-lifecycle-events-v1',
+		stonecutter.eval(mc, '>=26.1') ? 'fabric-key-mapping-api-v1' : 'fabric-key-binding-api-v1',
+		stonecutter.eval(mc, '>=1.21.9') ? 'fabric-resource-loader-v1' : 'fabric-resource-loader-v0',
+]
+// HudRenderCallback gibt es erst ab 1.15 – in 1.14 hängt sich der HUD per eigenem Mixin ein.
+if (stonecutter.eval(mc, '>=1.15')) fapiModules << 'fabric-rendering-v1'
+// Die komplette Fabric API nur, wenn genau diese Version gestartet wird (:fabric:<v>:runClient)
+// oder mit -PtrsFullApi – Loom verarbeitet Mod-Abhängigkeiten schon beim Konfigurieren.
+def running = project.hasProperty('trsFullApi') ||
+		gradle.startParameter.taskNames.any { it == "${project.path}:runClient".toString() }
+
+/**
+ * Jar-in-Jar einer Mod-JAR (rekursiv) nach outDir auspacken, z. B. Reflect (net.lenni0451) in ImmediatelyFast.
+ * Nur für die Entwicklungsumgebung: Loom streicht beim Remappen von Mod-Abhängigkeiten die "jars"-Liste aus
+ * fabric.mod.json (Abhängigkeiten sollen dort über Maven kommen) – ohne diese Liste fehlten die Klassen im Dev-Lauf
+ * (NoClassDefFoundError net/lenni0451/reflect/Objects, sobald eine Karte geladen wird). In der fertigen Mod-JAR
+ * bleibt die Mod unverändert eingebettet und Fabric lädt ihr Jar-in-Jar selbst.
+ */
+def nestedJars
+nestedJars = { File jar, File outDir ->
+	List<File> out = []
+	new java.util.zip.ZipFile(jar).withCloseable { zip ->
+		def fmj = zip.getEntry('fabric.mod.json')
+		if (fmj == null) return
+		def meta = new groovy.json.JsonSlurper().parse(zip.getInputStream(fmj), 'UTF-8')
+		(meta.jars ?: []).each { j ->
+			def entry = zip.getEntry(j.file.toString())
+			if (entry == null) return
+			File f = new File(outDir, j.file.toString().tokenize('/').last())
+			if (!f.isFile() || f.length() != entry.size) {
+				f.parentFile.mkdirs()
+				zip.getInputStream(entry).withStream { input -> f.withOutputStream { it << input } }
+			}
+			out << f
+			out.addAll(nestedJars(f, outDir))
+		}
+	}
+	out
+}
+
+/**
+ * Eingebaute Optimierungs-Mods dieser Version laut fabric/bundled-mods.json: in ~/.gradle/caches/trsclient-bundled
+ * laden (nur beim ersten Mal), SHA-512 prüfen. Liste [{id, name, version, license, source, path, nested}].
+ */
+def bundledMods = { ->
+	if (project.hasProperty('trsNoBundledMods')) return []
+	def pin = rootProject.file('fabric/bundled-mods.json')
+	def all = new groovy.json.JsonSlurper().parse(pin, 'UTF-8')
+	def cache = new File(gradle.gradleUserHomeDir, 'caches/trsclient-bundled')
+	(all[mc.toString()] ?: []).collect { e ->
+		File target = new File(cache, "${e.sha512.substring(0, 16)}/${e.file}")
+		if (!target.isFile()) {
+			target.parentFile.mkdirs()
+			File tmp = new File(target.parentFile, target.name + '.part')
+			new URL(e.url).withInputStream { input -> tmp.withOutputStream { it << input } }
+			tmp.renameTo(target)
+		}
+		def digest = java.security.MessageDigest.getInstance('SHA-512').digest(target.bytes).encodeHex().toString()
+		if (digest != e.sha512) {
+			target.delete()
+			throw new GradleException("Eingebaute Mod ${e.file}: SHA-512 stimmt nicht (bundled-mods.json)")
+		}
+		// Loom bettet nur Maven-Module ein: geprüfte Datei in ein lokales Repo legen (Version = Hash-Anfang).
+		String sha = e.sha512.substring(0, 16)
+		File repoDir = rootProject.file("build/bundled-repo/trsclient/bundled/${e.id}/${sha}")
+		File jar = new File(repoDir, "${e.id}-${sha}.jar")
+		if (!jar.isFile() || jar.length() != target.length()) {
+			repoDir.mkdirs()
+			jar.bytes = target.bytes
+			new File(repoDir, "${e.id}-${sha}.pom").setText("""<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+<groupId>trsclient.bundled</groupId><artifactId>${e.id}</artifactId><version>${sha}</version></project>
+""", 'UTF-8')
+		}
+		[id: e.id, name: e.name, version: e.version, modVersion: e.modVersion ?: '', license: e.license, source: e.source, path: target,
+		 coordinate: "trsclient.bundled:${e.id}:${sha}", nested: nestedJars(target, new File(target.parentFile, 'nested'))]
+	}
+}()
+ext.bundledMods = bundledMods
+if (!bundledMods.isEmpty()) {
+	repositories {
+		maven {
+			name = 'TRS bundled mods (lokal, geprüft)'
+			url = rootProject.file('build/bundled-repo')
+			content { includeGroup 'trsclient.bundled' }
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${mc}"
+	if (!unobfuscated) {
+		mappings loom.officialMojangMappings()
+	}
+	add(modImpl, "net.fabricmc:fabric-loader:${rootProject.loader_version}")
+	// Alte Fabric-API-Versionen (1.14–1.16) ziehen ein altes fabric-loader mit – das bringen wir selbst mit.
+	fapiModules.each {
+		add(modImpl, fabricApi.module(it, project.fabric_api_version)) { exclude group: 'net.fabricmc', module: 'fabric-loader' }
+	}
+	if (running) {
+		add(modRuntime, "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}") {
+			exclude group: 'net.fabricmc', module: 'fabric-loader'
+		}
+		// Benchmark mit fremden Mods (z. B. dem „Max FPS“-Preset des Launchers): -PtrsBenchMods=<Ordner mit Mod-JARs
+		// für genau diese Version> – Loom mappt sie für die Entwicklungsumgebung um.
+		if (project.hasProperty('trsBenchMods')) {
+			add(modRuntime, fileTree(dir: project.trsBenchMods, include: '*.jar'))
+		}
+	}
+	compileOnly "com.google.code.gson:gson:${rootProject.gson_version}"
+	// Eingebaute Optimierungen: freie Leistungs-Mods per Jar-in-Jar (fabric/bundled-mods.json, fest gepinnt).
+	// Fabric nimmt bei gleicher Mod-ID die neueste Fassung – hat der Spieler sie selbst, gibt es keine Dopplung.
+	// In der Entwicklungsumgebung laufen sie mit (wie beim Spieler); -PtrsNoBundledMods lässt sie ganz weg.
+	bundledMods.each { mod ->
+		add('include', mod.coordinate)
+		if (running) add(modRuntime, mod.coordinate)
+		// Dev-Lauf: deren Jar-in-Jar (z. B. Reflect in ImmediatelyFast) direkt auf den Klassenpfad – Loom streicht es
+		// beim Remappen (siehe nestedJars). Ab 26.1 wird nichts remappt, das Jar-in-Jar bleibt dort erhalten.
+		if (running && !unobfuscated) mod.nested.each { add(modRuntime, files(it)) }
+	}
+}
+
+// Mixin-Liste je Version: 1.14 braucht eigene HUD-/Tasten-Hooks, die Overlay-Textur gibt es erst ab 1.15.
+def mixinClasses = ['CameraMixin', 'CrosshairMixin', 'FovMixin', 'LightmapMixin', 'MouseHandlerMixin', 'TitleScreenMixin',
+		'MouseHandlerAccessor', 'KeyboardHandlerAccessor',
+		'AttackMixin', 'ChatComponentAccessor', 'ChatMixin', 'ChatScreenMixin', 'HurtCamMixin', 'OldAnimationsMixin',
+		// TRS API: TRS-Umhang-Textur, Abzeichen in Tabliste und über dem Namen
+		'CapeTextureMixin', 'TabBadgeMixin', 'NameTagBadgeMixin',
+		// Emotes: Pose auf HumanoidModel#setupAnim; ab 1.21.2 Spieler über den Render-State zuordnen.
+		'EmoteModelMixin',
+		// Farben: Farb-Durchgang direkt nach GameRenderer#renderLevel (vor HUD und Menüs).
+		'ColorGradeMixin']
+if (stonecutter.eval(mc, '>=1.21.2')) mixinClasses << 'EmoteStateMixin'
+// Creator-Programm: Fan-Symbol als Bild vor erweiterten Namen (Schrift-Aufrufe der Welt bis 26.1 bzw. der Oberfläche,
+// ab 26.2 beim Einreichen des Namensschilds); bis 1.15 sind Namen reiner Text (dort nur Abzeichen + Stern).
+if (stonecutter.eval(mc, '>=1.16') && stonecutter.eval(mc, '<26.2')) mixinClasses << 'FanTextMixin'
+if (stonecutter.eval(mc, '>=1.16')) mixinClasses << 'FanGuiMixin'
+if (stonecutter.eval(mc, '>=26.2')) mixinClasses << 'FanNameTagMixin'
+// Welt-Hosting: Gast über eigenen Netty-Kanal (Marker-Adresse), Host öffnet ohne TCP/LAN, Spielergrenze ≤ 10.
+mixinClasses += ['HostingConnectMixin', 'HostingPublishMixin', 'HostingPingerMixin', 'HostingServerAccessor']
+mixinClasses << (stonecutter.eval(mc, '>=1.21.9') ? 'HostingPlayerListMixin' : 'HostingPlayerListAccessor')
+// Welt-Hosting: Resource Pack des Hosts als Server-Pack (Konfigurationsphase ab 1.20.3), Gast-Adresse lokal.
+if (stonecutter.eval(mc, '>=1.20.3')) mixinClasses += ['HostingPackServerMixin', 'HostingPackConfigMixin', 'HostingPackClientMixin']
+// Menü-Stil (Pause, Serverliste, Laden, Optionen, Welten): Hintergrund, Knöpfe, Karten, Ladebildschirme.
+mixinClasses += ['MenuScreenMixin', 'MenuButtonMixin', 'MenuEditBoxMixin', 'ServerEntryMixin', 'WorldEntryMixin', 'LoadingOverlayMixin',
+		'JoinMultiplayerAccessor']
+if (stonecutter.eval(mc, '>=1.20.5')) mixinClasses << 'MenuListMixin'
+// Suche in der Tastenbelegung: Einträge der Liste ersetzen (alle Versionen).
+mixinClasses << 'KeySearchListInvoker'
+// Fehlerbildschirm: Ziel der letzten Verbindung merken (Erneut verbinden, Neu anmelden).
+mixinClasses << 'ConnectTargetMixin'
+if (stonecutter.eval(mc, '<1.20.3')) mixinClasses << 'SelectionListAccessor'
+if (stonecutter.eval(mc, '<1.19.4')) mixinClasses << 'LoadingScreenMixin'
+// Sozial-Toasts über Vanilla-Menüs: bis 1.19.3 nach dem Bildschirm im GameRenderer (ab 1.19.4 über MenuScreenMixin).
+if (stonecutter.eval(mc, '<1.19.4')) mixinClasses << 'ScreenToastMixin'
+if (stonecutter.eval(mc, '>=26.1')) mixinClasses << 'PauseBackgroundMixin'
+// Leistung: Dynamische FPS/FPS-Messung, Partikel, Entity-Culling, Welt-Details (alle require = 0).
+mixinClasses += ['FramePaceMixin', 'WindowMixin', 'ParticleLimitMixin', 'EntityCullMixin', 'BlockEntityCullMixin', 'NameTagCullMixin',
+		'LivingNameTagCullMixin', 'TextureAnimationMixin', 'SkyMixin', 'StarsMixin']
+// Netzwerk-Optimierung + Ping (Handler an der Client-Verbindung), niedrige Eingabeverzögerung (spätes Lesen der Maus).
+mixinClasses += ['NetConnectionMixin', 'LatencyMixin']
+// Schnell verbinden: Adressen-Rennen am Verbindungsaufbau, DNS-Speicher im Resolver (bis 1.16 im SRV-Nachschlagen).
+mixinClasses += ['FastConnectMixin', 'FastResolveMixin']
+// Schnell verbinden: Server-Ressourcenpakete (merken, vorladen, gleiches Paket beim Wechsel nicht neu laden),
+// schneller Serverwechsel (Beginn/Ende, keine Bildraten-Drossel in der Konfigurationsphase, Ladeanzeige ohne 1-s-Minimum,
+// 1.18.2–1.19.2 ohne 2-s-Wartezeit bei „Lade Gelände“).
+mixinClasses += ['PackPushMixin', 'PackStatusMixin', 'FastSwitchMixin']
+if (stonecutter.eval(mc, '>=1.20.2')) mixinClasses << 'FrameCapMixin'
+if (stonecutter.eval(mc, '>=1.21.9')) mixinClasses << 'PackOverlayMixin'
+if (stonecutter.eval(mc, '>=1.18.2') && stonecutter.eval(mc, '<1.19.3')) mixinClasses << 'TerrainScreenMixin'
+// Regen/Schnee (1.14 im GameRenderer, sonst LevelRenderer); Nebel-Werte liegen ab 1.21.6 in einem GPU-Puffer.
+mixinClasses << 'WeatherMixin'
+if (stonecutter.eval(mc, '>=1.17') && stonecutter.eval(mc, '<1.21.6')) mixinClasses << 'FogMixin'
+// Umhang-Physik: ab 1.15 (1.14 zeichnet den Umhang mit festen GL-Aufrufen, dort bleibt er starr).
+if (stonecutter.eval(mc, '>=1.15')) mixinClasses << 'CapeLayerMixin'
+// TRS-Kopf-Kosmetik (Quietscheente) am Umhang-Layer – dieselbe Grenze.
+if (stonecutter.eval(mc, '>=1.15')) mixinClasses << 'HatLayerMixin'
+// Flügel (v2, attach body) am Körper – wie die Kopf-Kosmetik am Umhang-Layer.
+if (stonecutter.eval(mc, '>=1.15')) mixinClasses << 'WingsLayerMixin'
+if (stonecutter.eval(mc, '<1.15')) mixinClasses << 'HatGlMixin'
+if (stonecutter.eval(mc, '>=1.15')) mixinClasses << 'OverlayTextureAccessor'
+if (stonecutter.eval(mc, '<1.15')) mixinClasses += ['HudMixin', 'KeyMappingAccessor']
+// ScreenEffectRenderer (niedriges Feuer) und die Block-Umrandung mit Farbe gibt es erst ab 1.15.
+if (stonecutter.eval(mc, '>=1.15')) mixinClasses += ['LowFireMixin', 'BlockOutlineMixin']
+// RenderSystem#lineWidth: erst ab 1.15, ab 1.21.11 nicht mehr vorhanden (Linienstärke dort unveränderbar).
+if (stonecutter.eval(mc, '>=1.15') && stonecutter.eval(mc, '<1.21.11')) mixinClasses << 'LineWidthMixin'
+// Hitbox-Farbe: bis 1.21.8 zeichnet der EntityRenderDispatcher die Boxen selbst.
+if (stonecutter.eval(mc, '>=1.15') && stonecutter.eval(mc, '<1.21.9')) mixinClasses << 'HitboxColorMixin'
+// Schild-Position: Haken am Hand-Renderer (alle Versionen); Deckkraft ab 1.21.9 im Submit-Sammler, in 1.14 per GL;
+// ab 26.3 kommt das Modell der Hand aus FirstPersonHandsAndItems.
+// Komfort/PvP: Chat-Filter + Verlauf, Scoreboard/Titel/Bossleiste, Tab-Ping, Totems/Partikel, Namensschutz,
+// Auto-Reconnect-Knopf, Serverliste im Streamer-Modus.
+mixinClasses += ['QolChatMixin', 'ChatHeadMixin', 'ChatHeadLineMixin', 'QolGuiMixin', 'BossBarMixin', 'TabPingMixin', 'QolEntityMixin', 'QolParticleMixin',
+		'NameMaskMixin', 'DisconnectScreenMixin', 'StreamerServerEntryMixin']
+if (stonecutter.eval(mc, '>=1.19.1')) mixinClasses << 'ChatSenderMixin'
+if (stonecutter.eval(mc, '>=1.21.11')) mixinClasses << 'ChatHeadInnerMixin'
+mixinClasses << 'ShieldHandMixin'
+if (stonecutter.eval(mc, '>=1.21.9')) mixinClasses << 'ShieldSubmitMixin'
+if (stonecutter.eval(mc, '>=26.3')) mixinClasses << 'ShieldModelMixin'
+if (stonecutter.eval(mc, '<1.15')) mixinClasses << 'ShieldGlMixin'
+// Komfort-Paket 2: bessere Tooltips (Zusatzkarte am Inventar, Text-Zusätze an der Tooltip-Liste).
+mixinClasses += ['TooltipScreenMixin', 'TooltipLinesMixin']
+
+processResources {
+	def props = [
+			mixins      : mixinClasses.collect { "\"${it}\"" }.join(', '),
+			// Abhängig von den einzelnen Fabric-API-Modulen statt "fabric-api": bis ~1.19 hieß die
+			// Fabric API selbst noch "fabric" – die Modul-IDs sind dagegen in allen Versionen gleich.
+			fapiDepends : fapiModules.collect { "\"${it}\": \"*\"" }.join(', '),
+			version     : project.version,
+			minecraft   : mc,
+			java        : "${javaVersion}",
+			loader      : unobfuscated ? '0.18.4' : '0.15.0',
+			mixinJava   : "JAVA_${javaVersion >= 21 ? 21 : javaVersion}",
+	]
+	inputs.properties(props)
+	filesMatching(['fabric.mod.json', 'trsclient.mixins.json']) {
+		expand props
+	}
+}
+
+// Die fertige Mod-JAR dieser Version (remapJar bzw. jar ab 26.1).
+def modJar = tasks.named(unobfuscated ? 'jar' : 'remapJar')
+ext.trsModJar = modJar
+
+tasks.withType(Jar).configureEach {
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}_trsclient" }
+	}
+	// Lizenzen und Quellen der eingebauten Mods (die Mod-JARs selbst bringen ihre Lizenztexte mit).
+	from(rootProject.file('fabric/BUNDLED-MODS.md')) {
+		rename { 'THIRD-PARTY_trsclient.md' }
+	}
+	from(rootProject.file('licenses/chat-heads-MPL-2.0.txt')) {
+		into 'META-INF'
+	}
+}
+
+// Liste der eingebauten Mods für den Mod selbst (Menü „Eingebaute Optimierungen“): assets/trsclient/bundled-mods.json
+def bundledList = layout.buildDirectory.dir('generated/bundled')
+def writeBundledList = tasks.register('writeBundledList') {
+	def list = bundledMods.collect { [id: it.id, name: it.name, version: it.modVersion ?: it.version, license: it.license, source: it.source] }
+	inputs.property('list', groovy.json.JsonOutput.toJson(list))
+	outputs.dir(bundledList)
+	doLast {
+		File out = bundledList.get().file('assets/trsclient/bundled-mods.json').asFile
+		out.parentFile.mkdirs()
+		out.setText(groovy.json.JsonOutput.toJson(list) + '\n', 'UTF-8')
+	}
+}
+sourceSets.main.resources.srcDir(files(bundledList).builtBy(writeBundledList))
+
+// Autotests ohne Ton (siehe gradle/autotest-mute.gradle).
+apply from: new File(buildscript.sourceFile.parentFile, '../gradle/autotest-mute.gradle')
+
+// Welt-Hosting-Test mit zwei Spielen: -PtrsRunCommandFile=<datei> schreibt die fertige Startzeile (Arbeitsordner,
+// Java, JVM-Argumente, Klassenpfad, Hauptklasse, Programmargumente) als JSON und startet NICHT – das Testskript startet
+// Host und Gast selbst in getrennten Spielordnern (zwei Gradle-Läufe im selben Projekt würden sich sperren).
+if (project.hasProperty('trsRunCommandFile')) {
+	tasks.matching { it.name == 'runClient' }.configureEach { task ->
+		task.doFirst {
+			def java = task.javaLauncher.present ? task.javaLauncher.get().executablePath.asFile.absolutePath : 'java'
+			def json = groovy.json.JsonOutput.toJson([workingDir: task.workingDir.absolutePath, java: java,
+					jvmArgs: task.allJvmArgs, classpath: task.classpath.asPath, mainClass: task.mainClass.get(), args: task.args,
+					environment: task.environment.findAll { k, v -> k == 'ALSOFT_DRIVERS' }])
+			file(project.property('trsRunCommandFile')).write(json, 'UTF-8')
+			logger.lifecycle("Startzeile geschrieben: ${project.property('trsRunCommandFile')}")
+			throw new StopExecutionException()
+		}
+	}
+}
+
+// -PtrsBenchOptions: mit welchen Bildraten-Einstellungen der Benchmark misst.
+//   vanilla = frische Vanilla-Optionen (VSync an, Max. Bildrate 120)
+//   trs     = Standard neuer TRS-Instanzen (VSync aus, unbegrenzt)
+//   real    = options.txt neu mit Minecraft-Standards, nur unbegrenzt/ohne VSync, Sichtweite 12 (realistischer Benchmark)
+//   keep    = options.txt unverändert lassen
+if (project.hasProperty('trsBenchOptions')) {
+	def mode = project.trsBenchOptions.toString()
+	// real = frische Minecraft-Standards (options.txt neu), nur Bildraten-Grenze/VSync offen und Sichtweite 12
+	def values = [vanilla: [enableVsync: 'true', maxFps: '120'], trs: [enableVsync: 'false', maxFps: '260'], keep: [:],
+			real: [enableVsync: 'false', maxFps: '260', renderDistance: '12', simulationDistance: '12', onboardAccessibility: 'false',
+					skipMultiplayerWarning: 'true', tutorialStep: 'none', pauseOnLostFocus: 'false', soundCategory_master: '0.0']]
+	if (!values.containsKey(mode)) throw new GradleException("trsBenchOptions: vanilla, trs, real oder keep (nicht '${mode}')")
+	tasks.matching { it.name == 'runClient' }.configureEach { task ->
+		task.doFirst {
+			if (values[mode].isEmpty()) return
+			File dir = project.file(loom.runConfigs.client.runDir)
+			dir.mkdirs()
+			File options = new File(dir, 'options.txt')
+			List<String> lines = (options.exists() && mode != 'real') ? options.readLines('UTF-8').findAll { line ->
+				!values[mode].keySet().any { line.startsWith(it + ':') }
+			} : []
+			values[mode].each { k, v -> lines << "${k}:${v}".toString() }
+			options.write(lines.join('\n') + '\n', 'UTF-8')
+			logger.lifecycle("Benchmark: ${values[mode]} (${options})")
+		}
+	}
+}
+
+// Release-Weg im Spiel prüfen: ./gradlew :fabric:<v>:runProdClient [-PtrsAutotest -PtrsAutotestOnly=…] startet das
+// echte (nicht entwickler-gemappte) Spiel mit Fabric Loader, genau der fertigen Mod-JAR (inkl. Jar-in-Jar der
+// eingebauten Mods, unverändert) und der kompletten Fabric API – wie eine vom Launcher angelegte Instanz.
+// Spielordner: client-mod/run/prod-<v> (eigene Welt, eigene options.txt).
+def prodFabricApi = configurations.detachedConfiguration(
+		dependencies.create("net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"))
+prodFabricApi.transitive = false
+tasks.register('runProdClient', TrsProdClientTask) {
+	group = 'fabric'
+	description = 'Startet das Spiel wie beim Spieler: fertige Mod-JAR + Fabric API, ohne Dev-Umgebung.'
+	mods.from(modJar)
+	mods.from(prodFabricApi)
+	runDir = rootProject.layout.projectDirectory.dir("run/prod-${mc}")
+	// Dieselben Schalter wie runClient (Autotest, API-Attrappe, …)
+	jvmArgs.addAll(provider { loom.runConfigs.client.vmArgs })
+	programArgs.addAll(provider { loom.runConfigs.client.programArgs })
+}
+
+/** Loom-Start wie beim Spieler, im Autotest ohne Ton (OpenAL ohne Ausgabegerät, siehe autotest-mute.gradle). */
+abstract class TrsProdClientTask extends net.fabricmc.loom.task.prod.ClientProductionRunTask {
+	@Override
+	protected void configureCommand(org.gradle.process.ExecSpec spec) {
+		super.configureCommand(spec)
+		if (getJvmArgs().get().contains('-Dtrsclient.autotest=true')) spec.environment('ALSOFT_DRIVERS', 'null')
+	}
+}

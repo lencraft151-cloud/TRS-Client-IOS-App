@@ -1,0 +1,499 @@
+package dev.theredstonee.trsclient;
+
+import dev.theredstonee.trsclient.core.i18n.I18n;
+
+import dev.theredstonee.trsclient.compat.Keys;
+import dev.theredstonee.trsclient.compat.Mc;
+import dev.theredstonee.trsclient.core.config.ConfigStore;
+import dev.theredstonee.trsclient.core.input.ClickCounter;
+import dev.theredstonee.trsclient.core.input.ToggleState;
+import dev.theredstonee.trsclient.core.module.TrsModules;
+import dev.theredstonee.trsclient.core.ui.Theme;
+import dev.theredstonee.trsclient.core.zoom.ZoomState;
+import dev.theredstonee.trsclient.dev.AutoTest;
+import dev.theredstonee.trsclient.feature.PvpFeatures;
+import dev.theredstonee.trsclient.hud.HudManager;
+import dev.theredstonee.trsclient.screen.TrsMenuScreen;
+import dev.theredstonee.trsclient.screen.TrsTitleScreen;
+import dev.theredstonee.trsclient.screen.WaypointEditScreen;
+import dev.theredstonee.trsclient.screen.WaypointListScreen;
+import dev.theredstonee.trsclient.ui.Gfx;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.network.chat.Component;
+// Logging: SLF4J ab 1.17, davor nur Log4j (gleiche {}-Platzhalter).
+//? if >=1.17 {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+//?} else {
+/*import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+*///?}
+
+import java.io.IOException;
+//? if >=1.21.6 {
+/*import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+*///?} elif >=1.15
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+//? if >=1.21.11 {
+/*import net.minecraft.resources.Identifier;
+*///?} elif >=1.21.6 {
+/*import net.minecraft.resources.ResourceLocation;
+*///?}
+
+/** Einstiegspunkt des TRS Clients (nur Client). */
+public final class TrsClient implements ClientModInitializer {
+	public static final String MOD_ID = "trsclient";
+	//? if >=1.17 {
+	public static final Logger LOGGER = LoggerFactory.getLogger("TRS Client");
+	//?} else
+	//public static final Logger LOGGER = LogManager.getLogger("TRS Client");
+
+	private static TrsClient instance;
+
+	private final TrsModules modules = new TrsModules();
+	private final ClickCounter leftClicks = new ClickCounter();
+	private final ClickCounter rightClicks = new ClickCounter();
+	private final ZoomState zoom = new ZoomState();
+	/** Filmische Kamera nur während des Zooms (stellt den Wert des Spielers danach wieder her). */
+	private final dev.theredstonee.trsclient.core.util.FlagOverride zoomCinematic =
+			new dev.theredstonee.trsclient.core.util.FlagOverride();
+	private ConfigStore config;
+	private HudManager hud;
+	private final PvpFeatures pvp = new PvpFeatures(modules);
+	private final dev.theredstonee.trsclient.feature.ChatFeatures chat =
+			new dev.theredstonee.trsclient.feature.ChatFeatures(modules);
+	/** Redstone-Werkzeuge: Signalstärke, Takt-Messer, Signal-Overlay (Logik in core.redstone). */
+	private final dev.theredstonee.trsclient.core.redstone.RedstoneTools redstone =
+			new dev.theredstonee.trsclient.core.redstone.RedstoneTools(modules);
+	private long redstoneErrorLogged;
+	private dev.theredstonee.trsclient.feature.Waypoints waypoints;
+	/** Tastendruck-Erkennung für die Modul-Tasten (Wegpunkte, Text-Hotkeys). */
+	private final dev.theredstonee.trsclient.core.input.KeyPresses moduleKeys =
+			new dev.theredstonee.trsclient.core.input.KeyPresses(dev.theredstonee.trsclient.compat.Keys::isDown);
+	/** Zuletzt benutztes Welt-Sichtfeld (für die Wegpunkt-Projektion), aus dem FOV-Mixin. */
+	private double worldFov = 70;
+	/** Einmalig den Vanilla-Titelbildschirm zulassen ("Klassisch" auf dem TRS-Startbildschirm). */
+	private boolean vanillaTitleOnce;
+	/** Nur für den Autotest: Zoom ohne Tastendruck erzwingen. */
+	private boolean forceZoom;
+
+	public static TrsClient get() {
+		return instance;
+	}
+
+	@Override
+	public void onInitializeClient() {
+		instance = this;
+		// Benchmark „Vanilla“ (-PtrsBenchVanilla): TRS Client bleibt ganz aus, nur der Messablauf läuft.
+		if (Boolean.getBoolean("trsclient.bench.vanilla")) {
+			LOGGER.info("TRS Client aus (Benchmark Vanilla)");
+			AutoTest.installIfRequested();
+			return;
+		}
+		// Farben des Launchers (config/trsclient/launcher-theme.json) – fehlt sie, gilt das Standard-Thema.
+		Theme.loadFrom(FabricLoader.getInstance().getConfigDir());
+		dev.theredstonee.trsclient.core.i18n.I18n.init(FabricLoader.getInstance().getConfigDir());
+		dev.theredstonee.trsclient.core.clips.Clips.init(FabricLoader.getInstance().getConfigDir());
+		// Grafik-Modus „Schön“/„Max FPS“ (config/trsclient/fps-mode.json).
+		dev.theredstonee.trsclient.core.perf.FpsConfigMode.init(FabricLoader.getInstance().getConfigDir());
+		config = new ConfigStore(FabricLoader.getInstance().getConfigDir().resolve("trsclient.json"));
+		ConfigStore.Status status = config.load(modules.registry);
+		if (status == ConfigStore.Status.RECOVERED) {
+			LOGGER.warn("Config war beschädigt – Standardwerte geladen, Sicherung: {}", config.brokenFile());
+		}
+
+		// Menü-Stil für Vanilla-Menüs (Pause, Serverliste, Laden, Optionen, Welten).
+		dev.theredstonee.trsclient.core.menus.MenuStyle.install(modules);
+		TrsKeys.register();
+		// Sozial-Benachrichtigungen (Toasts): Ton, Vollbild, Schnelltaste.
+		dev.theredstonee.trsclient.social.SocialHooks.install(modules);
+		// MiyakoMC (persönlich, nur seine UUID): Intro-Video beim ersten Start (nur moderner Fabric-Pfad).
+		dev.theredstonee.trsclient.core.halloween.Miyako.get().dir(
+				FabricLoader.getInstance().getConfigDir().resolve("trsclient").resolve("miyako"));
+		dev.theredstonee.trsclient.halloween.MiyakoHooks.install();
+		// Zoom-/Freelook-Taste sind Vanilla-Belegungen – im TRS-Menü ändern sie dieselbe Belegung.
+		modules.zoomKey.link(TrsKeys.link(TrsKeys.zoom));
+		modules.freelookKey.link(TrsKeys.link(TrsKeys.freelook));
+		modules.worldMapKey.link(TrsKeys.link(TrsKeys.worldMap));
+		modules.notes.openKey.link(TrsKeys.link(TrsKeys.notes));
+		modules.cinematic.addKey.link(TrsKeys.link(TrsKeys.cinematicAdd));
+		modules.cinematic.playKey.link(TrsKeys.link(TrsKeys.cinematicPlay));
+		modules.cinematic.removeKey.link(TrsKeys.link(TrsKeys.cinematicRemove));
+		modules.cinematic.clearKey.link(TrsKeys.link(TrsKeys.cinematicClear));
+		modules.cinematic.freecamKey.link(TrsKeys.link(TrsKeys.cinematicFreecam));
+		// Karten (Minimap + Weltkarte): Kartenspeicher unter config/trsclient/maps.
+		// Komfort-/PvP-Paket (Erwähnungen, Filter, Auto-Reconnect, Warnungen, Zähler, Streamer-Modus …).
+		dev.theredstonee.trsclient.qol.QolHooks.init(modules);
+		// Komfort-Paket 2: Tooltips, Server-Profile, Panorama.
+		dev.theredstonee.trsclient.comfort.ComfortHooks.init(modules);
+		// Screenshot-Werkzeuge: Vorschau nach F2, Chat-Aktionen, Bild-Editor, Essential-Vorschau ersetzen.
+		dev.theredstonee.trsclient.screenshot.ScreenshotHooks.install(modules);
+		dev.theredstonee.trsclient.core.map.MapEngine.init(modules, FabricLoader.getInstance().getConfigDir());
+		// Notizen je Welt (config/trsclient/notes): Seite im TRS-Menü, Taste, angeheftete Notiz im HUD.
+		dev.theredstonee.trsclient.core.notes.Notes.init(modules, FabricLoader.getInstance().getConfigDir(), message -> LOGGER.info(message));
+		// Kamera-Fahrten (config/trsclient-cinematic.json, Tasten in den Steuerungen).
+		dev.theredstonee.trsclient.cinematic.CinematicHooks.init(modules, FabricLoader.getInstance().getConfigDir());
+		waypoints = new dev.theredstonee.trsclient.feature.Waypoints(modules,
+				FabricLoader.getInstance().getConfigDir().resolve("trsclient-waypoints.json"));
+		dev.theredstonee.trsclient.feature.AutoRefillHooks.init(modules);
+		hud = new HudManager(modules);
+		// Kosten-Messung (-Dtrsclient.bench.noHud): HUD gar nicht erst einhängen.
+		if (!Boolean.getBoolean("trsclient.bench.noHud")) registerHud();
+		ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
+		// Vor der Spieler-Bewegung: Toggle-Tasten, Freelook, Treffer-Farbe, PvP-Zähler.
+		ClientTickEvents.START_CLIENT_TICK.register(pvp::tick);
+		// Kamera-Fahrten: Tasten, Ende der Fahrt, Vorschau – und während der Fahrt alle Eingaben loslassen.
+		ClientTickEvents.START_CLIENT_TICK.register(dev.theredstonee.trsclient.cinematic.CinematicHooks::tick);
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+			saveConfig();
+			waypoints.save();
+			if (dev.theredstonee.trsclient.core.notes.Notes.get() != null) dev.theredstonee.trsclient.core.notes.Notes.get().save();
+			if (dev.theredstonee.trsclient.core.map.MapEngine.get() != null) dev.theredstonee.trsclient.core.map.MapEngine.get().shutdown();
+		});
+		String version = FabricLoader.getInstance().getModContainer(MOD_ID)
+				.map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?");
+		String minecraft = FabricLoader.getInstance().getModContainer("minecraft")
+				.map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("unknown");
+		// TRS API (Abzeichen, TRS-Umhänge, Presence) + Umhang-Physik; nichts davon blockiert den Start.
+		dev.theredstonee.trsclient.online.OnlineHooks.init(FabricLoader.getInstance().getConfigDir(), modules, version,
+				minecraft, "fabric", message -> LOGGER.info(message));
+		// Konten: Wechsel ohne Neustart (mit TRS Launcher dessen Konten, sonst eigene Anmeldung je Instanz).
+		dev.theredstonee.trsclient.core.account.AccountManager.init(new dev.theredstonee.trsclient.online.SessionSwap(
+				FabricLoader.getInstance().getConfigDir(), "TRS-Client/" + version + " (Minecraft " + minecraft + "; fabric)", message -> LOGGER.info(message)));
+		// Bug melden (TRS-Menü): Mod-Liste, Log und Screenshots aus dem Spielordner, Senden über die TRS API.
+		dev.theredstonee.trsclient.core.bugreport.BugReports.init(FabricLoader.getInstance().getConfigDir(), version, minecraft, "fabric");
+		// Leistung (Dynamische FPS, Culling, Partikel, Welt-Details, FPS-Boost); Leistungs-Mods übernehmen ihre Teile.
+		dev.theredstonee.trsclient.perf.PerfHooks.init(modules, id -> FabricLoader.getInstance().isModLoaded(id),
+				dev.theredstonee.trsclient.core.perf.PerfCompat.FABRIC, minecraft, message -> LOGGER.info(message), true);
+		// Netzwerk-Optimierung + Ping-Messung (Handler an der Client-Verbindung, siehe core.net).
+		dev.theredstonee.trsclient.net.NetHooks.init(modules, message -> LOGGER.info(message));
+		// Eingebaute Optimierungen (Jar-in-Jar): welche Fassung lädt Fabric gerade?
+		dev.theredstonee.trsclient.core.perf.BundledMods.setLoaded(id -> FabricLoader.getInstance().getModContainer(id)
+				.map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse(null));
+		AutoTest.installIfRequested();
+
+		LOGGER.info("TRS Client {} initialisiert – {} Module, Config {} ({})",
+				version, modules.registry.all().size(), status, config.file());
+	}
+
+	/**
+	 * HUD einhängen: Fabric-HUD-Ebenen ab 1.21.6 (dort ersetzt TRS auch die Fadenkreuz-Ebene),
+	 * davor der klassische HUD-Callback (Vanilla-Fadenkreuz blendet dann CrosshairMixin aus).
+	 */
+	private void registerHud() {
+		//? if >=1.21.6 {
+		/*HudElementRegistry.addLast(id("hud"), (g, delta) -> hud.render(Gfx.of(g)));
+		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (g, delta) -> {
+			if (hud.crosshair().replacesVanilla()) hud.crosshair().drawInGame(Gfx.of(g));
+			//? if >=26.1 {
+			else vanilla.extractRenderState(g, delta);
+			//?} else
+			else vanilla.render(g, delta);
+		});
+		*///?} elif >=1.16 {
+		HudRenderCallback.EVENT.register((g, delta) -> hud.render(Gfx.of(g)));
+		//?} elif >=1.15 {
+		/*HudRenderCallback.EVENT.register(delta -> hud.render(Gfx.of()));
+		*///?}
+		// 1.14 hat keinen HUD-Callback: dort ruft HudMixin (Gui#render) renderHud() auf.
+	}
+
+	/** HUD zeichnen – aus dem HUD-Callback bzw. in 1.14 aus HudMixin. */
+	public void renderHud(Gfx g) {
+		hud.render(g);
+	}
+
+	/**
+	 * Aus dem Mixin in setScreen: ersetzt den Vanilla-Titelbildschirm durch den TRS-Startbildschirm,
+	 * solange das Modul "Startbildschirm" an ist.
+	 */
+	public Screen replaceScreen(Screen screen) {
+		if (screen == null || screen.getClass() != TitleScreen.class) return screen;
+		if (vanillaTitleOnce) {
+			vanillaTitleOnce = false;
+			return screen;
+		}
+		return modules.titleScreen.isEnabled() ? new TrsTitleScreen() : screen;
+	}
+
+	/** Öffnet einmalig den Vanilla-Titelbildschirm. */
+	public void openVanillaTitle() {
+		vanillaTitleOnce = true;
+		Mc.setScreen(new TitleScreen());
+	}
+
+	//? if >=1.21.11 {
+	/*public static Identifier id(String path) {
+		return Identifier.fromNamespaceAndPath(MOD_ID, path);
+	}
+	*///?} elif >=1.21.6 {
+	/*public static ResourceLocation id(String path) {
+		return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+	}
+	*///?}
+
+	/** Meldungen der Clips in der Aktionsleiste. */
+	private static final dev.theredstonee.trsclient.core.clips.Clips.ActionBar CLIP_MESSAGES = new dev.theredstonee.trsclient.core.clips.Clips.ActionBar() {
+		@Override
+		public void show(String text) {
+			Mc.actionBar(Mc.text(text));
+		}
+
+		@Override
+		public String keyLabel(boolean record) {
+			return Mc.keyName(record ? TrsKeys.toggleRecording : TrsKeys.saveClip);
+		}
+	};
+
+	private void onTick(Minecraft mc) {
+		migrateKeys(mc);
+		dev.theredstonee.trsclient.menus.KeySearchUi.poll();
+		// Touch-Modus (mobile Engine): feste Overlay-Tasten + Bildschirmtastatur; sonst nichts.
+		dev.theredstonee.trsclient.touch.TouchHooks.tick();
+		while (TrsKeys.hudProfile.consumeClick()) {
+			String name = modules.profiles.cycle();
+			Mc.actionBar(Mc.text(I18n.tr("toast.hudProfile", name)));
+			saveConfig();
+		}
+		while (TrsKeys.menu.consumeClick()) {
+			if (Mc.screen() == null) Mc.setScreen(new TrsMenuScreen(null));
+		}
+		while (TrsKeys.redstoneOverlay.consumeClick()) {
+			modules.redstoneOverlay.toggle();
+			Mc.actionBar(Mc.text(I18n.tr("toast.redstoneOverlay", modules.redstoneOverlay.isEnabled() ? I18n.tr("common.enabled") : I18n.tr("common.disabled"))));
+			saveConfig();
+		}
+		// Clips & Aufnahme: aufgenommen wird im Launcher, hier nur die Tasten melden.
+		while (TrsKeys.saveClip.consumeClick()) dev.theredstonee.trsclient.core.clips.Clips.get().saveClip();
+		while (TrsKeys.toggleRecording.consumeClick()) dev.theredstonee.trsclient.core.clips.Clips.get().toggleRecording();
+		dev.theredstonee.trsclient.core.clips.Clips.get().tick(modules.clips.isEnabled(), CLIP_MESSAGES);
+		while (TrsKeys.fullbright.consumeClick()) {
+			Mc.actionBar(Mc.text(modules.toggleGamma()));
+			saveConfig();
+		}
+		while (TrsKeys.gammaCycle.consumeClick()) {
+			Mc.actionBar(Mc.text(modules.cycleGamma()));
+			saveConfig();
+		}
+		while (TrsKeys.autoRefill.consumeClick()) {
+			modules.autoRefill.toggle();
+			Mc.actionBar(Mc.text(I18n.tr("toast.autoRefill", modules.autoRefill.isEnabled() ? I18n.tr("common.enabled") : I18n.tr("common.disabled"))));
+			saveConfig();
+		}
+		// Emote-Rad: Taste halten öffnet es, Loslassen (im Rad abgefragt) spielt das gezeigte Emote.
+		while (TrsKeys.emoteWheel.consumeClick()) {
+			if (Mc.screen() == null && mc.player != null && dev.theredstonee.trsclient.online.EmoteHooks.enabled()) {
+				Mc.setScreen(new dev.theredstonee.trsclient.screen.EmoteWheelScreen());
+			}
+		}
+		// Garderobe (Taste standardmäßig unbelegt)
+		while (TrsKeys.worldMap.consumeClick()) {
+			if (mc.player != null && modules.worldMap.isEnabled() && Mc.screen() == null) {
+				dev.theredstonee.trsclient.screen.WorldMapScreen screen = dev.theredstonee.trsclient.screen.WorldMapScreen.create();
+				if (screen != null) Mc.setScreen(screen);
+			}
+		}
+		if (modules.keyDefaults.needsWorldMapKeyCheck() && mc.options != null) {
+			modules.keyDefaults.markWorldMapKeyChecked();
+			if (TrsKeys.resolveWorldMapConflict()) LOGGER.info("Weltkarten-Taste M war doppelt belegt – freigegeben");
+			saveConfig();
+		}
+		while (TrsKeys.wardrobe.consumeClick()) {
+			if (Mc.screen() == null && dev.theredstonee.trsclient.screen.WardrobeScreen.available()) {
+				Mc.setScreen(dev.theredstonee.trsclient.screen.WardrobeScreen.create(null));
+			}
+		}
+		// Notizen (Taste standardmäßig unbelegt): TRS-Menü direkt auf der Notiz-Seite der aktuellen Welt.
+		if (TrsKeys.notes != null) {
+			while (TrsKeys.notes.consumeClick()) {
+				if (Mc.screen() == null && modules.notes.notes.isEnabled()) {
+					dev.theredstonee.trsclient.core.notes.Notes.requestOpen();
+					Mc.setScreen(new TrsMenuScreen(null));
+				}
+			}
+		}
+		if (dev.theredstonee.trsclient.core.notes.Notes.get() != null) dev.theredstonee.trsclient.core.notes.Notes.get().tick(System.currentTimeMillis());
+		// Sozial (Taste standardmäßig unbelegt) und Schnellantwort zum neuesten Toast (Y).
+		while (TrsKeys.social.consumeClick()) dev.theredstonee.trsclient.social.SocialHooks.onSocialKey();
+		while (TrsKeys.quickReply.consumeClick()) dev.theredstonee.trsclient.social.SocialHooks.onQuickReplyKey();
+		// Wegpunkt- und Hotkey-Tasten gehören den Modulen (Tastenbelegung im TRS-Menü).
+		if (Mc.screen() == null) {
+			if (moduleKeys.pressed(modules.waypointAddKey) && mc.player != null && modules.waypoints.isEnabled()) {
+				Mc.setScreen(new WaypointEditScreen(null, null));
+			}
+			if (moduleKeys.pressed(modules.waypointListKey) && modules.waypoints.isEnabled()) {
+				Mc.setScreen(new WaypointListScreen(null));
+			}
+			for (int i = 0; i < modules.hotkeyKeys.length; i++) {
+				if (moduleKeys.pressed(modules.hotkeyKeys[i])) chat.onHotkey(i);
+			}
+		} else {
+			moduleKeys.releaseAll();
+		}
+		waypoints.tick(mc);
+		dev.theredstonee.trsclient.feature.AutoRefillHooks.tick();
+		chat.tick(mc);
+		dev.theredstonee.trsclient.qol.QolHooks.tick(mc);
+		dev.theredstonee.trsclient.halloween.HalloweenHooks.tick(mc);
+		if (dev.theredstonee.trsclient.comfort.ComfortHooks.tick(mc)) saveConfig();
+		dev.theredstonee.trsclient.screenshot.ScreenshotHooks.tick();
+		hud.tick();
+		tickRedstone();
+		dev.theredstonee.trsclient.online.OnlineHooks.tick(mc);
+		dev.theredstonee.trsclient.online.EmoteHooks.tick(mc);
+		dev.theredstonee.trsclient.perf.PerfHooks.tick(mc);
+		dev.theredstonee.trsclient.net.NetHooks.tick(mc);
+	}
+
+	/** Redstone-Werkzeuge; ein Fehler darf nie das Spiel stören (höchstens einmal je Minute geloggt). */
+	private void tickRedstone() {
+		try {
+			dev.theredstonee.trsclient.compat.RedstoneProbe.tick(redstone);
+		} catch (RuntimeException e) {
+			redstone.reset();
+			long now = System.currentTimeMillis();
+			if (now - redstoneErrorLogged > 60_000) {
+				redstoneErrorLogged = now;
+				LOGGER.warn("Redstone-Werkzeuge: {}", e.toString());
+			}
+		}
+	}
+
+	/**
+	 * Einmalige Umstellung alter Standard-Tasten: Zoom lag auf C, was ab Minecraft 1.12 mit
+	 * "Hotbar speichern" kollidiert. Umgestellt wird nur, wenn die Taste noch auf dem alten
+	 * Standard liegt – selbst belegte Tasten bleiben unangetastet.
+	 */
+	private void migrateKeys(Minecraft mc) {
+		if (!modules.keyDefaults.needsZoomKeyMigration() || mc.options == null) return;
+		if (TrsKeys.migrateZoomKey()) {
+			mc.options.save();
+			LOGGER.info("Zoom-Taste von C auf V umgestellt (C ist ab 1.12 'Hotbar speichern')");
+		}
+		modules.keyDefaults.markMigrated();
+		saveConfig();
+	}
+
+	/** Speichert die Einstellungen (Fehler nur loggen). */
+	public void saveConfig() {
+		try {
+			config.saveLater(modules.registry);
+		} catch (IOException e) {
+			LOGGER.error("Config konnte nicht gespeichert werden: {}", config.file(), e);
+		}
+	}
+
+	// --- Hooks aus den Mixins ---
+
+	/** Mausklick im Spiel (nicht in Menüs) → CPS-Zähler. */
+	public void onMouseClick(int button) {
+		if (Mc.screen() != null) return;
+		long now = System.currentTimeMillis();
+		if (button == Keys.MOUSE_LEFT) {
+			leftClicks.record(now);
+			// Angreifen/Abbauen beendet das eigene Emote (wie Bewegung).
+			dev.theredstonee.trsclient.online.EmoteHooks.onAttack();
+		}
+		if (button == Keys.MOUSE_RIGHT) rightClicks.record(now);
+	}
+
+	/**
+	 * Pro Frame aus getFov: aktualisiert den Zoom und liefert den FOV-Divisor. Das Fernrohr (ab 1.17)
+	 * hat Vorrang; die filmische Kamera gilt auf Wunsch nur, solange gezoomt wird.
+	 */
+	public double updateZoom() {
+		boolean wanted = modules.zoom.isEnabled()
+				&& (forceZoom || (TrsKeys.zoom.isDown() && Mc.screen() == null));
+		double factor = zoom.frame(wanted, Mc.scoping(), modules.zoomFactor.get(), modules.zoomSmooth.get(), System.nanoTime());
+		boolean smooth = zoomCinematic.update(Mc.smoothCamera(), zoom.isActive() && modules.zoomCinematic.get());
+		if (smooth != Mc.smoothCamera()) Mc.setSmoothCamera(smooth);
+		return factor;
+	}
+
+	/** Mausrad während des Zooms; true = Ereignis verbraucht (Hotbar bleibt). */
+	public boolean onScroll(double amount) {
+		if (!zoom.isActive() || !modules.zoomScroll.get() || Mc.screen() != null) {
+			// Freie Kamera: Mausrad ändert ihre Geschwindigkeit (statt der Hotbar).
+			return dev.theredstonee.trsclient.cinematic.CinematicHooks.scroll(amount);
+		}
+		zoom.scroll(amount);
+		return true;
+	}
+
+	/** Maus-Divisor während des Zooms (1 = unverändert), proportional zur Zoomstufe. */
+	public double mouseDivisor() {
+		return zoom.mouseDivisor(modules.zoomSlowMouse.get());
+	}
+
+	public boolean fullbright() {
+		return modules.fullbright.isEnabled();
+	}
+
+	/** Gamma für die Lightmap (vorhanden = benutzen, leer = Vanilla); vom LightmapMixin je Frame gelesen. */
+	public java.util.OptionalDouble gammaOverride() {
+		return modules.gammaOverride();
+	}
+
+	// --- Zugriff ---
+
+	public TrsModules modules() {
+		return modules;
+	}
+
+	public HudManager hud() {
+		return hud;
+	}
+
+	public ClickCounter leftClicks() {
+		return leftClicks;
+	}
+
+	public ClickCounter rightClicks() {
+		return rightClicks;
+	}
+
+	public PvpFeatures pvp() {
+		return pvp;
+	}
+
+	public dev.theredstonee.trsclient.feature.ChatFeatures chat() {
+		return chat;
+	}
+
+	public dev.theredstonee.trsclient.feature.Waypoints waypoints() {
+		return waypoints;
+	}
+
+	public dev.theredstonee.trsclient.core.redstone.RedstoneTools redstone() {
+		return redstone;
+	}
+
+	/** Zuletzt gezeichnetes Sichtfeld der Welt (Grad) – Grundlage der Wegpunkt-Projektion. */
+	public double worldFov() {
+		return worldFov;
+	}
+
+	/** Aus dem FOV-Mixin: das tatsächlich benutzte Sichtfeld merken. */
+	public void setWorldFov(double fov) {
+		if (fov > 1 && fov < 180) worldFov = fov;
+	}
+
+	public ToggleState sprintToggle() {
+		return pvp.sprint();
+	}
+
+	public ToggleState sneakToggle() {
+		return pvp.sneak();
+	}
+
+	public void setForceZoom(boolean forceZoom) {
+		this.forceZoom = forceZoom;
+	}
+}

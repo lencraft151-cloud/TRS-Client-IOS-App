@@ -1,0 +1,1325 @@
+import { Channel, invoke, isTauri } from '@tauri-apps/api/core'
+import { hasKey, t, tKey } from './i18n'
+import { isMesseBlockedCommand, MESSE, messeRestricted } from './messe'
+import { z } from 'zod'
+import { savedTextSchema, textFileSchema } from './config/types'
+import { instanceLocationSchema, movePlanSchema, pickedFolderSchema, unavailableInstancesSchema } from './relocate'
+import {
+  trsAdminCapeSchema,
+  trsAdminStatsSchema,
+  trsAdminUserSchema,
+  trsBlockedSchema,
+  trsCapeHoldersSchema,
+  trsCapeOffersSchema,
+  trsCapeSchema,
+  trsCapeSourceSchema,
+  trsCapeVideoSchema,
+  trsCodeSchema,
+  trsFriendRequestResultSchema,
+  trsFriendSchema,
+  trsFriendsSchema,
+  trsMeSchema,
+  trsParse,
+  trsPlayerCapeSchema,
+  trsRedeemSchema,
+  trsAdminEventSchema,
+  trsHatSchema,
+  trsHeadCosmeticModelSchema,
+  trsHeadCosmeticSchema,
+  trsStatusSchema,
+  trsSyncStatusSchema,
+  trsUserRefSchema,
+  type TrsPrivacy,
+  type TrsReportReason,
+  type TrsReviewList,
+} from './trs'
+import {
+  inboxPackSchema,
+  myPacksSchema,
+  ownPackSchema,
+  packLinkSchema,
+  packSendResultSchema,
+  packUpdateInfoSchema,
+  packUpdateResultSchema,
+  sharedPackSchema,
+  sharePackOutcomeSchema,
+  type PackDuration,
+  type SharePackOptions,
+} from './packs'
+import { contentGroupSchema, contentOrganizationSchema, type GroupColor } from './contentGroups'
+import {
+  adminCreatorRequestSchema,
+  adminCreatorSchema,
+  creatorCodeSchema,
+  creatorQueueItemSchema,
+  creatorRedeemSchema,
+  creatorRequestSchema,
+  creatorSelfSchema,
+  creatorUserRefSchema,
+  listedPacksSchema,
+  myCreatorSchema,
+  previewBuildSchema,
+  type CreatorTier,
+  type HelperRight,
+} from './creator'
+import { bisectViewSchema } from './bisect'
+import { adminFeaturedPackSchema, featuredListSchema, type FeaturedPatch } from './featured'
+import { conflictReportSchema, fitResultSchema } from './modConflicts'
+import {
+  claimedCommandSchema,
+  pairCodeSchema,
+  remotePairingsSchema,
+  remotePeerSchema,
+  sentCommandSchema,
+  type RemoteCommandType,
+  type StatusInput,
+} from './remote'
+import { pushDeviceSchema, pushStatusSchema, type PushSettings } from './push'
+import {
+  chatAttachmentSchema,
+  chatConversationSchema,
+  chatMessageSchema,
+  chatReactionSchema,
+  conversationPageSchema,
+  inviteStatusSchema,
+  liveStatusSchema,
+  localImageSchema,
+  messagePageSchema,
+  myModerationSchema,
+  myReportSchema,
+  stagedImagesSchema,
+  unreadSummarySchema,
+  type OutgoingMessage,
+  type ReportReason,
+  type ReportTarget,
+  type UploadSource,
+} from './chat'
+import {
+  adminReportListSchema,
+  adminReportEnvelopeSchema,
+  adminModerationEnvelopeSchema,
+  auditPageSchema,
+  filterWordsSchema,
+  filterWordEnvelopeSchema,
+  type AuditQuery,
+  type NewFilterWord,
+  type ReportActionInput,
+  type ReportQuery,
+} from './moderation'
+import { mySanctionSchema, mySanctionsSchema, sanctionErrorText } from './sanctions'
+import { myApplicationSchema, myApplicationsSchema } from './applications'
+import { myAchievementsSchema, playerAchievementsSchema } from './achievements'
+import { teamErrorText } from './teamAccess'
+import { sharedImageSchema, sharesPageSchema } from './share'
+import { storedLayoutSchema, type ControlLayout } from './controls'
+import { webLoginAccountSchema, webLoginRequestSchema } from './webLogin'
+import {
+  inviteOutcomeSchema,
+  localServerSchema,
+  serverAddressesSchema,
+  serverExportPlanSchema,
+  serverExportResultSchema,
+  serverStatusSchema,
+  shareStatusSchema,
+  type ServerExportOptions,
+  type ServerExportProgress,
+} from './serverExport'
+import {
+  appealEnvelopeSchema,
+  appealPageSchema,
+  bulkResultSchema,
+  cosmeticPageSchema,
+  dashboardSchema,
+  notesEnvelopeSchema,
+  playerFileEnvelopeSchema,
+  playerPageSchema,
+  roomListSchema,
+  sanctionEnvelopeSchema,
+  sanctionPageSchema,
+  searchResultSchema,
+  type AppealDecisionInput,
+  type BulkTarget,
+  type NewSanctionInput,
+  type PlayerQuery,
+  type SanctionQuery,
+  type UploadQuery,
+} from './team'
+import {
+  hostingDeliverySchema,
+  hostingJoinResultSchema,
+  hostingRoomSchema,
+  prepareResultSchema,
+  roomContentSchema,
+  type HostedWorld,
+  type HostingTarget,
+  type PrepareProgress,
+} from './hosting'
+import type {
+  BedrockInfo,
+  FpsMode,
+  Account,
+  AdoptResult,
+  BlockedFile,
+  CompatReport,
+  DependencyFix,
+  CurseForgeInstallOutcome,
+  CurseForgePackResult,
+  Platform,
+  BulkAction,
+  BulkResult,
+  JavaCheck,
+  JavaInstall,
+  LoaderKind,
+  LoaderVersionInfo,
+  MobileInstallOutcome,
+  MobileUpdateStatus,
+  StorageStats,
+  UploadResult,
+  VerifyReport,
+  AppInfo,
+  ClientModStatus,
+  CategoryTag,
+  CommandError,
+  CrashAnalysis,
+  CrashSummary,
+  Preset,
+  PresetItem,
+  PresetApplyReport,
+  PresetInput,
+  PresetProgress,
+  ExportEntry,
+  ExportOptions,
+  ExportProgress,
+  ExportSummary,
+  GalleryShot,
+  Clip,
+  ClipMediaInfo,
+  ClipStrip,
+  TrimMode,
+  TrimPlan,
+  TrimRequest,
+  ClipState,
+  ClipUsage,
+  FfmpegStatus,
+  LauncherSkinScan,
+  LibrarySkin,
+  NewsFeed,
+  SkinImportBatch,
+  SkinImportCandidate,
+  SkinImportReport,
+  SkinImportRequest,
+  SkinChanges,
+  SkinProfile,
+  SkinSyncStatus,
+  SkinVariant,
+  BuiltinSkins,
+  SkinPack,
+  ContentItem,
+  ContentKind,
+  DuplicateModGroup,
+  ContentUpdate,
+  DeviceCode,
+  HistoryEntry,
+  ImportCandidate,
+  ImportOverview,
+  ImportProgress,
+  ImportResult,
+  ImageEntry,
+  DirListing,
+  ImportReport,
+  Instance,
+  InstanceOverrides,
+  InstancePing,
+  InstanceServer,
+  LogSource,
+  LogText,
+  QrMatrix,
+  WorldInfo,
+  Loader,
+  LogLine,
+  MigrationItem,
+  ModrinthSearchParams,
+  ModrinthSearchResult,
+  ModrinthVersion,
+  NewInstance,
+  NewTaskRecord,
+  PackPreview,
+  PackProgress,
+  PickedPack,
+  TrsOffer,
+  ProjectCard,
+  ProjectDetails,
+  RunningGame,
+  Server,
+  ServerInput,
+  ServerStatus,
+  Settings,
+  SharedFolder,
+  StageProgress,
+  TaskRecord,
+  VersionManifest,
+} from '~/types'
+import { presetCheckSchema, presetPickListSchema, sharedFolderStatusSchema } from './schemas'
+import { pingStatusSchema } from './ping'
+import { badgeImageSchema, halloweenStateSchema, pumpkinFoundSchema, stickerSchema, trickOutcomeSchema, type LauncherPumpkin } from './halloween'
+
+export class BackendError extends Error {
+  constructor(
+    public readonly kind: string,
+    /** Rückfall-Meldung (bei Fehlern aus dem Kern: deutsch, fürs Log). */
+    message: string,
+    /** Übersetzungs-Code: `errors.<code>` in `app/locales/*.json`. */
+    public readonly code?: string,
+    public readonly params?: Record<string, string>,
+    /** Fehlercode der TRS API (z. B. `cape_locked`). */
+    public readonly apiCode?: string,
+  ) {
+    super(message)
+    this.name = 'BackendError'
+  }
+}
+
+function isCommandError(e: unknown): e is CommandError {
+  return typeof e === 'object' && e !== null && 'kind' in e && 'message' in e
+}
+
+async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauri()) {
+    throw new BackendError('no_backend', 'Das Backend ist nur in der Desktop-App verfügbar.', 'noBackend')
+  }
+  // Messe-Build: Löschen, Abmelden, Hochladen, Ordner/Browser öffnen … sind für Besucher gesperrt.
+  if (MESSE && messeRestricted.value && isMesseBlockedCommand(command)) {
+    throw new BackendError('messe_blocked', 'Am Messe-PC gesperrt.', 'messeBlocked')
+  }
+  try {
+    return await invoke<T>(command, args)
+  } catch (e) {
+    if (isCommandError(e)) {
+      throw new BackendError(
+        e.kind,
+        e.message,
+        typeof e.code === 'string' ? e.code : undefined,
+        e.params && typeof e.params === 'object' ? e.params : undefined,
+        typeof e.apiCode === 'string' ? e.apiCode : undefined,
+      )
+    }
+    throw new BackendError('unknown', 'Ein unerwarteter Fehler ist aufgetreten.', 'unexpected')
+  }
+}
+
+/** Wie `call`, prüft die Antwort aber mit einem zod-Schema (TRS-Daten). */
+async function checked<S extends z.ZodType>(schema: S, command: string, args?: Record<string, unknown>): Promise<z.output<S>> {
+  return trsParse(schema, await call<unknown>(command, args))
+}
+
+/** Antwort von `save_instance_icon`: Instanz mit neuem Bildpfad. */
+const instanceIconViewSchema = z
+  .object({ id: z.string().max(128), name: z.string().max(256), icon: z.string().max(64).nullable().optional(), iconPath: z.string().max(4096).nullable().optional() })
+  .passthrough()
+const pngDataUrl = z.string().startsWith('data:image/png;base64,').max(8 * 1024 * 1024)
+const mcTextureSetSchema = z.object({
+  version: z.string().max(128),
+  textures: z.array(z.object({ key: z.string().regex(/^(item|block)\/[a-z0-9_]{1,64}$/), dataUrl: pngDataUrl })).max(4000),
+})
+const pickedIconImageSchema = z.object({ dataUrl: pngDataUrl, width: z.number().int().min(1).max(512), height: z.number().int().min(1).max(512) })
+
+/** Mobiler Update-Kanal (`mobile_update_check`). */
+const mobileUpdateStatusSchema = z.object({
+  current: z.string().max(64),
+  latest: z.string().max(64).nullable(),
+  available: z.boolean(),
+  notes: z.string().max(20_000),
+  pubDate: z.string().max(64).nullable(),
+  size: z.number().int().nonnegative().nullable(),
+  altstoreSource: z.string().max(512).nullable(),
+})
+
+const mobileInstallOutcomeSchema = z.object({ status: z.enum(['started', 'permissionRequired']) })
+
+function channel<T>(onMessage: (message: T) => void): Channel<T> {
+  const ch = new Channel<T>()
+  ch.onmessage = onMessage
+  return ch
+}
+
+/** Typisierte Wrapper um die Rust-Commands aus `src-tauri/src/commands`. */
+export const backend = {
+  appInfo: () => call<AppInfo>('app_info'),
+  /** TRS Client: mitgelieferte Version und ein schon geladenes Update aus dem Kanal. */
+  clientModStatus: () => call<ClientModStatus>('client_mod_status'),
+  openDataDir: () => call<void>('open_data_dir'),
+
+  // --- Umziehen (Datenordner, Speicherort einer Instanz) ---
+  /** Nativer Ordner-Dialog; `null` = abgebrochen. Geprüft wird erst im Plan. */
+  pickTargetFolder: () => checked(pickedFolderSchema, 'pick_target_folder'),
+  dataMovePlan: (target: string) => checked(movePlanSchema, 'data_move_plan', { target }),
+  /** Kopiert + prüft den Datenordner und stellt um (wirksam nach dem Neustart); liefert den neuen Ordner. */
+  moveDataDir: (target: string, onProgress: (percent: number) => void, taskId: string | null = null) =>
+    checked(z.string().min(1).max(4096), 'move_data_dir', { target, onProgress: channel(onProgress), taskId }),
+  /** Alten Ordner beim nächsten Start löschen (`true`) oder behalten. */
+  confirmDataMove: (deleteOld: boolean) => call<void>('confirm_data_move', { deleteOld }),
+  instanceLocation: (id: string) => checked(instanceLocationSchema, 'instance_location', { id }),
+  /** `target: null` = zurück an den Standardort. */
+  instanceMovePlan: (id: string, target: string | null) => checked(movePlanSchema, 'instance_move_plan', { id, target }),
+  moveInstance: (id: string, target: string | null, onProgress: (percent: number) => void, taskId: string | null = null) =>
+    checked(instanceLocationSchema, 'move_instance', { id, target, onProgress: channel(onProgress), taskId }),
+  unavailableInstances: () => checked(unavailableInstancesSchema, 'unavailable_instances'),
+  forgetUnavailableInstance: (id: string) => call<void>('forget_unavailable_instance', { id }),
+  firewallStatus: () => call<{ total: number; missing: number }>('firewall_status'),
+  /** Eine Windows-Admin-Abfrage; danach fragt Windows bei keiner Instanz mehr nach dem Netzwerk. */
+  firewallAllowAll: () => call<number>('firewall_allow_all'),
+  /** Android/iOS: neue Version im Kanal `mobile`? */
+  mobileUpdateCheck: (): Promise<MobileUpdateStatus> => checked(mobileUpdateStatusSchema, 'mobile_update_check'),
+  /** Android: APK laden (Aufgabe mit Fortschritt) und den Installationsdialog des Systems öffnen. */
+  mobileUpdateInstall: (taskId: string | null = null): Promise<MobileInstallOutcome> =>
+    checked(mobileInstallOutcomeSchema, 'mobile_update_install', { taskId }),
+  /**
+   * Laufende Events melden → App-Symbol (Fenster, Verknüpfungen, Startsymbol am Handy). Der Kern
+   * beachtet den Schalter „Event-Symbole“; Antwort: geltendes Event-Symbol oder `null`.
+   */
+  eventIconSync: (events: string[]) =>
+    checked(z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/).nullable(), 'event_icon_sync', { events }),
+
+  getSettings: () => call<Settings>('get_settings'),
+  updateSettings: (settings: Settings) => call<Settings>('update_settings', { settings }),
+
+  listInstances: () => call<Instance[]>('list_instances'),
+  getInstance: (id: string) => call<Instance>('get_instance', { id }),
+  createInstance: (instance: NewInstance) => call<Instance>('create_instance', { instance }),
+  updateInstance: (id: string, update: { name: string; overrides: InstanceOverrides }) =>
+    call<Instance>('update_instance', { id, update }),
+  deleteInstance: (id: string) => call<void>('delete_instance', { id }),
+  duplicateInstance: (id: string, name: string) => call<Instance>('duplicate_instance', { id, name }),
+  /** Gemeinsame Ordner einer Instanz (Shader, Ressourcenpakete, Screenshots, Welten, Schematics). */
+  instanceSharedFolders: (id: string) => checked(sharedFolderStatusSchema, 'instance_shared_folders', { id }),
+  /** Ein-/Ausschalten; `copy` (nur beim Ausschalten): Inhalt mitnehmen statt leer starten. */
+  setInstanceSharedFolder: (
+    id: string,
+    kind: SharedFolder,
+    enabled: boolean,
+    copy: boolean,
+    onProgress: (percent: number) => void,
+    taskId?: string,
+  ) => call<Instance>('set_instance_shared_folder', { id, kind, enabled, copy, onProgress: channel(onProgress), taskId }),
+  openInstanceDir: (id: string) => call<void>('open_instance_dir', { id }),
+  /** Öffnet den Bilddialog; `null` = abgebrochen. */
+  pickInstanceIcon: (id: string) => call<Instance | null>('pick_instance_icon', { id }),
+  removeInstanceIcon: (id: string) => call<Instance>('remove_instance_icon', { id }),
+  /** Symbol-Editor: fertiges PNG (Base64) + Quelle (JSON); der Kern prüft beides noch einmal. */
+  saveInstanceIcon: async (id: string, png: string, source: string | null) =>
+    (await checked(instanceIconViewSchema, 'save_instance_icon', { id, png, source })) as unknown as Instance,
+  /** Editor-Daten des aktuellen Symbols (`null` = Bild ohne Editor-Daten). */
+  instanceIconSource: (id: string) => checked(z.string().max(262_144).nullable(), 'instance_icon_source', { id }),
+  /** Spielversionen mit geladenem Client (Quelle der Item-/Block-Texturen), neueste zuerst. */
+  mcTextureVersions: () => checked(z.array(z.string().max(128)).max(500), 'mc_texture_versions'),
+  mcTextures: (version: string | null) => checked(mcTextureSetSchema, 'mc_textures', { version }),
+  /** Eigenes Bild über den nativen Dialog (geprüft, höchstens 512 px); `null` = abgebrochen. */
+  pickIconImage: () => checked(pickedIconImageSchema.nullable(), 'pick_icon_image'),
+  /** Pixel-Bild als PNG speichern; `false` = abgebrochen. */
+  saveIconPng: (png: string, name: string) => checked(z.boolean(), 'save_icon_png', { png, name }),
+  /** Öffnet den Bilddialog für das Banner; `null` = abgebrochen. */
+  pickInstanceBanner: (id: string) => call<Instance | null>('pick_instance_banner', { id }),
+  /** Nimmt einen Screenshot der Instanz als Banner (Rust prüft den Dateinamen). */
+  setInstanceBannerFromScreenshot: (id: string, fileName: string) =>
+    call<Instance>('set_instance_banner_screenshot', { id, fileName }),
+  removeInstanceBanner: (id: string) => call<Instance>('remove_instance_banner', { id }),
+  changeInstanceVersion: (id: string, gameVersion: string, loader: Loader) =>
+    call<Instance>('change_instance_version', { id, gameVersion, loader }),
+  instanceHistory: (id: string) => call<HistoryEntry[]>('instance_history', { id }),
+  setInstanceGroup: (id: string, group: string | null) => call<Instance>('set_instance_group', { id, group }),
+  /** Grafik-Modus des TRS Clients (null = im Spiel noch nicht gewählt). */
+  getFpsMode: (id: string) => call<FpsMode | null>('get_fps_mode', { id }),
+  setFpsMode: (id: string, mode: FpsMode) => call<void>('set_fps_mode', { id, mode }),
+  loaderVersions: (kind: LoaderKind, gameVersion: string) =>
+    call<LoaderVersionInfo[]>('loader_versions', { kind, gameVersion }),
+  latestLoaderVersion: (kind: LoaderKind, gameVersion: string) =>
+    call<string | null>('latest_loader_version', { kind, gameVersion }),
+  reinstallInstance: (id: string, onProgress: (p: StageProgress) => void, taskId: string | null = null) =>
+    call<void>('reinstall_instance', { id, onProgress: channel(onProgress), taskId }),
+
+  /** Öffnet den Dateidialog für java.exe/javaw.exe; `null` = abgebrochen. */
+  pickJavaPath: () => call<string | null>('pick_java_path'),
+  checkJava: (path: string) => call<JavaCheck>('check_java', { path }),
+  detectJava: () => call<JavaInstall[]>('detect_java'),
+  installJava: (major: number, onProgress: (percent: number) => void, taskId: string | null = null) =>
+    call<string>('install_java', { major, onProgress: channel(onProgress), taskId }),
+  storageStats: () => call<StorageStats>('storage_stats'),
+  cleanUnusedStorage: () => call<number>('clean_unused_storage'),
+  verifyStorage: () => call<VerifyReport>('verify_storage'),
+
+  getVersionManifest: (forceRefresh = false) =>
+    call<VersionManifest>('get_version_manifest', { forceRefresh }),
+
+  /**
+   * Löst erst auf, wenn das Spiel gestartet ist; Fortschritt kommt über `onProgress`.
+   * `joinServer`: ID aus der Server-Liste – das Spiel verbindet sich dann direkt.
+   * `joinAddress`: freie Adresse (z. B. der geteilte Server eines Freundes); prüft der Kern.
+   * `joinWorld`: gehostete Welt – der Kern gibt Raum-ID und Code über den TRS-Link ans Spiel
+   * (läuft die Instanz schon, geht die Anweisung direkt an das laufende Spiel).
+   */
+  launchInstance: (
+    id: string,
+    joinServer: string | null,
+    onProgress: (p: StageProgress) => void,
+    taskId: string | null = null,
+    joinAddress: string | null = null,
+    joinWorld: HostedWorld | null = null,
+    /** Instanz noch einmal starten, obwohl sie läuft (eigener Prozess) */
+    extra = false,
+    /** Konto für diesen Start (sonst das aktive) */
+    accountId: string | null = null,
+    /** „Trotzdem starten“ (Konflikt-Helfer): Mod-Versionen diesmal nicht prüfen */
+    skipModCheck = false,
+  ) =>
+    call<number>('launch_instance', { id, joinServer, joinAddress, joinWorld, onProgress: channel(onProgress), taskId, extra, accountId, skipModCheck }),
+  /** Ohne `key` werden alle Prozesse der Instanz beendet, sonst genau der eine. */
+  stopInstance: (id: string, key: string | null = null) => call<boolean>('stop_instance', { id, key }),
+  /** Ist Minecraft Bedrock (Microsoft Store) installiert? Nur Windows. */
+  bedrockInfo: () => call<BedrockInfo>('bedrock_info'),
+  launchBedrock: () => call<void>('launch_bedrock'),
+  runningGames: () => call<RunningGame[]>('running_games'),
+  getGameLogs: (id: string) => call<LogLine[]>('get_game_logs', { id }),
+  repairInstance: (id: string, onProgress: (p: StageProgress) => void, taskId: string | null = null) =>
+    call<void>('repair_instance', { id, onProgress: channel(onProgress), taskId }),
+  /** Lädt den Log geschwärzt auf mclo.gs hoch; liefert den Link. */
+  shareLog: (id: string) => call<string>('share_log', { id }),
+
+  listAccounts: () => call<Account[]>('list_accounts'),
+  loginBrowser: () => call<Account>('login_browser'),
+  loginDeviceCode: (onCode: (code: DeviceCode) => void) =>
+    call<Account>('login_device_code', { onCode: channel(onCode) }),
+  cancelLogin: () => call<void>('cancel_login'),
+  setActiveAccount: (id: string) => call<void>('set_active_account', { id }),
+  removeAccount: (id: string) => call<void>('remove_account', { id }),
+
+  listContent: (id: string, kind: ContentKind) => call<ContentItem[]>('list_content', { id, kind }),
+  /** Aktivierte Jars mit derselben Mod-ID (fabric.mod.json / mods.toml, nicht der Dateiname). */
+  duplicateMods: (id: string) => call<DuplicateModGroup[]>('duplicate_mods', { id }),
+  /** Ältere Kopien nach `.disabled` umbenennen. Löscht nichts. Liefert die deaktivierten Dateinamen. */
+  resolveDuplicateMods: (id: string) => call<string[]>('resolve_duplicate_mods', { id }),
+  setContentEnabled: (id: string, kind: ContentKind, fileName: string, enabled: boolean) =>
+    call<void>('set_content_enabled', { id, kind, fileName, enabled }),
+  deleteContent: (id: string, kind: ContentKind, fileName: string) =>
+    call<void>('delete_content', { id, kind, fileName }),
+  bulkContent: (id: string, action: BulkAction, targets: { kind: ContentKind; fileName: string }[]) =>
+    call<BulkResult>('bulk_content', { id, action, targets }),
+  /** Öffnet den Dateidialog (Mehrfachauswahl); `null` = abgebrochen. */
+  pickContentFiles: (id: string) => call<UploadResult[] | null>('pick_content_files', { id }),
+  /** Übernimmt die zuletzt ins Fenster gezogenen Dateien (Marke aus dem `file-drop`-Event). */
+  addDroppedFiles: (id: string, token: number) => call<UploadResult[]>('add_dropped_files', { id, token }),
+  installedProjects: (id: string) => call<string[]>('installed_projects', { id }),
+  /** Eigene Gruppen und Herkunft (Modpack / selbst hinzugefügt), aufgelöst auf die vorhandenen Dateien. */
+  contentOrganization: (id: string) => checked(contentOrganizationSchema, 'content_organization', { id }),
+  createContentGroup: (id: string, name: string, color: GroupColor) =>
+    checked(contentGroupSchema, 'create_content_group', { id, name, color }),
+  updateContentGroup: (id: string, groupId: string, patch: { name?: string; color?: GroupColor; collapsed?: boolean }) =>
+    checked(contentGroupSchema, 'update_content_group', { id, groupId, patch }),
+  deleteContentGroup: (id: string, groupId: string) => call<void>('delete_content_group', { id, groupId }),
+  /** `groupId: null` nimmt die Inhalte aus ihrer Gruppe. */
+  assignContentGroup: (id: string, targets: { kind: ContentKind; fileName: string }[], groupId: string | null) =>
+    checked(z.number().int().nonnegative(), 'assign_content_group', { id, targets, groupId }),
+  /** „Schuldige Mod finden“ – Stand der Suche einer Instanz (`null` = keine). */
+  bisectStatus: (id: string) => checked(bisectViewSchema.nullable(), 'bisect_status', { id }),
+  /** Alle laufenden Suchen, auch aus einer früheren Sitzung. */
+  bisectActive: () => checked(z.array(bisectViewSchema), 'bisect_active'),
+  bisectStart: (id: string) => checked(bisectViewSchema, 'bisect_start', { id }),
+  bisectAnswer: (id: string, round: number, failed: boolean) => checked(bisectViewSchema, 'bisect_answer', { id, round, failed }),
+  bisectContinue: (id: string) => checked(bisectViewSchema, 'bisect_continue', { id }),
+  /** Beenden/Abbrechen: stellt den ursprünglichen Zustand wieder her; `disableResult` schaltet den Fund danach aus. */
+  bisectFinish: (id: string, disableResult: boolean) => call<void>('bisect_finish', { id, disableResult }),
+  checkContentUpdates: (id: string) => call<ContentUpdate[]>('check_content_updates', { id }),
+  /** Tauscht unverträgliche Mods gegen passende Versionen (`prefer` = Mod-ID aus der Absturz-Meldung). */
+  fixModConflicts: (id: string, prefer: string | null, taskId: string | null = null) =>
+    call<CompatReport>('fix_mod_conflicts', { id, prefer, taskId }),
+  /** Konflikt-Helfer: Mod-Versionen, die nicht zusammenpassen (nur lesen). */
+  modConflicts: (id: string) => checked(conflictReportSchema, 'mod_conflicts', { id }),
+  /** Konflikt-Helfer: passende Version einer Mod-Datei suchen und installieren. */
+  modConflictFit: (id: string, fileName: string, taskId: string | null = null) =>
+    checked(fitResultSchema, 'mod_conflict_fit', { id, fileName, taskId }),
+  /** Inhalt in den Papierkorb (am Handy: gelöscht). */
+  trashContent: (id: string, kind: ContentKind, fileName: string) => call<void>('trash_content', { id, kind, fileName }),
+  /** Installiert Mods, die laut Absturz fehlen (`dependencies` = Mod-IDs, `declarer` = wer sie braucht). */
+  installMissingDependencies: (id: string, declarer: string | null, dependencies: string[], taskId: string | null = null) =>
+    call<DependencyFix>('install_missing_dependencies', { id, declarer, dependencies, taskId }),
+  applyContentUpdate: (id: string, update: ContentUpdate, taskId: string | null = null) =>
+    call<string>('apply_content_update', {
+      id,
+      kind: update.kind,
+      fileName: update.fileName,
+      versionId: update.versionId,
+      platform: update.platform ?? null,
+      taskId,
+    }),
+  /** Öffnet z. B. den Mods-Ordner der Instanz im Explorer. */
+  openContentDir: (id: string, kind: ContentKind) => call<void>('open_content_dir', { id, kind }),
+  installPerformancePack: (id: string, taskId: string | null = null) =>
+    call<string[]>('install_performance_pack', { id, taskId }),
+  /** Icons, Titel, Autoren von Modrinth nachladen; `true` = Liste neu laden. */
+  refreshContentMeta: (id: string) => call<boolean>('refresh_content_meta', { id }),
+  /** Neuere passende Versionen seit der installierten, mit Changelog. */
+  contentChangelog: (
+    id: string,
+    projectId: string,
+    kind: ContentKind,
+    installedVersionId: string,
+    platform: Platform = 'modrinth',
+  ) => call<ModrinthVersion[]>('content_changelog', { id, projectId, kind, installedVersionId, platform }),
+  planContentMigration: (id: string) => call<MigrationItem[]>('plan_content_migration', { id }),
+
+  modrinthProject: (projectId: string) => call<ProjectDetails>('modrinth_project', { projectId }),
+  modrinthProjectVersions: (projectId: string) => call<ModrinthVersion[]>('modrinth_project_versions', { projectId }),
+  modrinthProjects: (ids: string[]) => call<ProjectCard[]>('modrinth_projects', { ids }),
+  /** Öffnet einen HTTPS-Link im Standardbrowser (Rust prüft die URL erneut). */
+  openExternalUrl: (url: string) => call<void>('open_external_url', { url }),
+
+  modrinthSearch: (params: ModrinthSearchParams) => call<ModrinthSearchResult>('modrinth_search', { params }),
+  /** Alle Modrinth-Kategorien (der Kern cacht sie einen Tag). */
+  modrinthCategories: () => call<CategoryTag[]>('modrinth_categories'),
+  modrinthVersions: (id: string, projectId: string, kind: ContentKind) =>
+    call<ModrinthVersion[]>('modrinth_versions', { id, projectId, kind }),
+  /** Ohne `versionId` die neueste passende Version; Pflicht-Abhängigkeiten kommen immer mit. */
+  modrinthInstall: (
+    id: string,
+    projectId: string,
+    kind: ContentKind,
+    versionId: string | null = null,
+    taskId: string | null = null,
+  ) => call<string[]>('modrinth_install', { id, projectId, kind, versionId, taskId }),
+  /** Lädt das Pack vorab (zwischengespeichert) und sagt, ob der TRS Client dazu passt. */
+  previewModpack: (projectId: string, versionId: string | null = null) =>
+    call<PackPreview>('preview_modpack', { projectId, versionId }),
+  /**
+   * `taskId`: Aufgabe im Kern (Abbrechen, Pause, Byte-Stand über `task-progress`).
+   * `trsClient`: Wahl „mit/ohne TRS Client“ (`null` = Einstellung bzw. Vorauswahl).
+   */
+  installModpack: (
+    projectId: string,
+    onProgress: (p: PackProgress) => void,
+    taskId: string | null = null,
+    versionId: string | null = null,
+    trsClient: boolean | null = null,
+  ) => call<Instance>('install_modpack', { projectId, versionId, trsClient, onProgress: channel(onProgress), taskId }),
+
+  /**
+   * CurseForge – alle Aufrufe laufen im Kern (der API-Schlüssel bleibt dort).
+   * Die Antworten haben dieselbe Form wie bei Modrinth; IDs sind Zahlen als Text.
+   */
+  curseforge: {
+    /** Hat dieser Build einen API-Schlüssel? Sonst CurseForge ausblenden. */
+    status: () => call<{ available: boolean }>('curseforge_status'),
+    search: (params: ModrinthSearchParams) => call<ModrinthSearchResult>('curseforge_search', { params }),
+    categories: () => call<CategoryTag[]>('curseforge_categories'),
+    project: (projectId: string) => call<ProjectDetails>('curseforge_project', { projectId }),
+    projectVersions: (projectId: string) => call<ModrinthVersion[]>('curseforge_project_versions', { projectId }),
+    projects: (ids: string[]) => call<ProjectCard[]>('curseforge_projects', { ids }),
+    versions: (id: string, projectId: string, kind: ContentKind) =>
+      call<ModrinthVersion[]>('curseforge_versions', { id, projectId, kind }),
+    /** Changelog einer Datei – HTML, nur über MarkdownView (`html`) anzeigen. */
+    changelog: (projectId: string, fileId: string) => call<string>('curseforge_changelog', { projectId, fileId }),
+    /** Gesperrte Dateien kommen als `blocked` zurück (von Hand laden). */
+    install: (id: string, projectId: string, kind: ContentKind, fileId: string | null = null, taskId: string | null = null) =>
+      call<CurseForgeInstallOutcome>('curseforge_install', { id, projectId, kind, fileId, taskId }),
+    /** Lädt das Pack vorab (zwischengespeichert) und sagt, ob der TRS Client dazu passt. */
+    previewModpack: (projectId: string, fileId: string | null = null) =>
+      call<PackPreview>('preview_curseforge_modpack', { projectId, fileId }),
+    installModpack: (
+      projectId: string,
+      onProgress: (p: PackProgress) => void,
+      taskId: string | null = null,
+      fileId: string | null = null,
+      trsClient: boolean | null = null,
+    ) =>
+      call<CurseForgePackResult>('install_curseforge_modpack', {
+        projectId,
+        fileId,
+        trsClient,
+        onProgress: channel(onProgress),
+        taskId,
+      }),
+    /** Dateien, die der Nutzer für die Instanz selbst laden muss. */
+    blocked: (id: string) => call<BlockedFile[]>('curseforge_blocked', { id }),
+    /** Übernimmt passende Dateien aus dem Download-Ordner (Name + SHA1). */
+    adoptDownloads: (id: string) => call<AdoptResult>('curseforge_adopt_downloads', { id }),
+    /** `fileId: null` = alle verwerfen. */
+    dismissBlocked: (id: string, fileId: string | null) => call<BlockedFile[]>('curseforge_dismiss_blocked', { id, fileId }),
+  },
+  /** Touch-Steuerung der mobilen App (Layouts in `<daten>/controls`). */
+  controls: {
+    list: () => checked(z.array(storedLayoutSchema), 'controls_list'),
+    save: (layout: ControlLayout) => checked(storedLayoutSchema, 'controls_save', { layout }),
+    duplicate: (id: string, name: string) => checked(storedLayoutSchema, 'controls_duplicate', { id, name }),
+    remove: (id: string) => call<void>('controls_delete', { id }),
+    reset: (id: string) => checked(storedLayoutSchema, 'controls_reset', { id }),
+    exportCode: (id: string) => checked(z.string().max(70000), 'controls_export_code', { id }),
+    importCode: (code: string) => checked(storedLayoutSchema, 'controls_import_code', { code }),
+    /** `false` = Dialog abgebrochen. */
+    exportFile: (id: string) => checked(z.boolean(), 'controls_export_file', { id }),
+    /** `null` = Dialog abgebrochen. */
+    importFile: () => checked(storedLayoutSchema.nullable(), 'controls_import_file'),
+    /** Layout einer Instanz (`null` = Standard). */
+    setInstanceProfile: (id: string, profile: string | null) => call<Instance>('set_instance_touch_profile', { id, profile }),
+  },
+
+  listPresets: () => call<Preset[]>('list_presets'),
+  createPreset: (preset: PresetInput) => call<Preset>('create_preset', { preset }),
+  updatePreset: (id: string, preset: PresetInput) => call<Preset>('update_preset', { id, preset }),
+  /** „Immer automatisch“ – auch für fertige TRS-Presets. */
+  setPresetAuto: (id: string, auto: boolean) => call<Preset>('set_preset_auto', { id, auto }),
+  deletePreset: (id: string) => call<void>('delete_preset', { id }),
+  reorderPresets: (ids: string[]) => call<Preset[]>('reorder_presets', { ids }),
+  /** Fragt nach dem Speicherort; `false` = abgebrochen. */
+  exportPreset: (id: string) => call<boolean>('export_preset', { id }),
+  /** Öffnet eine Preset-Datei und legt ein neues Preset an; `null` = abgebrochen. */
+  importPreset: () => call<Preset | null>('import_preset'),
+  /** Installiert Presets in die Instanz – nur, was für Version + Loader passt. */
+  applyPresets: (
+    id: string,
+    presetIds: string[],
+    onProgress: (p: PresetProgress) => void,
+    taskId: string | null = null,
+  ) => call<PresetApplyReport>('apply_presets', { id, presetIds, onProgress: channel(onProgress), taskId }),
+  /** Pflicht-Abhängigkeiten und bekannte Konflikte der Einträge (Preset-Editor). */
+  presetCheck: (items: PresetItem[]) => checked(presetCheckSchema, 'preset_check', { items }),
+  /** „Aus Modpack übernehmen“: Inhalte einer eigenen Instanz. */
+  presetPickInstance: (id: string) => checked(presetPickListSchema, 'preset_pick_instance', { id }),
+  /** „Aus Modpack übernehmen“: neueste Version eines Modpacks (nur gelesen, nicht installiert). */
+  presetPickModpack: (platform: Platform, projectId: string) =>
+    checked(presetPickListSchema, 'preset_pick_modpack', { platform, projectId }),
+  /** „Aus Modpack übernehmen“: mit TRS geteiltes Pack. */
+  presetPickPackCode: (code: string) => checked(presetPickListSchema, 'preset_pick_pack_code', { code }),
+  /** Instanz mit Modloader ohne Sodium/Embeddium/OptiFine (kein Modpack) → „FPS-Boost anwenden“ anbieten. */
+  fpsBoostSuggested: (id: string) => call<boolean>('fps_boost_suggested', { id }),
+
+  listServers: () => call<Server[]>('list_servers'),
+  addServer: (server: ServerInput) => call<Server>('add_server', { server }),
+  updateServer: (id: string, server: ServerInput) => call<Server>('update_server', { id, server }),
+  removeServer: (id: string) => call<void>('remove_server', { id }),
+  pingServer: (id: string): Promise<ServerStatus> => checked(pingStatusSchema, 'ping_server', { id }),
+
+  /** Profil des aktiven Accounts (Skin, Modell, Umhänge) – Texturen als Data-URL. */
+  skinProfile: () => call<SkinProfile>('skin_profile'),
+  /** Skin-Link eines anderen Spielers (nur textures.minecraft.net), `null` = Standard-Skin. */
+  playerSkinUrl: (uuid: string) => call<string | null>('player_skin_url', { uuid }),
+  skinLibrary: () => call<LibrarySkin[]>('skin_library'),
+  /** Alle Standard-Skins (Steve, Alex, Ari, … je schmal/breit) aus einem installierten Client. */
+  builtinSkins: () => call<BuiltinSkins>('builtin_skins'),
+  /** Offizielle Skin-Pakete von minecraft.net (leer ohne Internet und Cache). */
+  skinPacks: () => call<SkinPack[]>('skin_packs'),
+  /** Dateidialog (Mehrfachauswahl) → vorgemerkte Skins; `null` = abgebrochen. */
+  pickSkinFiles: () => call<SkinImportBatch | null>('pick_skin_files'),
+  /** Zuletzt ins Fenster gezogene Dateien vormerken (Marke aus dem `file-drop`-Event). */
+  stageDroppedSkins: (token: number) => call<SkinImportBatch>('stage_dropped_skins', { token }),
+  /** Skin von einem öffentlichen https-Link (geprüft im Kern). */
+  stageSkinUrl: (url: string) => call<SkinImportCandidate>('stage_skin_url', { url }),
+  /** Skin eines Spielers über seinen Namen. */
+  stagePlayerSkin: (name: string) => call<SkinImportCandidate>('stage_player_skin', { name }),
+  /** Skins aus anderen Launchern (offizieller Launcher, Prism, Modrinth App). */
+  scanLauncherSkins: () => call<LauncherSkinScan>('scan_launcher_skins'),
+  /** Vorgemerkte Skins übernehmen – Name/Modell optional überschrieben. */
+  importStagedSkins: (items: SkinImportRequest[]) => call<SkinImportReport>('import_staged_skins', { items }),
+  discardStagedSkins: (tokens: string[]) => call<void>('discard_staged_skins', { tokens }),
+  saveActiveSkin: (name: string) => call<LibrarySkin>('save_active_skin', { name }),
+  deleteSkin: (id: string) => call<void>('delete_skin', { id }),
+  renameSkin: (id: string, name: string) => call<LibrarySkin>('rename_skin', { id, name }),
+  /**
+   * Schickt den fertigen Entwurf (nur den Unterschied) an die Warteschlange im
+   * Kern und kehrt sofort zurück. `account` = UUID des gezeigten Profils.
+   */
+  applySkinChanges: (account: string, changes: SkinChanges) =>
+    call<SkinSyncStatus>('apply_skin_changes', { account, changes }),
+  skinSyncStatus: () => call<SkinSyncStatus>('skin_sync_status'),
+  /** Noch nicht gesendete Änderungen verwerfen. */
+  cancelSkinSync: () => call<SkinSyncStatus>('cancel_skin_sync'),
+
+  /** Neuigkeiten für die Startseite (Kern cacht sie; `force` lädt neu). */
+  getNews: (force = false) => call<NewsFeed>('get_news', { force }),
+  /** Empfohlene Modpacks für die Startseite (vom TRS-Team gewählt; leer ohne TRS-Dienste). */
+  featuredPacks: (force = false) => checked(featuredListSchema, 'trs_featured_packs', { force }),
+  /** `trs-launcher://modpack/<Plattform>/<ID>` beim Start (einmalig abholen). */
+  takePendingModpackLink: () => call<string | null>('take_pending_modpack_link'),
+  /** Lädt ein Feed-Bild in den Cache und gibt den freigegebenen Pfad zurück. */
+  newsImage: (url: string) => call<string | null>('news_image', { url }),
+  /** Voller Patchnotes-Text (HTML) – nur über MarkdownView anzeigen. */
+  patchNotesBody: (contentPath: string) => call<string>('patch_notes_body', { contentPath }),
+
+  /** Ordner und Dateien der Instanz, die exportiert werden können. */
+  exportCandidates: (id: string) => call<ExportEntry[]>('export_candidates', { id }),
+  /** Fragt nach dem Speicherort und schreibt das .mrpack; `null` = abgebrochen. */
+  exportModpack: (id: string, options: ExportOptions, onProgress: (p: ExportProgress) => void) =>
+    call<ExportSummary | null>('export_modpack', { id, options, onProgress: channel(onProgress) }),
+  /** Als Server exportieren: Mods (eingeordnet), Welten und Configs für den Dialog. */
+  serverExportPlan: (id: string) => checked(serverExportPlanSchema, 'server_export_plan', { id }),
+  /** Baut den Server (mit ZIP fragt Rust nach dem Speicherort); `null` = Speichern abgebrochen. */
+  exportServer: (id: string, options: ServerExportOptions, onProgress: (p: ServerExportProgress) => void, taskId: string) =>
+    checked(serverExportResultSchema.nullable(), 'export_server', { id, options, onProgress: channel(onProgress), taskId }),
+  /** Lokale Server unter `servers/` (Server-Export „lokal anlegen“). */
+  localServers: {
+    list: () => checked(z.array(localServerSchema), 'local_servers_list'),
+    start: (id: string, taskId: string | null = null) => checked(serverStatusSchema, 'local_server_start', { id, taskId }),
+    stop: (id: string) => call<void>('local_server_stop', { id }),
+    kill: (id: string) => call<void>('local_server_kill', { id }),
+    restart: (id: string) => checked(serverStatusSchema, 'local_server_restart', { id }),
+    command: (id: string, command: string) => call<void>('local_server_command', { id, command }),
+    logs: (id: string) => checked(z.array(z.string().max(5000)).max(10000), 'local_server_logs', { id }),
+    openFolder: (id: string) => call<void>('local_server_open_folder', { id }),
+    remove: (id: string) => call<void>('local_server_delete', { id }),
+    /** Adressen (localhost, LAN, öffentlich); `refresh` fragt die öffentliche IP neu ab. */
+    addresses: (id: string, refresh = false) => checked(serverAddressesSchema, 'local_server_addresses', { id, refresh }),
+    shareStatus: (id: string) => checked(shareStatusSchema, 'local_server_share_status', { id }),
+    /** TRS Relay bzw. e4mc einschalten; der weitere Stand kommt per Event `local-server-share`. */
+    share: (id: string, kind: 'relay' | 'e4mc') => checked(shareStatusSchema, 'local_server_share', { id, kind }),
+    unshare: (id: string, kind: 'relay' | 'e4mc') => checked(shareStatusSchema, 'local_server_unshare', { id, kind }),
+    /** TRS-Freunde in den Relay-Raum einladen (mit Weltkarte im Chat). */
+    invite: (id: string, friends: string[]) => checked(z.array(inviteOutcomeSchema).max(20), 'local_server_invite', { id, friends }),
+  },
+  /** Öffnet den Dateidialog und liest das Pack (Vorschau); `null` = abgebrochen. */
+  pickModpackFile: () => call<PickedPack | null>('pick_modpack_file'),
+  /** Legt aus der gewählten Pack-Datei eine Instanz an (ID der Instanz). */
+  importModpackFile: (
+    token: number,
+    trsClient: boolean | null,
+    onProgress: (p: PackProgress) => void,
+    taskId: string | null = null,
+  ) => call<string>('import_modpack_file', { token, trsClient, onProgress: channel(onProgress), taskId }),
+
+  /** Laufende Aufgabe abbrechen; `false` = läuft nicht (mehr). */
+  cancelTask: (taskId: string) => call<boolean>('cancel_task', { taskId }),
+  /** Downloads der Aufgabe anhalten bzw. fortsetzen. */
+  pauseTask: (taskId: string, paused: boolean) => call<boolean>('pause_task', { taskId, paused }),
+  /** Verlauf fertiger Aufgaben, neueste zuerst (höchstens 50). */
+  taskHistory: () => call<TaskRecord[]>('task_history'),
+  recordTask: (record: NewTaskRecord) => call<TaskRecord>('record_task', { record }),
+  removeTaskRecord: (id: string) => call<void>('remove_task_record', { id }),
+  clearTaskHistory: () => call<void>('clear_task_history'),
+
+  // --- Clips & Aufnahme ---
+  /** Alle Clips aller Instanzen, neueste zuerst. */
+  listClips: () => call<Clip[]>('list_clips'),
+  clipUsage: () => call<ClipUsage>('clip_usage'),
+  /** Dauer, Größe und Keyframes (Zeitleiste, Zuschneiden). */
+  clipDetails: (id: string, fileName: string) => call<ClipMediaInfo>('clip_details', { id, fileName }),
+  /** Aufbau der Vorschau-Leiste (erzeugt sie beim ersten Mal); `null` ohne FFmpeg. */
+  clipStrip: (id: string, fileName: string) => call<ClipStrip | null>('clip_strip', { id, fileName }),
+  planClipTrim: (id: string, fileName: string, startMs: number, endMs: number, mode: TrimMode) =>
+    call<TrimPlan>('plan_clip_trim', { id, fileName, startMs, endMs, mode }),
+  /** Bereich als neuen Clip speichern; Fortschritt 0–100 nur beim Neukodieren. */
+  trimClip: (id: string, fileName: string, request: TrimRequest, onProgress: (percent: number) => void) =>
+    call<Clip>('trim_clip', { id, fileName, request, onProgress: channel(onProgress) }),
+  /** „Speichern unter …“ (Dialog in Rust); `false` = abgebrochen. */
+  exportClip: (id: string, fileName: string) => call<boolean>('export_clip', { id, fileName }),
+  /** Clip als Datei in die Zwischenablage. */
+  copyClipFile: (id: string, fileName: string) => call<void>('copy_clip_file', { id, fileName }),
+  /** Im Standard-Player des Systems öffnen. */
+  openClipExternal: (id: string, fileName: string) => call<void>('open_clip_external', { id, fileName }),
+  renameClip: (id: string, fileName: string, newName: string) => call<string>('rename_clip', { id, fileName, newName }),
+  trashClip: (id: string, fileName: string) => call<void>('trash_clip', { id, fileName }),
+  revealClip: (id: string, fileName: string) => call<void>('reveal_clip', { id, fileName }),
+  openClipsFolder: () => call<void>('open_clips_folder'),
+  clipStates: () => call<ClipState[]>('clip_states'),
+  /** Wie die Tasten im Spiel: Clip speichern bzw. Aufnahme starten/stoppen. */
+  clipAction: (id: string, record: boolean) => call<void>('clip_action', { id, record }),
+  /** REC-Overlay (eigenes, aus der Aufnahme ausgeschlossenes Fenster) über dem Spiel zeigen. */
+  clipOverlayShow: (instanceId: string) => call<void>('clip_overlay_show', { instanceId }),
+  /** REC-Overlay dem Spielfenster nachführen (Position/Größe), während die Aufnahme läuft. */
+  clipOverlayTrack: (instanceId: string) => call<void>('clip_overlay_track', { instanceId }),
+  /** REC-Overlay verstecken (Aufnahme beendet). */
+  clipOverlayHide: () => call<void>('clip_overlay_hide'),
+  ffmpegStatus: () => call<FfmpegStatus>('ffmpeg_status'),
+  installFfmpeg: (onProgress: (percent: number) => void, taskId: string | null = null) =>
+    call<void>('install_ffmpeg', { onProgress: channel(onProgress), taskId }),
+  pickClipsFolder: () => call<string | null>('pick_clips_folder'),
+
+  /** Screenshots aller Instanzen, neueste zuerst. */
+  allScreenshots: () => call<GalleryShot[]>('all_screenshots'),
+  /** Vorschaubild (wird im Kern erzeugt und zwischengespeichert). */
+  screenshotThumbnail: (id: string, fileName: string) =>
+    call<string | null>('screenshot_thumbnail', { id, fileName }),
+  screenshotImage: (id: string, fileName: string) => call<string | null>('screenshot_image', { id, fileName }),
+  copyScreenshot: (id: string, fileName: string) => call<void>('copy_screenshot', { id, fileName }),
+  revealScreenshot: (id: string, fileName: string) => call<void>('reveal_screenshot', { id, fileName }),
+  /** Löschen – wenn möglich in den Papierkorb. */
+  trashScreenshot: (id: string, fileName: string) => call<void>('trash_screenshot', { id, fileName }),
+
+  listScreenshots: (id: string) => call<ImageEntry[]>('list_screenshots', { id }),
+  openScreenshot: (id: string, fileName: string) => call<void>('open_screenshot', { id, fileName }),
+  deleteScreenshot: (id: string, fileName: string) => call<void>('delete_screenshot', { id, fileName }),
+
+  // --- Tab „Welten“ -----------------------------------------------------------
+  instanceWorlds: (id: string) => call<WorldInfo[]>('instance_worlds', { id }),
+  openWorldFolder: (id: string, folder: string) => call<void>('open_world_folder', { id, folder }),
+  /** ZIP-Sicherung nach `backups/`; liefert den Dateinamen. */
+  backupWorld: (id: string, folder: string, onProgress: (percent: number) => void, taskId?: string) =>
+    call<string>('backup_world', { id, folder, onProgress: channel(onProgress), taskId }),
+  trashWorld: (id: string, folder: string) => call<void>('trash_world', { id, folder }),
+  instanceServers: (id: string) => call<InstanceServer[]>('instance_servers', { id }),
+  /** Ping-Test über alle Einträge der servers.dat (Adressen liest der Kern selbst, höchstens 4 gleichzeitig). */
+  pingInstanceServers: (instanceId: string) => call<InstancePing[]>('ping_instance_servers', { instanceId }),
+  addInstanceServer: (id: string, server: ServerInput) => call<void>('add_instance_server', { id, server }),
+  /** `address` = bisherige Adresse (Schutz, falls das Spiel die Liste umsortiert hat). */
+  updateInstanceServer: (id: string, index: number, address: string, server: ServerInput) =>
+    call<void>('update_instance_server', { id, index, address, server }),
+  removeInstanceServer: (id: string, index: number, address: string) =>
+    call<void>('remove_instance_server', { id, index, address }),
+
+  // --- Tab „Dateien“ (Pfade relativ zum Spielordner, geprüft im Kern) -----------
+  listInstanceFiles: (id: string, path: string) => call<DirListing>('list_instance_files', { id, path }),
+  createInstanceFolder: (id: string, parent: string, name: string) => call<string>('create_instance_folder', { id, parent, name }),
+  createInstanceFile: (id: string, parent: string, name: string) => call<string>('create_instance_file', { id, parent, name }),
+  renameInstanceFile: (id: string, path: string, newName: string) => call<string>('rename_instance_file', { id, path, newName }),
+  trashInstanceFiles: (id: string, paths: string[]) => call<number>('trash_instance_files', { id, paths }),
+  openInstanceFile: (id: string, path: string) => call<void>('open_instance_file', { id, path }),
+  revealInstanceFile: (id: string, path: string) => call<void>('reveal_instance_file', { id, path }),
+  /** Config-Editor: UTF-8-Text (höchstens 2 MB, keine Geheimnisse). */
+  readInstanceText: (id: string, path: string) => checked(textFileSchema, 'read_instance_text', { id, path }),
+  readInstanceTextBackup: (id: string, path: string) => checked(textFileSchema.nullable(), 'read_instance_text_backup', { id, path }),
+  /** `expected` = Version beim Lesen; `null` überschreibt bewusst fremde Änderungen. */
+  writeInstanceText: (id: string, path: string, text: string, expected: string | null, bom: boolean) =>
+    checked(savedTextSchema, 'write_instance_text', { id, path, text, expected, bom }),
+  /** Dateidialog; `null` = abgebrochen. */
+  pickInstanceUpload: (id: string, parent: string) => call<ImportReport | null>('pick_instance_upload', { id, parent }),
+  importDroppedInstanceFiles: (id: string, parent: string, token: number) =>
+    call<ImportReport>('import_dropped_instance_files', { id, parent, token }),
+
+  // --- Tab „Logs“ --------------------------------------------------------------
+  listLogSources: (id: string) => call<LogSource[]>('list_log_sources', { id }),
+  readLogSource: (id: string, source: string) => call<LogText>('read_log_source', { id, source }),
+  /** Lädt die Datei geschwärzt auf mclo.gs hoch; liefert den Link. */
+  shareLogSource: (id: string, source: string) => call<string>('share_log_source', { id, source }),
+  qrCode: (text: string) => call<QrMatrix>('qr_code', { text }),
+
+  // --- Absturz-Helfer (alles lokal) ------------------------------------------------
+  listCrashes: (id: string) => call<CrashSummary[]>('list_crashes', { id }),
+  getCrash: (id: string, crashId: string) => call<CrashAnalysis>('get_crash', { id, crashId }),
+  /** Log-Datei oder Crash-Report aus dem Logs-Tab analysieren (wird nicht gespeichert). */
+  analyzeLogSource: (id: string, source: string) => call<CrashAnalysis>('analyze_log_source', { id, source }),
+  setInstanceMemory: (id: string, mb: number) => call<void>('set_instance_memory', { id, mb }),
+  /** `major`: Java installieren und für die Instanz einstellen; `null` = automatisch. */
+  switchInstanceJava: (id: string, major: number | null, onProgress: (percent: number) => void, taskId: string | null = null) =>
+    call<number | null>('switch_instance_java', { id, major, onProgress: channel(onProgress), taskId }),
+  /** Holt den TRS Client sofort aus dem Update-Kanal; liefert die installierte Version. */
+  updateTrsClientNow: (id: string) => call<string | null>('update_trs_client_now', { id }),
+
+  scanImports: () => call<ImportCandidate[]>('scan_imports'),
+  /** Wie scanImports, dazu die erkannten Launcher (auch nicht unterstützte). */
+  importOverview: () => call<ImportOverview>('import_overview'),
+  /** Öffnet den Ordnerdialog; `null` = abgebrochen. */
+  pickImportFolder: () => call<ImportCandidate[] | null>('pick_import_folder'),
+  /** `trsClient`: Wahl „mit/ohne TRS Client“ (`null` = Einstellung bzw. Vorauswahl). */
+  importInstance: (
+    id: string,
+    gameVersion: string | null,
+    loader: Loader | null,
+    onProgress: (p: ImportProgress) => void,
+    trsClient: boolean | null = null,
+  ) => call<ImportResult>('import_instance', { id, gameVersion, loader, trsClient, onProgress: channel(onProgress) }),
+  /** „Mit oder ohne TRS Client“ nur nach Loader und Version (ohne Blick auf Mods). */
+  trsClientOffer: (gameVersion: string, loader: Loader) => call<TrsOffer>('trs_client_offer', { gameVersion, loader }),
+
+  /** TRS-Dienste (Umhänge, Freunde, Verwaltung). Der Token bleibt im Kern. */
+  trs: {
+    status: () => checked(trsStatusSchema, 'trs_status'),
+    /** Stand der Synchronisation mit dem TRS-Konto (Skins, Presets, Theme/Sprache). */
+    syncStatus: () => checked(trsSyncStatusSchema, 'trs_sync_status'),
+    setConsent: (accepted: boolean) => checked(trsStatusSchema, 'trs_set_consent', { accepted }),
+    me: () => checked(trsMeSchema, 'trs_me'),
+    updateMe: (patch: Partial<TrsPrivacy>) => checked(trsMeSchema, 'trs_update_me', { patch }),
+    /** Löscht alle TRS-Daten des aktiven Accounts und schaltet die Dienste aus. */
+    deleteMe: () => checked(trsStatusSchema, 'trs_delete_me'),
+    capes: () => checked(z.array(trsCapeSchema), 'trs_capes'),
+    setCape: (capeId: string | null) => checked(z.string().nullable(), 'trs_set_cape', { capeId }),
+    /** Dateidialog im Kern (auch mehrere Bilder = Frames); `null` = abgebrochen. */
+    pickCapeSources: () => checked(z.array(trsCapeSourceSchema).nullable(), 'trs_pick_cape_sources'),
+    /** Video wählen (nur mit FFmpeg, Windows): Kennung + Dauer/Größe; `null` = abgebrochen. */
+    pickCapeVideo: () => checked(trsCapeVideoSchema.nullable(), 'trs_pick_cape_video'),
+    /** Bereich des Videos als Frames (Aufgabe mit Fortschritt 0–100 und Abbrechen). */
+    capeVideoFrames: (
+      token: string,
+      request: { startMs: number; endMs: number; fps: number },
+      onProgress: (percent: number) => void,
+      taskId: string | null = null,
+    ) => checked(trsCapeSourceSchema, 'trs_cape_video_frames', { token, request, onProgress: channel(onProgress), taskId }),
+    /** Fertiger Streifen aus dem Zuschneide-Dialog (PNG als Base64); der Kern prüft ihn erneut. */
+    uploadCape: (upload: { png: string; frames: number; frameTimeMs: number | null; name: string | null }) =>
+      checked(trsCapeSchema, 'trs_upload_cape', upload),
+    deleteCape: (id: string) => call<void>('trs_delete_cape', { id }),
+    reportCape: (id: string, reason: TrsReportReason, note: string | null) =>
+      call<void>('trs_report_cape', { id, reason, note }),
+    redeem: (code: string) => checked(trsRedeemSchema, 'trs_redeem', { code }),
+    /** Eigene Kopf-Kosmetik (Quietscheente, v2-Modelle) und Auf-/Absetzen (`null`). */
+    hats: () => checked(z.array(trsHatSchema), 'trs_hats'),
+    /** Alle Kopf-Kosmetik-Teile (besessen + gesperrt) mit Vorschaubildern. */
+    headCosmetics: () => checked(z.array(trsHeadCosmeticSchema), 'trs_head_cosmetics'),
+    /** v2-Modell + Texturen für die 3D-Vorschau (auch gesperrte Teile – zum Anprobieren). */
+    headCosmeticModel: (id: string) => checked(trsHeadCosmeticModelSchema, 'trs_head_cosmetic_model', { id }),
+    setHat: (id: string | null) => call<void>('trs_set_hat', { id }),
+    /** Begleiter (Fledermaus …) auf-/absetzen, unabhängig vom Hut. */
+    setCompanion: (id: string | null) => call<void>('trs_set_companion', { id }),
+    /** Flügel (slot wings, am Rumpf) anlegen oder ablegen. */
+    setWings: (id: string | null) => call<void>('trs_set_wings', { id }),
+    /** Event-Kosmetik bzw. -Umhang gratis holen (nur solange das Event für dich läuft). */
+    claimCosmetic: (id: string) => call<void>('trs_claim_cosmetic', { id }),
+    claimCape: (id: string) => call<void>('trs_claim_cape', { id }),
+    /** Zuletzt bekannte aktive Events (ohne Netz). */
+    activeEvents: () => checked(z.array(z.string()), 'trs_active_events'),
+    adminEvents: () => checked(z.array(trsAdminEventSchema), 'trs_admin_events'),
+    adminSetEvent: (id: string, enabled: boolean) => call<void>('trs_admin_set_event', { id, enabled }),
+    adminAddEventPlayer: (id: string, player: string) => call<void>('trs_admin_add_event_player', { id, player }),
+    adminRemoveEventPlayer: (id: string, uuid: string) => call<void>('trs_admin_remove_event_player', { id, uuid }),
+    /** Empfohlene Modpacks verwalten (Recht featured.manage). */
+    adminFeaturedPacks: () => checked(z.array(adminFeaturedPackSchema).max(100), 'trs_admin_featured_packs'),
+    adminAddFeaturedPack: (url: string) => checked(adminFeaturedPackSchema, 'trs_admin_add_featured_pack', { url }),
+    adminUpdateFeaturedPack: (id: string, patch: FeaturedPatch) =>
+      checked(adminFeaturedPackSchema, 'trs_admin_update_featured_pack', { id, patch }),
+    adminDeleteFeaturedPack: (id: string) => call<void>('trs_admin_delete_featured_pack', { id }),
+    adminOrderFeaturedPacks: (ids: string[]) => checked(z.array(adminFeaturedPackSchema).max(100), 'trs_admin_order_featured_packs', { ids }),
+    adminRefreshFeaturedPack: (id: string) => checked(adminFeaturedPackSchema, 'trs_admin_refresh_featured_pack', { id }),
+    playerCapes: (uuids: string[]) => checked(z.array(trsPlayerCapeSchema), 'trs_player_capes', { uuids }),
+    /** Umhänge teilen: offene Angebote an mich (mit Vorschau) und von mir. */
+    capeOffers: () => checked(trsCapeOffersSchema, 'trs_cape_offers'),
+    offerCape: (capeId: string, friend: string) => call<void>('trs_offer_cape', { capeId, friend }),
+    acceptCapeOffer: (capeId: string) => call<void>('trs_accept_cape_offer', { capeId }),
+    declineCapeOffer: (capeId: string) => call<void>('trs_decline_cape_offer', { capeId }),
+    capeHolders: (capeId: string) => checked(trsCapeHoldersSchema, 'trs_cape_holders', { capeId }),
+    /** Entziehen / Angebot zurückziehen (samt Weitergegebenem); eigene UUID = zurückgeben. */
+    revokeCapeShare: (capeId: string, holder: string) => call<void>('trs_revoke_cape_share', { capeId, holder }),
+    friends: () => checked(trsFriendsSchema, 'trs_friends'),
+    blocks: () => checked(z.array(trsBlockedSchema), 'trs_blocks'),
+    friendRequest: (target: string) => checked(trsFriendRequestResultSchema, 'trs_friend_request', { target }),
+    acceptFriend: (uuid: string) => checked(trsFriendSchema, 'trs_friend_accept', { uuid }),
+    declineFriend: (uuid: string) => call<void>('trs_friend_decline', { uuid }),
+    cancelRequest: (uuid: string) => call<void>('trs_friend_cancel', { uuid }),
+    removeFriend: (uuid: string) => call<void>('trs_friend_remove', { uuid }),
+    block: (target: string) => checked(trsUserRefSchema, 'trs_block', { target }),
+    unblock: (uuid: string) => call<void>('trs_unblock', { uuid }),
+
+    adminStats: () => checked(trsAdminStatsSchema, 'trs_admin_stats'),
+    adminCapes: (list: TrsReviewList) => checked(z.array(trsAdminCapeSchema), 'trs_admin_capes', { list }),
+    adminApprove: (id: string) => call<void>('trs_admin_approve', { id }),
+    adminReject: (id: string, reason: string | null) => call<void>('trs_admin_reject', { id, reason }),
+    adminDeleteCape: (id: string) => call<void>('trs_admin_delete_cape', { id }),
+    adminCodes: () => checked(z.array(trsCodeSchema), 'trs_admin_codes'),
+    /** Die Klartext-Codes gibt es nur in dieser Antwort. */
+    adminCreateCodes: (request: { capeId: string; maxUses: number; count: number; expiresAt?: string; note?: string }) =>
+      checked(z.array(trsCodeSchema), 'trs_admin_create_codes', { request }),
+    adminRevokeCode: (id: number) => call<void>('trs_admin_revoke_code', { id }),
+    adminUser: (query: string) => checked(trsAdminUserSchema, 'trs_admin_user', { query }),
+    /** `true` = hatte den Umhang schon. */
+    adminGrant: (player: string, capeId: string) => checked(z.boolean(), 'trs_admin_grant', { player, capeId }),
+    adminRevokeGrant: (uuid: string, capeId: string) => call<void>('trs_admin_revoke_grant', { uuid, capeId }),
+    adminBan: (player: string, reason: string | null) => checked(trsAdminUserSchema, 'trs_admin_ban', { player, reason }),
+    adminUnban: (uuid: string) => call<void>('trs_admin_unban', { uuid }),
+  },
+
+  /** Geteilte Modpacks (API §27): per Code/Link/an Freunde teilen, per Code installieren, Updates. */
+  packs: {
+    /** .mrpack vorbereiten (kein Upload). `update` = neue Version des schon geteilten Packs (gleicher Code). */
+    share: (id: string, options: SharePackOptions, update: boolean, onProgress: (p: ExportProgress) => void, taskId: string | null = null) =>
+      checked(sharePackOutcomeSchema, 'share_pack', { id, options, update, onProgress: channel(onProgress), taskId }),
+    /** Vorbereitetes Pack hochladen (chunked, pausierbar). */
+    uploadShare: (token: string, taskId: string | null = null) => checked(ownPackSchema, 'upload_shared_pack', { token, taskId }),
+    /** Vorbereitetes Pack verwerfen, solange kein Upload läuft. */
+    discardShare: (token: string) => call<void>('discard_share_pack', { token }),
+    mine: () => checked(myPacksSchema, 'packs_mine'),
+    setDuration: (id: string, duration: PackDuration) => checked(ownPackSchema, 'pack_set_duration', { id, duration }),
+    remove: (id: string) => call<void>('pack_delete', { id }),
+    send: (id: string, friends: string[]) => checked(packSendResultSchema, 'pack_send', { id, friends }),
+    inbox: () => checked(z.array(inboxPackSchema), 'pack_inbox'),
+    dismiss: (id: string) => call<void>('pack_inbox_dismiss', { id }),
+    byCode: (code: string) => checked(sharedPackSchema, 'pack_by_code', { code }),
+    /** Pack laden und prüfen (für „mit/ohne TRS Client“); bleibt für die Installation liegen. */
+    previewCode: (code: string) =>
+      checked(z.object({ pack: sharedPackSchema, preview: z.custom<PackPreview>((v) => typeof v === 'object' && v !== null) }), 'preview_pack_code', { code }),
+    installCode: (code: string, trsClient: boolean | null, onProgress: (p: PackProgress) => void, taskId: string | null = null) =>
+      call<Instance>('install_pack_code', { code, trsClient, onProgress: channel(onProgress), taskId }),
+    links: () => checked(z.array(packLinkSchema), 'pack_links'),
+    unlink: (id: string) => call<void>('pack_unlink', { id }),
+    updates: () => checked(z.array(packUpdateInfoSchema), 'pack_updates'),
+    update: (id: string, onProgress: (p: PackProgress) => void, taskId: string | null = null) =>
+      checked(packUpdateResultSchema, 'update_pack_instance', { id, onProgress: channel(onProgress), taskId }),
+    /** Code aus einem `trs-launcher://pack/…`-Link beim Start (einmalig abholen). */
+    takePendingLink: () => call<string | null>('take_pending_pack_link'),
+  },
+
+  /** Anmeldung auf der Website per TRS Launcher (API §29) – bestätigt wird nur nach einem Klick im Dialog. */
+  webLogin: {
+    /** Konten, mit denen bestätigt werden kann (aktives zuerst). */
+    accounts: () => checked(z.array(webLoginAccountSchema), 'trs_web_login_accounts'),
+    /** Anfrage per Link-Token oder eingetipptem Code nachschlagen. */
+    lookup: (account: string | null, source: { token: string } | { code: string }) =>
+      checked(webLoginRequestSchema, 'trs_web_login_lookup', {
+        account,
+        token: 'token' in source ? source.token : null,
+        code: 'code' in source ? source.code : null,
+      }),
+    decide: (account: string | null, id: string, code: string, approve: boolean) =>
+      call<void>('trs_web_login_decide', { account, id, code, approve }),
+    /** Link-Token aus einem `trs-launcher://web-login/…`-Link beim Start (einmalig abholen). */
+    takePending: () => call<string | null>('take_pending_web_login'),
+  },
+
+  /** PC-Fernbedienung (API §33): Geräte-Geheimnisse und Signaturprüfung bleiben im Kern. */
+  remote: {
+    /** PC: Kopplungs-Code + Link für den QR-Code (nur mit eingeschalteter Fernbedienung). */
+    pairStart: () => checked(pairCodeSchema, 'remote_pair_start'),
+    pairCancel: () => call<void>('remote_pair_cancel'),
+    /** PC: eigenen Stand melden (`online`/`allow` ergänzt der Kern aus den Einstellungen). */
+    publishStatus: (status: StatusInput) => call<void>('remote_publish_status', { status }),
+    /** PC: Befehl abholen – erst danach ausführen. */
+    claim: (id: string) => checked(claimedCommandSchema, 'remote_claim', { id }),
+    result: (id: string, ok: boolean, error: string | null = null) => call<void>('remote_result', { id, ok, error }),
+    /** Handy: Code des PCs einlösen (eingetippt oder aus dem QR-Code). */
+    pairConfirm: (code: string) => checked(remotePeerSchema, 'remote_pair_confirm', { code }),
+    send: (desktopId: string, commandType: RemoteCommandType, args: { instanceId?: string; code?: string }, idempotencyKey: string) =>
+      checked(sentCommandSchema, 'remote_send', {
+        desktopId,
+        commandType,
+        instanceId: args.instanceId ?? null,
+        code: args.code ?? null,
+        idempotencyKey,
+      }),
+    /** Gekoppelte Geräte – `kind` = eigene Rolle. */
+    pairings: (kind: 'desktop' | 'phone') => checked(remotePairingsSchema, 'remote_pairings', { kind }),
+    unpair: (kind: 'desktop' | 'phone', peerId: string) => call<void>('remote_unpair', { kind, peerId }),
+    /** Code aus einem `trs-launcher://remote-pair/…`-Link beim Start (einmalig abholen). */
+    takePendingPair: () => call<string | null>('take_pending_remote_pair'),
+  },
+
+  /**
+   * Push-Benachrichtigungen am Handy (API §33): Verteiler, Adresse und Schlüssel bleiben im Kern/Plugin.
+   * Jeder Aufruf gleicht das Gerät mit dem Server ab und liefert den neuen Stand.
+   */
+  push: {
+    status: () => checked(pushStatusSchema, 'push_status'),
+    /** Schalter speichern; Einschalten fragt nach dem Recht für Benachrichtigungen. */
+    setSettings: (settings: PushSettings) => checked(pushStatusSchema, 'push_set_settings', { settings }),
+    /** Android: Verteiler (Paketname) wählen oder `null` = ohne Verteiler abholen. */
+    chooseDistributor: (distributor: string | null) => checked(pushStatusSchema, 'push_choose_distributor', { distributor }),
+    devices: () => checked(z.array(pushDeviceSchema).max(50), 'push_devices'),
+    /** Android: Verteiler-App (ntfy …) öffnen – sie verbindet sich erst nach dem ersten Öffnen. */
+    openDistributor: () => call<void>('push_open_distributor'),
+    removeDevice: (id: string) => checked(pushStatusSchema, 'push_remove_device', { id }),
+    /** Route einer angetippten Benachrichtigung beim Start (einmalig abholen). */
+    takePendingTarget: () => call<string | null>('take_pending_push_target'),
+  },
+
+  /** Sozial: Chat, Bilder, Meldungen, Moderation – alles über den Kern, ohne Token im Webview. */
+  social: {
+    liveStatus: () => checked(liveStatusSchema, 'trs_live_status'),
+    liveReconnect: () => call<void>('trs_live_reconnect'),
+    conversations: (cursor: string | null = null, limit: number | null = null) =>
+      checked(conversationPageSchema, 'chat_conversations', { cursor, limit }),
+    conversation: (id: string) => checked(chatConversationSchema, 'chat_conversation', { id }),
+    openDm: (uuid: string) => checked(chatConversationSchema, 'chat_open_dm', { uuid }),
+    unread: () => checked(unreadSummarySchema, 'chat_unread'),
+    createGroup: (name: string, members: string[]) => checked(chatConversationSchema, 'chat_create_group', { name, members }),
+    renameGroup: (id: string, name: string) => checked(chatConversationSchema, 'chat_rename_group', { id, name }),
+    addMembers: (id: string, members: string[]) => checked(chatConversationSchema, 'chat_add_members', { id, members }),
+    removeMember: (id: string, uuid: string) => call<void>('chat_remove_member', { id, uuid }),
+    leaveGroup: (id: string) => call<void>('chat_leave_group', { id }),
+    transferGroup: (id: string, uuid: string) => checked(chatConversationSchema, 'chat_transfer_group', { id, uuid }),
+    deleteGroup: (id: string) => call<void>('chat_delete_group', { id }),
+    messages: (id: string, opts: { before?: number; after?: number; limit?: number } = {}) =>
+      checked(messagePageSchema, 'chat_messages', { id, before: opts.before ?? null, after: opts.after ?? null, limit: opts.limit ?? null }),
+    send: (id: string, message: OutgoingMessage) => checked(chatMessageSchema, 'chat_send', { id, message }),
+    edit: (messageId: string, text: string) => checked(chatMessageSchema, 'chat_edit', { messageId, text }),
+    remove: (messageId: string) => checked(chatMessageSchema, 'chat_delete', { messageId }),
+    react: (messageId: string, emoji: string, on: boolean) => checked(z.array(chatReactionSchema), 'chat_react', { messageId, emoji, on }),
+    read: (id: string, seq: number) => checked(chatConversationSchema, 'chat_read', { id, seq }),
+    markUnread: (id: string, seq: number | null = null) => checked(chatConversationSchema, 'chat_mark_unread', { id, seq }),
+    mute: (id: string, muted: boolean, until: string | null = null) => checked(chatConversationSchema, 'chat_mute', { id, muted, until }),
+    typing: (id: string, typing: boolean) => call<void>('chat_typing', { id, typing }),
+    serverStatus: (address: string) => checked(inviteStatusSchema, 'chat_server_status', { address }),
+    /** Dateidialog; `null` = abgebrochen. */
+    pickImages: () => checked(stagedImagesSchema.nullable(), 'chat_pick_images'),
+    stageDropped: (token: number) => checked(stagedImagesSchema, 'chat_stage_dropped', { token }),
+    stagePasted: (name: string, data: string) => checked(localImageSchema, 'chat_stage_pasted', { name, data }),
+    localImages: () => checked(z.array(localImageSchema), 'chat_local_images'),
+    forgetLocal: (id: string) => call<void>('chat_forget_local', { id }),
+    upload: (source: UploadSource) => checked(chatAttachmentSchema, 'chat_upload', { source }),
+    /** Screenshot als öffentlichen Link teilen (API §23; Upload + Neukodieren im Kern). */
+    shareScreenshot: (instanceId: string, fileName: string) => checked(sharedImageSchema, 'share_screenshot', { instanceId, fileName }),
+    shares: () => checked(sharesPageSchema, 'shares_list'),
+    deleteShare: (id: string) => call<void>('share_delete', { id }),
+    screenshotFavorites: () => checked(z.array(z.string().max(300)), 'screenshot_favorites'),
+    setScreenshotFavorite: (instanceId: string, fileName: string, favorite: boolean) =>
+      checked(z.array(z.string().max(300)), 'set_screenshot_favorite', { instanceId, fileName, favorite }),
+    report: (target: ReportTarget, reason: ReportReason, note: string | null) =>
+      checked(myReportSchema, 'chat_report', { report: { target, reason, note } }),
+    myReports: () => checked(z.array(myReportSchema), 'chat_my_reports'),
+    myModeration: () => checked(myModerationSchema, 'chat_my_moderation'),
+    adminReports: (query: ReportQuery) => checked(adminReportListSchema, 'admin_reports', { query }),
+    adminReport: (id: string) => checked(adminReportEnvelopeSchema, 'admin_report', { id }),
+    adminReportStatus: (id: string, status: 'open' | 'in_review') => checked(adminReportEnvelopeSchema, 'admin_report_status', { id, status }),
+    adminReportAction: (id: string, action: ReportActionInput) => checked(adminReportEnvelopeSchema, 'admin_report_action', { id, action }),
+    adminReportNote: (id: string, text: string) => checked(adminReportEnvelopeSchema, 'admin_report_note', { id, text }),
+    adminModerationUser: (uuid: string) => checked(adminModerationEnvelopeSchema, 'admin_moderation_user', { uuid }),
+    adminMute: (uuid: string, minutes: number | null, reason: string | null) =>
+      checked(adminModerationEnvelopeSchema, 'admin_mute', { uuid, minutes, reason }),
+    adminUnmute: (uuid: string) => checked(adminModerationEnvelopeSchema, 'admin_unmute', { uuid }),
+    adminWarn: (uuid: string, reason: string) => checked(adminModerationEnvelopeSchema, 'admin_warn', { uuid, reason }),
+    adminWordFilter: () => checked(filterWordsSchema, 'admin_word_filter'),
+    adminAddWord: (word: NewFilterWord) => checked(filterWordEnvelopeSchema, 'admin_add_word', { word }),
+    adminDeleteWord: (id: number) => call<void>('admin_delete_word', { id }),
+    adminAudit: (query: AuditQuery) => checked(auditPageSchema, 'admin_audit', { query }),
+    quietHours: () => call<boolean>('social_quiet_hours'),
+    notifyNative: (title: string, body: string) => call<void>('social_notify_native', { title, body }),
+    focusWindow: () => call<void>('social_focus_window'),
+    /** Instanzen, deren Spiel gerade mit verbundenem TRS Client läuft (Änderungen: `trs-client-linked`). */
+    gameClients: () => checked(z.array(z.string().max(200)).max(64), 'social_game_clients'),
+  },
+
+  /** Moderation v2 (§22): eigene Strafen + Einspruch – geht auch mit gesperrtem Konto (Token bleibt im Kern). */
+  sanctions: {
+    mine: () => checked(mySanctionsSchema, 'trs_my_sanctions'),
+    appeal: (id: number, text: string) => checked(mySanctionSchema, 'trs_appeal', { id, text }),
+  },
+
+  /** Launcher-Erfolge: eigene (Katalog, Fortschritt, Punkte) und die eines Freundes. */
+  achievements: {
+    mine: () => checked(myAchievementsSchema, 'trs_achievements'),
+    player: (uuid: string) => checked(playerAchievementsSchema, 'trs_player_achievements', { uuid }),
+    /** Meldung aus der Oberfläche (nur `crash_fixed`), gesendet wird gesammelt im Hintergrund. */
+    report: (kind: 'crash_fixed') => call<void>('trs_achievement_report', { kind }),
+    /** Erfolge für Freunde sichtbar oder privat – gibt den neuen Stand zurück. */
+    setVisible: (visible: boolean) => checked(z.boolean(), 'trs_set_achievements_visible', { visible }),
+  },
+
+  /** Eigene Team-Bewerbungen (§24.3): Status + Antwort, zurückziehen. Stellen und Formulare: Website. */
+  applications: {
+    mine: () => checked(myApplicationsSchema, 'trs_my_applications'),
+    withdraw: (id: string) => checked(myApplicationSchema, 'trs_withdraw_application', { id }),
+  },
+
+  /** Team-Bereich (§22, Rechte §24.2): sichtbar je nach `me.team.permissions`; der Server prüft jede Anfrage. */
+  team: {
+    dashboard: () => checked(dashboardSchema, 'admin_dashboard'),
+    search: (q: string) => checked(searchResultSchema, 'admin_search', { q }),
+    players: (query: PlayerQuery) => checked(playerPageSchema, 'admin_players', { query }),
+    player: (uuid: string) => checked(playerFileEnvelopeSchema, 'admin_player', { uuid }),
+    addNote: (uuid: string, text: string) => checked(notesEnvelopeSchema, 'admin_player_note', { uuid, text }),
+    deleteNote: (uuid: string, id: number) => checked(notesEnvelopeSchema, 'admin_player_note_delete', { uuid, id }),
+    sanctions: (query: SanctionQuery) => checked(sanctionPageSchema, 'admin_sanctions', { query }),
+    sanction: (id: number) => checked(sanctionEnvelopeSchema, 'admin_sanction', { id }),
+    createSanction: (sanction: NewSanctionInput) => checked(sanctionEnvelopeSchema, 'admin_sanction_create', { sanction }),
+    liftSanction: (id: number, reason: string) => checked(sanctionEnvelopeSchema, 'admin_sanction_lift', { id, reason }),
+    /** Neues Ende (`null` = dauerhaft); früher = verkürzen, später = verlängern. */
+    changeSanction: (id: number, endsAt: string | null, reason: string) =>
+      checked(sanctionEnvelopeSchema, 'admin_sanction_duration', { id, endsAt, reason }),
+    appeals: (query: { status?: 'open' | 'decided' | 'all'; cursor?: string; limit?: number }) =>
+      checked(appealPageSchema, 'admin_appeals', { query }),
+    decideAppeal: (id: number, decision: AppealDecisionInput) => checked(appealEnvelopeSchema, 'admin_appeal_decide', { id, decision }),
+    rooms: () => checked(roomListSchema, 'admin_rooms'),
+    closeRoom: (id: string, reason: string | null) => call<void>('admin_room_close', { id, reason }),
+    bulk: (target: BulkTarget, bulk: { ids: string[]; action: string; reason?: string }) =>
+      checked(bulkResultSchema, 'admin_bulk', { target, bulk }),
+    capes: (query: UploadQuery) => checked(z.array(trsAdminCapeSchema), 'admin_capes', { query }),
+    cosmetics: (query: UploadQuery) => checked(cosmeticPageSchema, 'admin_cosmetics', { query }),
+    deleteCosmetic: (id: string) => call<void>('admin_delete_cosmetic', { id }),
+  },
+
+  /**
+   * Halloween 2026 (API §36): Kürbis-Suche, Süßes oder Saures, Spuk-Effekte, Sticker und
+   * Abzeichen-Bilder (als Data-URL aus dem Kern). Ältere API ohne §36: `state()` → inaktiv.
+   */
+  halloween: {
+    state: () => checked(halloweenStateSchema, 'halloween_state'),
+    findPumpkin: (id: LauncherPumpkin) => checked(pumpkinFoundSchema, 'halloween_find_pumpkin', { id }),
+    trick: () => checked(trickOutcomeSchema, 'halloween_trick'),
+    setEffects: (effects: { hits: boolean; trail: boolean }) => call<void>('halloween_set_effects', { effects }),
+    stickers: () => checked(z.array(stickerSchema), 'halloween_stickers'),
+    badgeImages: (ids: string[]) => checked(z.array(badgeImageSchema), 'trs_badge_images', { ids }),
+    /** Flügel nach allen 13 Kürbissen wählen (endgültig) – liefert den neuen Stand. */
+    chooseWings: (id: string) => checked(halloweenStateSchema, 'halloween_choose_wings', { id }),
+  },
+
+  /**
+   * Creator-Programm (API §35): Codes einlösen, unterstützen, blockieren, Dashboard und
+   * Team-Verwaltung. Bilder (Symbol-Streifen, Fan-Umhänge) kommen als Data-URL aus dem Kern.
+   */
+  creator: {
+    me: () => checked(myCreatorSchema, 'creator_me'),
+    redeem: (code: string) => checked(creatorRedeemSchema, 'creator_redeem', { code }),
+    endSupport: () => call<void>('creator_end_support'),
+    block: (code: string) => checked(z.array(creatorUserRefSchema), 'creator_block', { code }),
+    unblock: (uuid: string) => checked(z.array(creatorUserRefSchema), 'creator_unblock', { uuid }),
+    setShowSymbols: (show: boolean) => checked(z.boolean(), 'creator_set_show_symbols', { show }),
+    /** Gelistete Creator-Modpacks (Entdecken), nach Installationen sortiert. */
+    packs: (q: string | null, offset = 0, limit = 20) => checked(listedPacksSchema, 'creator_packs', { q, offset, limit }),
+    // `asCreator`: als Helfer für diesen Creator (`?as=`, §35.9); `null` = eigenes Dashboard.
+    dashboard: (asCreator: string | null = null) => checked(creatorSelfSchema, 'creator_dashboard', { asCreator }),
+    createCode: (code: { code: string; maxUses?: number; expiresAt?: string }, asCreator: string | null = null) =>
+      checked(z.array(creatorCodeSchema), 'creator_create_code', { code, asCreator }),
+    updateCode: (code: string, patch: { active?: boolean; maxUses?: number | null; expiresAt?: string | null }, asCreator: string | null = null) =>
+      checked(z.array(creatorCodeSchema), 'creator_update_code', { code, patch, asCreator }),
+    /** Fertiger Symbol-Streifen (PNG als Base64); `maxFrames` nach Stufe – der Kern prüft erneut. */
+    uploadSymbol: (png: string, frameMs: number | null, maxFrames: number, asCreator: string | null = null) =>
+      call<void>('creator_upload_symbol', { png, frameMs, maxFrames, asCreator }),
+    withdrawSymbol: (asCreator: string | null = null) => call<void>('creator_withdraw_symbol', { asCreator }),
+    /** Fan-Umhang aus der Umhang-Werkstatt (gleiche Prüfung wie eigene Umhänge). */
+    uploadFanCape: (upload: { png: string; frames: number; frameTimeMs: number | null; name: string }, asCreator: string | null = null) =>
+      call<void>('creator_upload_fan_cape', { ...upload, asCreator }),
+    withdrawFanCape: (asCreator: string | null = null) => call<void>('creator_withdraw_fan_cape', { asCreator }),
+    request: (request: { kind: 'upgrade'; channelUrl: string; followers: number; note?: string } | { kind: 'team_cape'; text: string }) =>
+      checked(z.array(creatorRequestSchema), 'creator_request', { request }),
+    previews: () => checked(z.array(previewBuildSchema), 'creator_previews'),
+    setPackListed: (code: string, listed: boolean, asCreator: string | null = null) =>
+      call<void>('creator_set_pack_listed', { code, listed, asCreator }),
+    /** Helfer (§35.9): Freunde einladen, Rechte ändern, entfernen; Einladungen annehmen, aufhören. */
+    inviteHelper: (uuid: string, rights: HelperRight[]) => call<void>('creator_invite_helper', { uuid, rights }),
+    updateHelper: (uuid: string, rights: HelperRight[]) => call<void>('creator_update_helper', { uuid, rights }),
+    removeHelper: (uuid: string) => call<void>('creator_remove_helper', { uuid }),
+    answerHelperInvite: (creator: string, accept: boolean) => call<void>('creator_answer_helper_invite', { creator, accept }),
+    leaveHelping: (creator: string) => call<void>('creator_leave_helping', { creator }),
+
+    adminQueue: () => checked(z.array(creatorQueueItemSchema), 'admin_creator_queue'),
+    adminDecide: (id: string, approve: boolean, reason: string | null = null) => call<void>('admin_creator_decide', { id, approve, reason }),
+    adminList: (query: { q?: string; state?: string }) => checked(z.array(adminCreatorSchema), 'admin_creators', { query }),
+    adminAdd: (creator: { player: string; tier: CreatorTier; mainCode?: string }) => call<void>('admin_creator_add', { creator }),
+    adminUpdate: (uuid: string, patch: { tier?: CreatorTier; mainCode?: string }) => call<void>('admin_creator_update', { uuid, patch }),
+    adminRevoke: (uuid: string, revoke: { reason: string; ban: boolean; removeFanCapes: boolean }) =>
+      call<void>('admin_creator_revoke', { uuid, revoke }),
+    adminRestore: (uuid: string) => call<void>('admin_creator_restore', { uuid }),
+    adminRequests: () => checked(z.array(adminCreatorRequestSchema), 'admin_creator_requests'),
+    adminAnswer: (id: string, accept: boolean, reason: string | null = null) => call<void>('admin_creator_answer', { id, accept, reason }),
+  },
+
+  /** Welt-Hosting (§21): Beitreten/Anfragen und Listen – Verbindungsdaten bleiben im Kern bzw. im Spiel. */
+  hosting: {
+    friendsRooms: () => checked(z.array(hostingRoomSchema), 'hosting_friends_rooms'),
+    myRooms: () => checked(z.array(hostingRoomSchema), 'hosting_my_rooms'),
+    /** `null` = Welt geschlossen oder nicht (mehr) sichtbar. */
+    room: (id: string) => checked(hostingRoomSchema.nullable(), 'hosting_room', { id }),
+    join: (target: HostingTarget) =>
+      checked(hostingJoinResultSchema, 'hosting_join', { target: { roomId: target.roomId ?? null, code: target.code ?? null } }),
+    leave: (id: string) => call<void>('hosting_leave', { id }),
+    delivery: (instanceId: string) => checked(hostingDeliverySchema, 'hosting_delivery', { instanceId }),
+    /** Geteilte Mods + Resource Pack einer Welt (§21.10). */
+    content: (id: string) => checked(roomContentSchema, 'hosting_room_content', { id }),
+    /** SHA-1 der Mods einer Instanz (für „vorhanden“). */
+    instanceMods: (instanceId: string) => checked(z.array(z.string()), 'hosting_instance_mods', { instanceId }),
+    /** Neue Instanz bzw. Kopie mit den Mods der Welt vorbereiten (Store + Host-Dateien, Hashes geprüft). */
+    prepare: (
+      plan: { roomId: string; mode: 'new' | 'copy'; baseInstanceId: string | null; name: string | null; mods: string[]; trustHost: boolean },
+      onProgress: (p: PrepareProgress) => void,
+    ) => checked(prepareResultSchema, 'hosting_prepare', { plan, onProgress: channel(onProgress) }),
+  },
+}
+
+export function isCancelled(e: unknown): boolean {
+  return e instanceof BackendError && e.kind === 'cancelled'
+}
+
+/**
+ * Fehler in der eingestellten Sprache: Code vom Kern → `errors.<code>`,
+ * sonst die mitgelieferte Meldung.
+ */
+export function errorMessage(e: unknown): string {
+  if (e instanceof BackendError) return sanctionErrorText(e.apiCode, e.params) ?? teamErrorText(e.apiCode, e.params) ?? userErrorText(e)
+  return t('errors.unexpected')
+}
+
+/** Übersetzt einen Fehler, der als Daten ankommt (z. B. `UploadResult.error`). */
+export function userErrorText(error: { code?: string | null; params?: Record<string, string> | null; message: string }): string {
+  if (error.code && hasKey(`errors.${error.code}`)) return tKey(`errors.${error.code}`, error.params ?? undefined)
+  return error.message || t('errors.unexpected')
+}

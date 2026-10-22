@@ -1,0 +1,191 @@
+// Build-Skript für JEDE Legacy-Forge-Version (versions/<minecraft>), ausgeführt von Stonecutter.
+// Quellcode: src/ (vorverarbeitet je Version). Versionsspezifische Werte: versions/<minecraft>/gradle.properties
+plugins {
+	id 'java'
+	// Essentials Fork von architectury-loom – unterstützt Legacy-Forge (1.8.9 – 1.12.2) mit aktuellem Gradle.
+	id 'gg.essential.loom'
+	// Forge 1.8.9 liefert seine Binär-Patches pack200-komprimiert (seit Java 14 nicht mehr im JDK).
+	id 'dev.architectury.architectury-pack200'
+}
+
+def mc = stonecutter.current.version
+
+group = maven_group
+version = mod_version
+
+base {
+	archivesName = "trsclient-forge-${mc}"
+}
+
+java {
+	// Minecraft ≤ 1.12.2 + LaunchWrapper laufen nur auf Java 8 – kompiliert und gestartet wird mit JDK 8.
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(8)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
+loom {
+	forge {
+		pack200Provider = new dev.architectury.pack200.java.Pack200Adapter()
+	}
+	runConfigs {
+		client {
+			// Eigenes Spielverzeichnis je Version: client-mod/run/forge-<minecraft>
+			runDir = "../../../run/forge-${mc}"
+			// ./gradlew :<mc>:runClient -PtrsAutotest → Menü, Testwelt, Screenshots, beendet das Spiel.
+			if (project.hasProperty('trsAutotest')) {
+				vmArg '-Dtrsclient.autotest=true'
+			}
+			// -PtrsAutotestOnly=redstone → nur den Redstone-Teil des Autotests
+			if (project.hasProperty('trsAutotestOnly')) {
+				vmArg "-Dtrsclient.autotest.only=${project.trsAutotestOnly}"
+			}
+			// -PtrsAutotestServer=127.0.0.1:25612 → Beitritt zu einem lokalen Test-Server (Ping-Test)
+			if (project.hasProperty('trsAutotestServer')) {
+				vmArg "-Dtrsclient.autotest.server=${project.trsAutotestServer}"
+			}
+			// -PtrsSys.<name>=<wert> → -D<name>=<wert> (eigene Schalter einzelner Autotests, z. B. fastconnect)
+			project.properties.findAll { it.key.toString().startsWith('trsSys.') }.each { k, v ->
+				vmArg "-D${k.toString().substring(7)}=${v}"
+			}
+			// -PtrsApi=http://127.0.0.1:8787 → TRS API + Mojang-Join gegen eine lokale Attrappe (Umhang-/Abzeichen-Tests)
+			if (project.hasProperty('trsApi')) {
+				vmArg "-Dtrsclient.api.url=${project.trsApi}"
+				vmArg "-Dtrsclient.session.url=${project.trsApi}"
+			}
+			// Realistischer Benchmark (-PtrsAutotestOnly=realbench, siehe fabric/build.gradle)
+			['trsBenchSeed': 'seed', 'trsBenchCenter': 'center', 'trsBenchJfr': 'jfr', 'trsBenchSeconds': 'seconds', 'trsBenchLabel': 'label'].each { prop, key ->
+				if (project.hasProperty(prop)) vmArg "-Dtrsclient.bench.${key}=${project.property(prop)}"
+			}
+			if (project.hasProperty('trsBenchVanilla')) {
+				vmArg '-Dtrsclient.bench.vanilla=true'
+			}
+			if (project.findProperty('trsAutotestOnly') == 'realbench') {
+				programArgs '--width', '1904', '--height', '1001'
+			}
+		}
+		remove(server)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${mc}"
+	mappings project.mcp_mappings
+	forge "net.minecraftforge:forge:${project.forge_version}"
+
+	// Tests laufen gegen dieselbe Gson-Version, die Minecraft 1.8.9 mitbringt (ältestes Ziel).
+	testImplementation "com.google.code.gson:gson:${gson_version}"
+	testImplementation platform("org.junit:junit-bom:${junit_version}")
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+	useJUnitPlatform()
+	testLogging {
+		events 'failed'
+	}
+}
+
+// BuildInfo.java: Versionsbereich für @Mod(acceptedMinecraftVersions = …) – muss eine Konstante sein.
+def buildInfoDir = layout.buildDirectory.dir('generated/sources/buildinfo')
+def generateBuildInfo = tasks.register('generateBuildInfo') {
+	def accepted = project.accepted_versions
+	def modVersion = project.version.toString()
+	inputs.property('accepted', accepted)
+	inputs.property('version', modVersion)
+	outputs.dir(buildInfoDir)
+	doLast {
+		def out = buildInfoDir.get().file('dev/theredstonee/trsclient/BuildInfo.java').asFile
+		out.parentFile.mkdirs()
+		out.setText("""package dev.theredstonee.trsclient;
+
+/** Generiert von build.gradle (versions/${mc}/gradle.properties). */
+final class BuildInfo {
+	/** Minecraft-Versionen, die Forge für diese JAR akzeptiert (Maven-Versionsbereich). */
+	static final String ACCEPTED_MINECRAFT = "${accepted}";
+	/** Mod-Version (gradle.properties mod_version). */
+	static final String VERSION = "${modVersion}";
+
+	private BuildInfo() {
+	}
+}
+""", 'UTF-8')
+	}
+}
+sourceSets.main.java.srcDir(generateBuildInfo)
+// Versionsunabhängige Logik direkt aus ../common (reines Java 8 – passt zu 1.8.9–1.12.2).
+sourceSets.main.java.srcDir(rootProject.file('../common/src/main/java'))
+sourceSets.main.resources.srcDir(rootProject.file('../common/src/main/resources'))
+
+// Welt-Hosting-Test mit zwei Spielen: -PtrsRunCommandFile=<datei> schreibt die fertige Startzeile als JSON und startet
+// NICHT (das Testskript startet Host und Gast selbst in getrennten Spielordnern).
+if (project.hasProperty('trsRunCommandFile')) {
+	tasks.matching { it.name == 'runClient' }.configureEach { task ->
+		task.doFirst {
+			def java = task.javaLauncher.present ? task.javaLauncher.get().executablePath.asFile.absolutePath : 'java'
+			def json = groovy.json.JsonOutput.toJson([workingDir: task.workingDir.absolutePath, java: java,
+					jvmArgs: task.allJvmArgs, classpath: task.classpath.asPath, mainClass: task.mainClass.get(), args: task.args,
+					environment: task.environment.findAll { k, v -> k == 'ALSOFT_DRIVERS' }])
+			file(project.property('trsRunCommandFile')).write(json, 'UTF-8')
+			logger.lifecycle("Startzeile geschrieben: ${project.property('trsRunCommandFile')}")
+			throw new StopExecutionException()
+		}
+	}
+}
+
+// Forge sucht mcmod.info neben den Klassen – im Dev-Start (runClient) liegen Ressourcen sonst in einem
+// eigenen Ordner und Forge meldet "missing the required element 'version'".
+sourceSets.main.output.resourcesDir = sourceSets.main.java.classesDirectory
+
+processResources {
+	def props = [version: project.version, minecraft: mc]
+	inputs.properties(props)
+	filesMatching('mcmod.info') {
+		expand props
+	}
+	// Sprachdateien (scripts/gen-lang.mjs): bis 1.10.2 heißen sie en_US.lang/de_DE.lang …, ab 1.11 kleingeschrieben.
+	if (stonecutter.eval(mc, '<1.11')) {
+		rename { String name ->
+			def m = name =~ /^([a-z]{2})_([a-z]{2})\.lang$/
+			m.matches() ? "${m.group(1)}_${m.group(2).toUpperCase()}.lang".toString() : null
+		}
+	}
+}
+
+jar {
+	from(rootProject.file('../LICENSE')) {
+		rename { "${it}_trsclient" }
+	}
+	from(rootProject.file('../licenses/chat-heads-MPL-2.0.txt')) {
+		into 'META-INF'
+	}
+}
+
+// Die fertige, auf SRG-Namen remappte Mod-JAR dieser Version (für collectLauncherJars im Controller).
+ext.trsModJar = tasks.named('remapJar')
+ext.trsLauncherVersions = project.launcher_versions.split(',').collect { it.trim() }
+
+// Autotests ohne Ton (siehe gradle/autotest-mute.gradle).
+apply from: new File(buildscript.sourceFile.parentFile, '../gradle/autotest-mute.gradle')
+
+// -PtrsBenchOptions=real: options.txt neu mit Minecraft-Standards, nur unbegrenzte Bildrate/ohne VSync, Sichtweite 12
+if (project.findProperty('trsBenchOptions') == 'real') {
+	tasks.matching { it.name == 'runClient' }.configureEach { task ->
+		task.doFirst {
+			File dir = project.file(loom.runConfigs.client.runDir)
+			dir.mkdirs()
+			new File(dir, 'options.txt').write(['enableVsync:false', 'maxFps:260', 'renderDistance:12', 'pauseOnLostFocus:false',
+					'soundCategory_master:0.0'].join('\n') + '\n', 'UTF-8')
+			logger.lifecycle("Benchmark: options.txt neu (${dir})")
+		}
+	}
+}
