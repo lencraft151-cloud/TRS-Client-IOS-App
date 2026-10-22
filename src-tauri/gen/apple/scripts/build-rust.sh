@@ -40,6 +40,14 @@ fi
 ROOT="$(cd "$PROJECT_DIR/../../.." && pwd)"
 TAURI_DIR="$ROOT/src-tauri"
 
+# In Xcode gewähltes Team (Signing & Capabilities) in Signing.local.xcconfig merken (von git ignoriert). So überlebt
+# es, wenn git pull die Projektdatei ersetzt – scripts/ios/mac-setup.sh legt Xcodes Änderungen dafür beiseite.
+local_signing="$PROJECT_DIR/Signing.local.xcconfig"
+if [[ "${DEVELOPMENT_TEAM:-}" =~ ^[A-Z0-9]{10}$ ]] && ! grep -qs '^DEVELOPMENT_TEAM' "$local_signing"; then
+  echo "DEVELOPMENT_TEAM = $DEVELOPMENT_TEAM" >> "$local_signing"
+  echo "Team $DEVELOPMENT_TEAM in Signing.local.xcconfig gemerkt"
+fi
+
 case "$CONFIGURATION" in
   debug | Debug) profile=debug ;;
   *) profile=release ;;
@@ -62,14 +70,30 @@ done
 command -v cargo > /dev/null || die "cargo fehlt – Rust installieren: https://rustup.rs"
 
 # --- Oberfläche (wird beim Rust-Build ins Binary eingebettet) ---
+# Nach einem `git pull` von selbst aktuell: Abhängigkeiten neu, wenn package.json/pnpm-lock.yaml neuer sind als die
+# Installation; Oberfläche neu, wenn eine ihrer Quellen neuer ist als das letzte Ergebnis (git setzt beim Pull die
+# Änderungszeit geänderter Dateien).
 frontend="$ROOT/.output/public/index.html"
-if [ "${TRS_SKIP_FRONTEND:-}" != 1 ] && { [ ! -f "$frontend" ] || [ "${TRS_REBUILD_FRONTEND:-}" = 1 ]; }; then
-  command -v pnpm > /dev/null || die "pnpm fehlt (npm i -g pnpm) – oder vorher im Projektordner 'pnpm install && pnpm generate' ausführen"
-  echo "Oberfläche bauen (pnpm generate)"
-  if [ ! -d "$ROOT/node_modules" ]; then
+newer_than() {
+  local ref="$1"
+  shift
+  [ ! -e "$ref" ] && return 0
+  [ -n "$(cd "$ROOT" && find "$@" -newer "$ref" -type f -print -quit 2> /dev/null)" ]
+}
+if [ "${TRS_SKIP_FRONTEND:-}" != 1 ]; then
+  modules="$ROOT/node_modules/.modules.yaml"
+  if newer_than "$modules" package.json pnpm-lock.yaml pnpm-workspace.yaml; then
+    command -v pnpm > /dev/null || die "pnpm fehlt (npm i -g pnpm) – oder vorher im Projektordner 'pnpm install' ausführen"
+    echo "Abhängigkeiten installieren (pnpm install)"
     (cd "$ROOT" && pnpm install --frozen-lockfile)
+    touch "$modules"
   fi
-  (cd "$ROOT" && pnpm generate)
+  if [ "${TRS_REBUILD_FRONTEND:-}" = 1 ] || newer_than "$frontend" app public nuxt.config.ts package.json pnpm-lock.yaml tsconfig.json; then
+    command -v pnpm > /dev/null || die "pnpm fehlt (npm i -g pnpm) – oder vorher im Projektordner 'pnpm generate' ausführen"
+    echo "Oberfläche bauen (pnpm generate)"
+    (cd "$ROOT" && pnpm generate)
+    touch "$frontend"
+  fi
 fi
 [ -f "$frontend" ] || die "Oberfläche fehlt ($frontend) – 'pnpm install && pnpm generate' im Projektordner ausführen"
 
