@@ -28,6 +28,7 @@ impl UpdateState {
 #[serde(rename_all = "camelCase")]
 pub struct InstallOutcome {
     /// `started`: Das System zeigt den Installationsdialog.
+    /// iOS: `started` heißt, die Rückfrage „Installieren?“ von iOS ist offen.
     /// `permissionRequired`: Erst „Unbekannte Apps installieren“ für den Launcher erlauben
     /// (die Einstellungsseite ist schon offen), dann erneut versuchen.
     pub status: String,
@@ -40,13 +41,25 @@ pub async fn mobile_update_check(state: State<'_, UpdateState>) -> CommandResult
 }
 
 /// Android: lädt die neue APK (Aufgabe mit Fortschritt, abbrechbar) und
-/// startet die Installation. Andere Plattformen: Fehler.
+/// startet die Installation. iOS: öffnet den `itms-services`-Link der mit Profil
+/// signierten IPA – iOS fragt nach und installiert über die laufende App.
+/// Andere Plattformen: Fehler.
 #[tauri::command]
 pub async fn mobile_update_install(
     app: AppHandle,
     state: State<'_, UpdateState>,
     task_id: Option<String>,
 ) -> CommandResult<InstallOutcome> {
+    if cfg!(target_os = "ios") {
+        let Some(link) = state.0.ios_install_url().await else {
+            return Err(trs_core::Error::validation(trs_core::msg!("mobileUpdate.noUpdate", "Es gibt keine neuere Version.")).into());
+        };
+        crate::open::url(&app, &link).map_err(|e| {
+            log::error!("iOS-Update konnte nicht geöffnet werden: {e}");
+            trs_core::Error::validation(trs_core::msg!("mobileUpdate.installFailed", "Die Installation konnte nicht gestartet werden."))
+        })?;
+        return Ok(InstallOutcome { status: "started".into() });
+    }
     if !cfg!(target_os = "android") {
         return Err(trs_core::Error::validation(trs_core::msg!(
             "mobileUpdate.androidOnly",

@@ -1,0 +1,28 @@
+// Signatur der iOS-App – die einzige Datei, die du zum Signieren anpassen musst.
+// (Alternativ alles in Xcode unter Target „trs-launcher_iOS“ → Signing & Capabilities einstellen.)
+
+// Update-Kanal (Repo, Release, Schlüssel) – normalerweise nichts zu ändern.
+#include "UpdateChannel.xcconfig"
+
+// Team-ID aus developer.apple.com → Membership (10 Zeichen), z. B. AB12CD34EF.
+DEVELOPMENT_TEAM =
+
+// Bundle-ID. Muss zu deinem Provisioning-Profil passen (bei Wildcard-Profilen beliebig).
+PRODUCT_BUNDLE_IDENTIFIER = dev.theredstonee.trslauncher
+
+// Automatic: Xcode erzeugt Zertifikat + Profil selbst (Apple-ID in Xcode angemeldet).
+// Manual: eigenes Zertifikat (.p12 im Schlüsselbund) + Profil (.mobileprovision) – dann die zwei Zeilen darunter füllen.
+CODE_SIGN_STYLE = Automatic
+// CODE_SIGN_IDENTITY = Apple Development
+// PROVISIONING_PROFILE_SPECIFIER = Name des Profils
+
+// Volle Entitlements (mehr RAM für Minecraft, bezahlter Account) oder ohne Zusatz-Capabilities (kostenloses Konto).
+TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS.entitlements
+// TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS-basic.entitlements
+
+// Ordner mit der gebauten Spiel-Engine (scripts/ios/build-engine.sh oder CI-Artefakt „engine-ios“).
+// Fehlt er, läuft der Launcher trotzdem – nur der Spielstart meldet „Engine fehlt“.
+TRS_ENGINE_DIR = $(PROJECT_DIR)/Engine
+
+// Lokale Überschreibungen (nicht eingecheckt), z. B. nur DEVELOPMENT_TEAM = AB12CD34EF
+#include? "Signing.local.xcconfig"

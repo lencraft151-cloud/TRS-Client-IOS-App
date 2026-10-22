@@ -1,0 +1,9 @@
+xcuserdata/
+build/
+# Von scripts/build-rust.sh gebaut
+Externals/
+# Spiel-Engine (scripts/ios/build-engine.sh oder CI-Artefakt engine-ios)
+Engine/
+# Eigene Signatur-Einstellungen (Team-ID usw.)
+Signing.local.xcconfig
+__pycache__/

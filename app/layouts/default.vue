@@ -236,6 +236,8 @@ onBeforeUnmount(() => void backListener?.unregister())
         <div v-if="sanctions.banner.length" class="deepslate relative shrink-0" :class="{ 'deepslate-over-scene': appBackground }">
           <SanctionBanner />
         </div>
+        <!-- Android/iOS: neue Version im Update-Kanal (blendet sich ohne Update selbst aus). -->
+        <MobileUpdateBanner v-if="mobile" class="relative shrink-0" />
         <main ref="main" class="deepslate relative min-h-0 min-w-0 flex-1 overflow-y-auto mobile:overscroll-y-contain mobile:pr-[var(--safe-right)] mobile:pl-[var(--safe-left)]" :class="{ 'deepslate-over-scene': appBackground }">
           <slot />
         </main>

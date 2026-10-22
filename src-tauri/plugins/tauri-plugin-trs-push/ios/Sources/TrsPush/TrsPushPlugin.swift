@@ -78,16 +78,16 @@ class TapForwarder: NSObject, UNUserNotificationCenterDelegate {
   }
 }
 
+// Fester Objective-C-Name: main.mm meldet den Hintergrundabruf beim App-Start an und ruft
+// handleBackgroundTask(_:) über NSClassFromString("TrsPushPlugin") auf.
+@objc(TrsPushPlugin)
 class TrsPushPlugin: Plugin {
   /// Muss in Info.plist unter BGTaskSchedulerPermittedIdentifiers stehen.
   static let taskId = "dev.theredstonee.trslauncher.push-poll"
-  private static var registered = false
-  private static var polling = false
   /// Der Delegate des Benachrichtigungszentrums ist `weak` – hier festhalten.
   private static var forwarder: TapForwarder?
 
   override func load(webview: WKWebView) {
-    TrsPushPlugin.registerTask()
     TrsPushPlugin.installTapForwarder()
   }
 
@@ -100,16 +100,14 @@ class TrsPushPlugin: Plugin {
     center.delegate = f
   }
 
-  static func registerTask() {
-    if registered { return }
-    registered = true
-    BGTaskScheduler.shared.register(forTaskWithIdentifier: taskId, using: nil) { task in
-      guard let refresh = task as? BGAppRefreshTask else {
-        task.setTaskCompleted(success: false)
-        return
-      }
-      TrsPushPlugin.handle(refresh)
+  /// Handler des Hintergrundabrufs. Angemeldet wird er in main.mm vor dem App-Start: BGTaskScheduler beendet die
+  /// App, wenn das erst hier (mit der Web-Ansicht, nach dem Start) passiert.
+  @objc static func handleBackgroundTask(_ task: BGTask) {
+    guard let refresh = task as? BGAppRefreshTask else {
+      task.setTaskCompleted(success: false)
+      return
     }
+    handle(refresh)
   }
 
   /// Nächsten Abruf frühestens in 15 Minuten (iOS entscheidet, wann wirklich).
@@ -124,7 +122,9 @@ class TrsPushPlugin: Plugin {
   }
 
   static func handle(_ task: BGAppRefreshTask) {
-    if polling { schedule() }
+    // Gestartet wird nur, wenn der Abruf eingeschaltet war (setPoll plant ihn, Ausschalten storniert ihn) – auch
+    // nach einem Start im Hintergrund, in dem setPoll nie lief, also immer den nächsten planen.
+    schedule()
     let queue = DispatchQueue.global(qos: .utility)
     var finished = false
     task.expirationHandler = {
@@ -167,7 +167,6 @@ class TrsPushPlugin: Plugin {
   @objc public func setPoll(_ invoke: Invoke) {
     do {
       let args = try invoke.parseArgs(PollArgs.self)
-      TrsPushPlugin.polling = args.enabled
       if args.enabled {
         TrsPushPlugin.schedule()
       } else {

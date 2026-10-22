@@ -332,6 +332,7 @@ const mobileUpdateStatusSchema = z.object({
   pubDate: z.string().max(64).nullable(),
   size: z.number().int().nonnegative().nullable(),
   altstoreSource: z.string().max(512).nullable(),
+  installUrl: z.string().max(2048).startsWith('itms-services://').nullable(),
 })
 
 const mobileInstallOutcomeSchema = z.object({ status: z.enum(['started', 'permissionRequired']) })
@@ -370,7 +371,7 @@ export const backend = {
   firewallAllowAll: () => call<number>('firewall_allow_all'),
   /** Android/iOS: neue Version im Kanal `mobile`? */
   mobileUpdateCheck: (): Promise<MobileUpdateStatus> => checked(mobileUpdateStatusSchema, 'mobile_update_check'),
-  /** Android: APK laden (Aufgabe mit Fortschritt) und den Installationsdialog des Systems öffnen. */
+  /** Android: APK laden (Aufgabe mit Fortschritt) und den Installationsdialog des Systems öffnen. iOS: OTA-Installation öffnen. */
   mobileUpdateInstall: (taskId: string | null = null): Promise<MobileInstallOutcome> =>
     checked(mobileInstallOutcomeSchema, 'mobile_update_install', { taskId }),
   /**

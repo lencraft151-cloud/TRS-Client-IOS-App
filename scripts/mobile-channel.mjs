@@ -4,6 +4,12 @@
 //
 //   node scripts/mobile-channel.mjs --version 0.18.0 --notes release-notes.md \
 //     [--apk out/TRS-Launcher_0.18.0.apk] [--ipa out/TRS-Launcher_0.18.0.ipa] [--out out/mobile] [--repo o/r] [--date ISO]
+//     [--tag mobile] [--in-place] [--ota URL] [--pubkey-file datei]
+//
+// Eigener Kanal (z. B. iOS-Builds eines Forks, .github/workflows/ios-app.yml): --tag = Release (ios-latest),
+// --in-place = die Dateien liegen schon unter ihrem Namen in --out (nicht kopieren), --ota = manifest.plist der
+// mit Profil signierten IPA (die App bietet dann „Installieren“ per itms-services an), --pubkey-file = öffentlicher
+// Schlüssel, gegen den nach dem Signieren geprüft wird (Standard: tauri.conf.json).
 //
 // Ergebnis in --out (Standard: out/mobile):
 //   mobile.json        { version, notes, pubDate, android: { url, sha256, size }, ios: { url, sha256, size, altstore } }
@@ -19,11 +25,10 @@ import { spawnSync } from 'node:child_process'
 import { createHash, createPublicKey, verify as verifySignature } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const TAG = 'mobile'
 const MANIFEST = 'mobile.json'
 const SIGNATURE = `${MANIFEST}.sig`
 const ALTSTORE = 'altstore.json'
@@ -41,7 +46,7 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const args = { version: null, notes: null, apk: null, ipa: null, altstoreApp: null, out: join(ROOT, 'out', 'mobile'), repo: 'theredstonee/TRS-Launcher', date: null }
+  const args = { version: null, notes: null, apk: null, ipa: null, altstoreApp: null, out: join(ROOT, 'out', 'mobile'), repo: 'theredstonee/TRS-Launcher', date: null, tag: 'mobile', inPlace: false, ota: null, pubkeyFile: null }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     const value = () => argv[++i] ?? fail(`${a} braucht einen Wert`)
@@ -54,10 +59,17 @@ function parseArgs(argv) {
     else if (a === '--out') args.out = resolve(value())
     else if (a === '--repo') args.repo = value()
     else if (a === '--date') args.date = value()
+    else if (a === '--tag') args.tag = value()
+    else if (a === '--in-place') args.inPlace = true
+    else if (a === '--ota') args.ota = value()
+    else if (a === '--pubkey-file') args.pubkeyFile = resolve(value())
     else fail(`Unbekannte Option ${a}`)
   }
   if (!args.version || !VERSION_RE.test(args.version) || args.version.length > 32) fail('--version fehlt oder ist ungültig')
   if (!REPO_RE.test(args.repo)) fail('--repo ist ungültig')
+  if (!/^[A-Za-z0-9_.-]{1,100}$/.test(args.tag)) fail('--tag ist ungültig')
+  // Wie die App: nur Dateien aus den Releases dieses Repos (mobile_update.rs, verify_manifest).
+  if (args.ota && !args.ota.startsWith(`https://github.com/${args.repo}/releases/download/`)) fail('--ota muss in den Releases von --repo liegen')
   if (!args.apk && !args.ipa) fail('mindestens --apk oder --ipa angeben')
   return args
 }
@@ -71,9 +83,14 @@ function asset(file, ext, args) {
   if (!existsSync(file)) fail(`${file} fehlt`)
   const size = statSync(file).size
   if (size === 0 || size > MAX_FILE_BYTES) fail(`${file}: Größe ${size} außerhalb der Grenzen`)
-  const name = `TRS-Launcher-${args.version}.${ext}`
-  copyFileSync(file, join(args.out, name))
-  return { url: `https://github.com/${args.repo}/releases/download/${TAG}/${name}`, sha256: sha256(file), size }
+  let name = `TRS-Launcher-${args.version}.${ext}`
+  if (args.inPlace) {
+    name = basename(file)
+    if (resolve(dirname(file)) !== resolve(args.out)) fail(`--in-place: ${file} liegt nicht in ${args.out}`)
+  } else {
+    copyFileSync(file, join(args.out, name))
+  }
+  return { url: `https://github.com/${args.repo}/releases/download/${args.tag}/${encodeURIComponent(name)}`, sha256: sha256(file), size }
 }
 
 // --- Signatur (wie publish-client-mod.mjs) ------------------------------------------------
@@ -104,8 +121,10 @@ function sign(file) {
 
 /** Prüft die Signatur wie die App (Minisign, Prehash, file:mobile.json, Schlüssel aus tauri.conf.json). */
 function verifyLikeTheApp(data, sigFileContent) {
-  const conf = JSON.parse(readFileSync(join(ROOT, 'src-tauri', 'tauri.conf.json'), 'utf8'))
-  const pubLines = Buffer.from(conf.plugins.updater.pubkey, 'base64').toString('utf8').split(/\r?\n/)
+  const pubkey = args.pubkeyFile
+    ? readFileSync(args.pubkeyFile, 'utf8').trim()
+    : JSON.parse(readFileSync(join(ROOT, 'src-tauri', 'tauri.conf.json'), 'utf8')).plugins.updater.pubkey
+  const pubLines = Buffer.from(pubkey, 'base64').toString('utf8').split(/\r?\n/)
   const pub = Buffer.from(pubLines[1], 'base64')
   const sigLines = Buffer.from(sigFileContent.trim(), 'base64').toString('utf8').split(/\r?\n/)
   const sig = Buffer.from(sigLines[1], 'base64')
@@ -113,7 +132,7 @@ function verifyLikeTheApp(data, sigFileContent) {
   const globalSig = Buffer.from(sigLines[3] ?? '', 'base64')
   if (pub.length !== 42 || sig.length !== 74 || globalSig.length !== 64) fail('Signatur/Schlüssel im falschen Format')
   if (sig.subarray(0, 2).toString() !== 'ED') fail('Signatur ist keine Prehash-Signatur')
-  if (!sig.subarray(2, 10).equals(pub.subarray(2, 10))) fail('Signatur stammt von einem anderen Schlüssel als in tauri.conf.json')
+  if (!sig.subarray(2, 10).equals(pub.subarray(2, 10))) fail('Signatur stammt von einem anderen Schlüssel als dem erwarteten öffentlichen Schlüssel')
   const key = createPublicKey({ key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), pub.subarray(10)]), format: 'der', type: 'spki' })
   const digest = createHash('blake2b512').update(data).digest()
   const ok =
@@ -194,7 +213,8 @@ mkdirSync(args.out, { recursive: true })
 const manifest = { version: args.version, notes, pubDate }
 if (args.apk) manifest.android = asset(args.apk, 'apk', args)
 if (args.ipa) {
-  manifest.ios = { ...asset(args.ipa, 'ipa', args), altstore: `https://github.com/${args.repo}/releases/download/${TAG}/${ALTSTORE}` }
+  manifest.ios = { ...asset(args.ipa, 'ipa', args), altstore: `https://github.com/${args.repo}/releases/download/${args.tag}/${ALTSTORE}` }
+  if (args.ota) manifest.ios.ota = args.ota
   const source = altstoreSource(args, notes, pubDate, manifest.ios)
   writeFileSync(join(args.out, ALTSTORE), `${JSON.stringify(source, null, 2)}\n`)
 }

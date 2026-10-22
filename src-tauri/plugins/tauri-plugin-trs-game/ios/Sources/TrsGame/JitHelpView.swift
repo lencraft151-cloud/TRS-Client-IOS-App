@@ -55,6 +55,15 @@ final class JitHelpView: UIView {
     check.contentEdgeInsets = UIEdgeInsets(top: 10, left: 18, bottom: 10, right: 18)
     check.addTarget(self, action: #selector(checkNow), for: .touchUpInside)
 
+    // Ohne Mac: StikDebug per Link an diese laufende App hängen (iOS 26/TXM: Skript gleich mitgeben).
+    let stik = UIButton(type: .system)
+    stik.setTitle(Strings.jitStikButton, for: .normal)
+    stik.setTitleColor(.white, for: .normal)
+    stik.backgroundColor = UIColor(white: 0.22, alpha: 1)
+    stik.layer.cornerRadius = 8
+    stik.contentEdgeInsets = UIEdgeInsets(top: 10, left: 18, bottom: 10, right: 18)
+    stik.addTarget(self, action: #selector(openStikDebug), for: .touchUpInside)
+
     let cancel = UIButton(type: .system)
     cancel.setTitle(Strings.cancel, for: .normal)
     cancel.setTitleColor(UIColor(white: 0.85, alpha: 1), for: .normal)
@@ -65,7 +74,10 @@ final class JitHelpView: UIView {
     buttons.axis = .horizontal
     buttons.spacing = 12
 
-    let stack = UIStackView(arrangedSubviews: [title, body, status, buttons])
+    let stikRow = UIStackView(arrangedSubviews: [stik, UIView()])
+    stikRow.axis = .horizontal
+
+    let stack = UIStackView(arrangedSubviews: [title, body, status, stikRow, buttons])
     stack.axis = .vertical
     stack.spacing = 16
     stack.translatesAutoresizingMaskIntoConstraints = false
@@ -109,6 +121,41 @@ final class JitHelpView: UIView {
   @objc private func cancelTapped() {
     stopPolling()
     onCancel?()
+  }
+
+  @objc private func openStikDebug() {
+    guard let url = JitHelpView.stikDebugURL(txm: txm) else { return }
+    UIApplication.shared.open(url, options: [:]) { [weak self] opened in
+      if !opened {
+        self?.status.text = Strings.jitStikMissing
+        self?.status.numberOfLines = 0
+      }
+    }
+  }
+
+  /// `stikjit://enable-jit?bundle-id=…&pid=…` – StikDebug hängt sich an diesen laufenden Prozess.
+  /// Auf TXM-Geräten (iOS 26) zusätzlich `script-data` (UniversalJIT26.js, base64url), damit nichts von Hand
+  /// zugewiesen werden muss.
+  static func stikDebugURL(txm: Bool) -> URL? {
+    var components = URLComponents()
+    components.scheme = "stikjit"
+    components.host = "enable-jit"
+    var items = [URLQueryItem(name: "pid", value: String(getpid()))]
+    if let bundle = Bundle.main.bundleIdentifier {
+      items.append(URLQueryItem(name: "bundle-id", value: bundle))
+    }
+    if txm, let path = Bundle.main.path(forResource: "UniversalJIT26", ofType: "js"),
+      let data = FileManager.default.contents(atPath: path)
+    {
+      let base64url = data.base64EncodedString()
+        .replacingOccurrences(of: "+", with: "-")
+        .replacingOccurrences(of: "/", with: "_")
+        .replacingOccurrences(of: "=", with: "")
+      items.append(URLQueryItem(name: "script-data", value: base64url))
+      items.append(URLQueryItem(name: "script-name", value: "UniversalJIT26.js"))
+    }
+    components.queryItems = items
+    return components.url
   }
 
   /// Legt das StikDebug-Skript in Documents, damit es über die Dateien-App wählbar ist.

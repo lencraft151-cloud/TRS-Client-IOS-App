@@ -1,4 +1,10 @@
 Freezy war hier
+> [!IMPORTANT]
+> **iOS:** Diese Kopie enthält die iOS-App als fertig signierbares Xcode-Projekt (`src-tauri/gen/apple`) und baut IPAs,
+> die sich über ein eigenes Zertifikat + Provisioning-Profil installieren lassen – Anleitung: **[IOS.md](IOS.md)**.
+> Fertiges Xcode-Paket zum Herunterladen und Öffnen: Release `ios-latest` → `TRS-Launcher-Xcode.zip`.
+> Original: [theredstonee/TRS-Launcher](https://github.com/theredstonee/TRS-Launcher) (GPL-3.0).
+
 <div align="center">
 
 [**English**](README.md) · [Deutsch](README.de.md) · [Español](README.es.md)
