@@ -76,10 +76,18 @@ Voraussetzungen: macOS mit Xcode 16+, [Rust](https://rustup.rs) (`rustup target 
 Node.js 22 + pnpm (`npm i -g pnpm`).
 
 ```sh
-pnpm install
-pnpm generate                      # Oberfläche (sonst baut Xcode sie beim ersten Build selbst)
+bash scripts/ios/mac-setup.sh      # einmal: Team, git und Rust einrichten (siehe unten)
 open src-tauri/gen/apple/TRS-Launcher.xcworkspace
 ```
+
+**Einmal `scripts/ios/mac-setup.sh`, danach nur noch `git pull` + ▶ Run.** Das Skript legt Änderungen, die Xcode an
+eingecheckten Projektdateien gemacht hat, beiseite (`git stash`), trägt Team und Bundle-ID in die von git ignorierte
+`Signing.local.xcconfig` ein (aus diesen Änderungen, deinen Xcode-Konten oder deinem Zertifikat), stellt git so ein,
+dass `git pull` lokale Änderungen künftig selbst beiseitelegt (`merge.autoStash`), und richtet Rust für iOS ein. Bricht
+`git pull` mit „Please commit your changes or stash them“ ab: einmal `git stash && git pull && bash scripts/ios/mac-setup.sh`.
+
+Nach jedem `git pull` erledigt ▶ Run den Rest: Abhängigkeiten (`pnpm install`), Oberfläche (`pnpm generate`) und
+Rust-Kern werden neu gebaut, wenn sich etwas geändert hat; die Spiel-Engine lädt Xcode beim ersten Build selbst.
 
 1. In `src-tauri/gen/apple/Signing.xcconfig` (oder einer neuen `Signing.local.xcconfig`, nicht eingecheckt)
    `DEVELOPMENT_TEAM` und ggf. `PRODUCT_BUNDLE_IDENTIFIER` eintragen – oder in Xcode unter
