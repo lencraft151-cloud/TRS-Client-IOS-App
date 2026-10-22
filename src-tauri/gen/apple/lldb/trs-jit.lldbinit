@@ -1,0 +1,9 @@
+# JIT für Minecraft Java beim Start aus Xcode (Schema trs-launcher_iOS → Run → Info → LLDB Init File).
+#
+# Die JVM nutzt Speicherschutz-Fehler und Signale absichtlich (Null-Prüfungen, Safepoints, Threads anhalten).
+# Ohne diese Zeilen bliebe Xcode bei jedem davon stehen.
+settings set platform.plugin.darwin.ignored-exceptions EXC_BAD_ACCESS|EXC_BAD_INSTRUCTION|EXC_ARITHMETIC
+process handle --pass true --stop false --notify false SIGSEGV SIGBUS SIGILL SIGFPE SIGUSR1 SIGUSR2 SIGPIPE SIGXFSZ
+
+# iOS 26 mit TXM: JIT-Anfragen der Engine beantworten (wie StikDebug mit UniversalJIT26.js).
+command script import -c trs_jit.py

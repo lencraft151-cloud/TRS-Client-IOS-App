@@ -46,7 +46,7 @@ cp "$ROOT/NOTICE" "$PKG/NOTICE.txt"
 commit="$(git -C "$ROOT" rev-parse HEAD)"
 remote="$(git -C "$ROOT" config --get remote.origin.url 2> /dev/null | sed -e 's#^git@github.com:#https://github.com/#' -e 's#\.git$##' || true)"
 version="$(node -e 'process.stdout.write(require(process.argv[1]).version)' "$ROOT/src-tauri/tauri.conf.json")"
-engine_note="Die Spiel-Engine liegt in Engine/ – Minecraft lässt sich starten (JIT nötig, siehe unten)."
+engine_note="Die Spiel-Engine liegt in Engine/ – Minecraft lässt sich starten."
 [ -n "$ENGINE" ] || engine_note="Dieses Paket enthält KEINE Spiel-Engine: Der Launcher läuft, der Minecraft-Start meldet \"Engine fehlt\"."
 
 cat > "$PKG/LIESMICH.md" << EOF
@@ -71,8 +71,10 @@ in \`Signing.xcconfig\` die Zeile mit \`trs-launcher_iOS-basic.entitlements\` ak
 (die andere \`TRS_ENTITLEMENTS\`-Zeile mit \`//\` auskommentieren).
 
 $engine_note
-Minecraft Java braucht auf iOS JIT: Mit Xcode/Development-Signatur über StikDebug, SideStore oder AltServer
-einschalten – die App zeigt beim Spielstart eine Anleitung.
+**JIT (Just-in-Time) für Minecraft Java ist eingebaut:** Mit **▶ Run** aus Xcode gestartet, ist JIT automatisch an –
+auch auf iOS 26 (der Helfer in \`lldb/\` beantwortet die JIT-Anfragen der Engine im Debugger). Xcode bleibt dabei
+verbunden (Kabel oder WLAN). Ohne Mac: JIT mit StikDebug, SideStore oder AltServer einschalten – die App zeigt beim
+Spielstart eine Anleitung.
 
 Der App-Kern (Externals/arm64/…/libapp.a) ist vorgebaut, daher nur echte Geräte (arm64).
 Quellcode: ${remote:-dieses Repository} (Commit $commit), Original: https://github.com/theredstonee/TRS-Launcher

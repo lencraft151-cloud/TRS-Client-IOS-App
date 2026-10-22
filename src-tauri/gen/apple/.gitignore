@@ -6,3 +6,4 @@ Externals/
 Engine/
 # Eigene Signatur-Einstellungen (Team-ID usw.)
 Signing.local.xcconfig
+__pycache__/

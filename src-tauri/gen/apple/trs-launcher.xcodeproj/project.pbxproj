@@ -37,7 +37,9 @@
 		B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		BA704E0E2501102FF20CBE5FE06D1A2D /* trs-launcher_iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS.entitlements"; sourceTree = "<group>"; };
 		BB11233413CB7A3BA3079B8A99E7B9AA /* embed-engine.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "embed-engine.sh"; sourceTree = "<group>"; };
+		BFB42F85E1C642ABB515C2CC8095B1F6 /* trs_jit.py */ = {isa = PBXFileReference; includeInIndex = 1; path = trs_jit.py; sourceTree = "<group>"; };
 		C16B550917315ABF0D27676FFFF50635 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		C9CBAE332F66E7CEE3E79B898B099588 /* trs-jit.lldbinit */ = {isa = PBXFileReference; includeInIndex = 1; path = "trs-jit.lldbinit"; sourceTree = "<group>"; };
 		E81AE92DFEC189D6F2A0ED65F126F936 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		E96AA7A847284B3BC85CBE51D1E690D2 /* ExportOptions-development.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-development.plist"; sourceTree = "<group>"; };
 		F369D2F302D61A70177310A4FE333558 /* trs-launcher_iOS-basic.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS-basic.entitlements"; sourceTree = "<group>"; };
@@ -93,6 +95,16 @@
 			path = "trs-launcher";
 			sourceTree = "<group>";
 		};
+		8980BA3857A5C9715481B61AA60A7B34 /* lldb */ = {
+			isa = PBXGroup;
+			children = (
+				C9CBAE332F66E7CEE3E79B898B099588 /* trs-jit.lldbinit */,
+				BFB42F85E1C642ABB515C2CC8095B1F6 /* trs_jit.py */,
+			);
+			name = lldb;
+			path = lldb;
+			sourceTree = "<group>";
+		};
 		9B740BCCBD5B5340819C85AE43469DA8 /* scripts */ = {
 			isa = PBXGroup;
 			children = (
@@ -125,6 +137,7 @@
 				9D17912958FB9749807143D391223546 /* trs-launcher_iOS */,
 				09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */,
 				9B740BCCBD5B5340819C85AE43469DA8 /* scripts */,
+				8980BA3857A5C9715481B61AA60A7B34 /* lldb */,
 				E96AA7A847284B3BC85CBE51D1E690D2 /* ExportOptions-development.plist */,
 				5A62B06061AED4C9C549C0B9BB05E5D9 /* ExportOptions-ad-hoc.plist */,
 				92E772C5D2D1BE8122F60CF5C057B6BD /* ExportOptions-enterprise.plist */,

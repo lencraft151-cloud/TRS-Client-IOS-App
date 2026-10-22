@@ -27,7 +27,8 @@ Skins & Umhänge, Freunde und Chat, News, Benachrichtigungen, PC-Fernbedienung p
    `TRS-Launcher-Xcode` eines Laufs unter **Actions → iOS app**.
 2. Entpacken und **`TRS-Launcher.xcworkspace`** doppelklicken (Xcode 16+).
 3. Target **trs-launcher_iOS → Signing & Capabilities → Team** wählen (ggf. eigene Bundle-ID eintragen).
-4. iPhone/iPad anschließen, als Ziel wählen, **▶ Run** – oder **Product → Archive** für eine IPA.
+4. iPhone/iPad anschließen, als Ziel wählen, **▶ Run** – JIT für Minecraft ist dabei automatisch an
+   (siehe [JIT](#minecraft-starten-jit)). **Product → Archive** baut eine IPA.
 
 App-Kern (Rust + Oberfläche) und Spiel-Engine sind im Paket schon fertig gebaut: kein Rust, kein Node, kein
 Terminal. Einschränkung: nur echte Geräte (arm64), kein Simulator. Details stehen in `LIESMICH.md` im Paket.
@@ -117,14 +118,34 @@ P12_PASSWORD=… scripts/ios/sign-ipa.sh TRS-Launcher-unsigned.ipa zertifikat.p1
 
 ## Minecraft starten: JIT
 
-Minecraft Java läuft in einer JVM und braucht auf iOS **JIT**. Das geht nur, wenn die App `get-task-allow` hat –
-also mit einem **Development-Profil** (oder AltStore/SideStore-/TrollStore-Installation) – und JIT aktiviert wird:
-StikDebug (iOS 17+; ab iOS 26 mit dem mitgelieferten `UniversalJIT26.js`), SideStore, AltServer oder TrollStore.
-Die App zeigt beim Spielstart eine Anleitung und wartet, bis JIT aktiv ist.
+Minecraft Java läuft in einer JVM und braucht auf iOS **JIT** (Just-in-Time-Kompilierung).
+
+### JIT ist eingebaut: einfach aus Xcode starten
+
+Das Xcode-Projekt bringt einen JIT-Helfer mit (`src-tauri/gen/apple/lldb/`). Startest du die App mit **▶ Run**
+aus Xcode, ist JIT automatisch an – ohne StikDebug, SideStore oder Zusatz-Apps:
+
+- Xcodes Debugger hängt sich an die App; damit darf sie ausführbaren Speicher anlegen (iOS 15–18 und iOS 26 ohne TXM).
+- **iOS 26 mit TXM** (neuere iPhones): Der Helfer `trs_jit.py` beantwortet die JIT-Anfragen der Engine im Debugger –
+  dasselbe, was StikDebug mit `UniversalJIT26.js` macht.
+- `trs-jit.lldbinit` lässt die Signale der JVM durch, damit Xcode nicht bei jeder Java-Null-Prüfung anhält.
+- Eingestellt im Schema: *Product → Scheme → Edit Scheme → Run → Info → LLDB Init File* und Umgebungsvariable
+  `TRS_JIT_ALWAYS_ATTACHED=1`.
+
+Solange Minecraft läuft, bleibt Xcode verbunden (Kabel oder WLAN-Debugging). In der Xcode-Konsole stehen dabei
+Zeilen wie `[TRS-JIT] JIT-Region …`.
+
+### JIT ohne Mac
+
+Ohne Xcode braucht die App `get-task-allow` – also ein **Development-Profil** (oder AltStore/SideStore-/
+TrollStore-Installation) – und ein Werkzeug, das JIT einschaltet: StikDebug (iOS 17+; ab iOS 26 mit dem
+mitgelieferten `UniversalJIT26.js`), SideStore, AltServer oder TrollStore. Die App zeigt beim Spielstart eine
+Anleitung und wartet, bis JIT aktiv ist.
 
 | Profil | Launcher | Minecraft-Start |
 |---|---|---|
-| Development (Gerät im Profil) | ✅ | ✅ mit JIT |
+| ▶ Run aus Xcode | ✅ | ✅ JIT automatisch |
+| Development (Gerät im Profil) | ✅ | ✅ mit JIT-Werkzeug |
 | Ad Hoc | ✅ | ❌ (kein get-task-allow) |
 | Enterprise / Fremdzertifikat | ✅ | ❌ (kein get-task-allow) |
 | AltStore / SideStore / Sideloadly (Apple-ID) | ✅ | ✅ mit JIT |

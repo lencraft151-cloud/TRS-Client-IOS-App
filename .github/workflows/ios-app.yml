@@ -99,6 +99,16 @@ jobs:
             || { echo "::error::src-tauri/gen/apple ist nicht aktuell – ruby scripts/ios/generate-xcodeproj.rb ausführen und einchecken"; exit 1; }
           xcodebuild -list -project src-tauri/gen/apple/trs-launcher.xcodeproj
 
+      # JIT-Helfer für ▶ Run: Xcodes LLDB muss Init-Datei und Skript fehlerfrei laden.
+      - name: JIT helper loads in LLDB
+        run: |
+          set -euo pipefail
+          out="$(xcrun lldb --batch -o 'command source src-tauri/gen/apple/lldb/trs-jit.lldbinit' -o 'target stop-hook list' 2>&1)"
+          echo "$out"
+          if grep -qi 'error' <<< "$out"; then echo "::error::LLDB meldet Fehler im JIT-Helfer"; exit 1; fi
+          grep -q 'JIT-Helfer geladen' <<< "$out"
+          grep -q 'trs_jit.JitStopHook' <<< "$out"
+
       - run: pnpm install --frozen-lockfile
 
       - name: Frontend build

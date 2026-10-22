@@ -44,6 +44,9 @@ signing = project.main_group.new_file('Signing.xcconfig')
 scripts = project.main_group.new_group('scripts', 'scripts')
 scripts.new_file('build-rust.sh')
 scripts.new_file('embed-engine.sh')
+lldb_group = project.main_group.new_group('lldb', 'lldb')
+lldb_group.new_file('trs-jit.lldbinit')
+lldb_group.new_file('trs_jit.py')
 %w[ExportOptions-development.plist ExportOptions-ad-hoc.plist ExportOptions-enterprise.plist].each do |name|
   project.main_group.new_file(name)
 end
@@ -131,8 +134,12 @@ scheme.profile_action.build_configuration = 'release'
 scheme.archive_action.build_configuration = 'release'
 scheme.launch_action.environment_variables = Xcodeproj::XCScheme::EnvironmentVariables.new([
   { key: 'RUST_BACKTRACE', value: 'full', enabled: true },
-  { key: 'RUST_LOG', value: 'info', enabled: true }
+  { key: 'RUST_LOG', value: 'info', enabled: true },
+  # JIT beim Start aus Xcode: Debugger bleibt angehängt (iOS 26/TXM), siehe lldb/trs_jit.py.
+  { key: 'TRS_JIT_ALWAYS_ATTACHED', value: '1', enabled: true }
 ])
+# ▶ Run = JIT für Minecraft Java: LLDB lässt JVM-Signale durch und beantwortet die JIT-Anfragen der Engine.
+scheme.launch_action.xml_element.attributes['customLLDBInitFile'] = '$(SRCROOT)/lldb/trs-jit.lldbinit'
 scheme.save_as(PROJECT_PATH, TARGET_NAME, true)
 
 # --- Workspace (das öffnet man in Xcode; im Xcode-Paket von scripts/ios/package-xcode.sh liegt er oben) ---

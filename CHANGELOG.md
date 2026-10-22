@@ -32,9 +32,11 @@ How to write an entry:
 
 ### English
 - **iPhone and iPad: install with your own profile.** The iOS app now comes as a ready-to-sign Xcode project and as an IPA signed with your own certificate and provisioning profile – install it straight from Safari, with Apple Configurator, Xcode or apps like Feather and ESign.
+- **Minecraft from Xcode with JIT built in.** Start the app with Run in Xcode and JIT is on by itself – also on iOS 26 – so Minecraft Java starts without StikDebug or other helper apps.
 
 ### Deutsch
 - **iPhone und iPad: mit eigenem Profil installieren.** Die iOS-App gibt es jetzt als fertig signierbares Xcode-Projekt und als IPA, die mit deinem eigenen Zertifikat und Provisioning-Profil signiert ist – direkt aus Safari, mit Apple Configurator, Xcode oder Apps wie Feather und ESign installierbar.
+- **Minecraft aus Xcode mit eingebautem JIT.** Startest du die App in Xcode mit „Run“, ist JIT von selbst an – auch unter iOS 26 –, Minecraft Java startet also ohne StikDebug oder andere Hilfs-Apps.
 
 ## 0.27.1 – 2026-10-21 – Grand Entrance Fix | Feinschliff
 <!-- banner: accent=#ff9a4d motif=/news/0.27.1/banner.png -->

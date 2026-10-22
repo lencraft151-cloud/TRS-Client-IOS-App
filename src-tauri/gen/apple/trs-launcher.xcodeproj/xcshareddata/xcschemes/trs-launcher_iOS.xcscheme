@@ -48,7 +48,8 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES">
+      allowLocationSimulation = "YES"
+      customLLDBInitFile = "$(SRCROOT)/lldb/trs-jit.lldbinit">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
@@ -68,6 +69,11 @@
          <EnvironmentVariable
             key = "RUST_LOG"
             value = "info"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "TRS_JIT_ALWAYS_ATTACHED"
+            value = "1"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
