@@ -135,4 +135,22 @@ scheme.launch_action.environment_variables = Xcodeproj::XCScheme::EnvironmentVar
 ])
 scheme.save_as(PROJECT_PATH, TARGET_NAME, true)
 
+# --- Workspace (das öffnet man in Xcode; im Xcode-Paket von scripts/ios/package-xcode.sh liegt er oben) ---
+workspace_path = File.join(APPLE, 'TRS-Launcher.xcworkspace')
+FileUtils.rm_rf(workspace_path)
+Xcodeproj::Workspace.new(Xcodeproj::Workspace::FileReference.new('trs-launcher.xcodeproj', 'group')).save_as(workspace_path)
+settings = File.join(workspace_path, 'xcshareddata')
+FileUtils.mkdir_p(settings)
+File.write(File.join(settings, 'WorkspaceSettings.xcsettings'), <<~PLIST)
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+  <plist version="1.0">
+  <dict>
+  	<key>IDEWorkspaceSharedSettings_AutocreateContextsIfNeeded</key>
+  	<false/>
+  </dict>
+  </plist>
+PLIST
+
 puts "#{PROJECT_PATH} (#{product_name} #{version}, alternative Symbole: #{alternate_icons.join(', ')})"
+puts workspace_path

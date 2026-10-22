@@ -19,15 +19,26 @@ done
 
 PROJECT_DIR="${PROJECT_DIR:?nur aus Xcode aufrufen}"
 CONFIGURATION="${CONFIGURATION:?}"
-ROOT="$(cd "$PROJECT_DIR/../../.." && pwd)"
-TAURI_DIR="$ROOT/src-tauri"
+
+die() { echo "error: $*" >&2; exit 1; }
 
 if [ "${TRS_SKIP_RUST_BUILD:-}" = 1 ]; then
   echo "Rust-Bibliothek vorab gebaut (TRS_SKIP_RUST_BUILD=1)"
   exit 0
 fi
 
-die() { echo "error: $*" >&2; exit 1; }
+# Xcode-Paket (scripts/ios/package-xcode.sh): kein Quellcode daneben, der Kern liegt fertig in Externals/.
+if [ ! -f "$PROJECT_DIR/../../Cargo.toml" ]; then
+  lib="$PROJECT_DIR/Externals/arm64/$CONFIGURATION/libapp.a"
+  [ -f "$lib" ] || die "Vorgebauter App-Kern fehlt ($lib) – das Xcode-Paket ist unvollständig, bitte neu herunterladen"
+  [ "${PLATFORM_NAME:-iphoneos}" = iphoneos ] \
+    || die "Das Xcode-Paket enthält den App-Kern nur für echte Geräte – oben in Xcode ein iPhone/iPad als Ziel wählen, keinen Simulator"
+  echo "Vorgebauter App-Kern: $lib"
+  exit 0
+fi
+
+ROOT="$(cd "$PROJECT_DIR/../../.." && pwd)"
+TAURI_DIR="$ROOT/src-tauri"
 
 case "$CONFIGURATION" in
   debug | Debug) profile=debug ;;

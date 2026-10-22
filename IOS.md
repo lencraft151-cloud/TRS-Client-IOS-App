@@ -10,13 +10,27 @@ Skins & Umhänge, Freunde und Chat, News, Benachrichtigungen, PC-Fernbedienung p
 
 | Was | Wo |
 |---|---|
-| Xcode-Projekt | `src-tauri/gen/apple/trs-launcher.xcodeproj` (Target/Schema `trs-launcher_iOS`) |
+| **Xcode-Paket zum Herunterladen** | Release `ios-latest` → **`TRS-Launcher-Xcode.zip`** (siehe unten) |
+| Xcode-Workspace | `src-tauri/gen/apple/TRS-Launcher.xcworkspace` (Projekt `trs-launcher.xcodeproj`, Schema `trs-launcher_iOS`) |
 | Signatur-Einstellungen | `src-tauri/gen/apple/Signing.xcconfig` |
 | IPA bauen (Mac) | `scripts/ios/build-ipa.sh` |
 | IPA mit .p12 + .mobileprovision signieren | `scripts/ios/sign-ipa.sh` |
 | OTA-Link (manifest.plist) | `scripts/ios/ota-manifest.sh` |
 | CI (GitHub Actions, macOS) | `.github/workflows/ios-app.yml` |
 | Projekt neu erzeugen | `ruby scripts/ios/generate-xcodeproj.rb` |
+| Xcode-Paket bauen | `scripts/ios/package-xcode.sh` |
+
+## Am einfachsten: Xcode-Paket herunterladen und öffnen
+
+1. **`TRS-Launcher-Xcode.zip`** herunterladen – aus dem Release
+   [`ios-latest`](../../releases/tag/ios-latest) (wird bei jedem Push auf `main` neu gebaut) oder als Artefakt
+   `TRS-Launcher-Xcode` eines Laufs unter **Actions → iOS app**.
+2. Entpacken und **`TRS-Launcher.xcworkspace`** doppelklicken (Xcode 16+).
+3. Target **trs-launcher_iOS → Signing & Capabilities → Team** wählen (ggf. eigene Bundle-ID eintragen).
+4. iPhone/iPad anschließen, als Ziel wählen, **▶ Run** – oder **Product → Archive** für eine IPA.
+
+App-Kern (Rust + Oberfläche) und Spiel-Engine sind im Paket schon fertig gebaut: kein Rust, kein Node, kein
+Terminal. Einschränkung: nur echte Geräte (arm64), kein Simulator. Details stehen in `LIESMICH.md` im Paket.
 
 ## Weg 1: Fertige IPA aus GitHub Actions (ohne Mac)
 
@@ -55,7 +69,7 @@ Danach: **Einstellungen → Allgemein → VPN und Geräteverwaltung → Entwickl
 **Einstellungen → Datenschutz & Sicherheit → Entwicklermodus** einschalten.
 Bei Development/Ad-Hoc-Profilen muss die **UDID des Geräts im Profil** stehen.
 
-## Weg 2: Selbst in Xcode signieren (Mac)
+## Weg 2: Aus dem Quellcode in Xcode bauen (Mac)
 
 Voraussetzungen: macOS mit Xcode 16+, [Rust](https://rustup.rs) (`rustup target add aarch64-apple-ios`),
 Node.js 22 + pnpm (`npm i -g pnpm`).
@@ -63,7 +77,7 @@ Node.js 22 + pnpm (`npm i -g pnpm`).
 ```sh
 pnpm install
 pnpm generate                      # Oberfläche (sonst baut Xcode sie beim ersten Build selbst)
-open src-tauri/gen/apple/trs-launcher.xcodeproj
+open src-tauri/gen/apple/TRS-Launcher.xcworkspace
 ```
 
 1. In `src-tauri/gen/apple/Signing.xcconfig` (oder einer neuen `Signing.local.xcconfig`, nicht eingecheckt)

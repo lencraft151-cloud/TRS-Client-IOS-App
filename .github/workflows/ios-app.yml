@@ -1,6 +1,8 @@
 name: iOS app
 
 # Baut die iOS-App aus dem eingecheckten Xcode-Projekt (src-tauri/gen/apple) mit Spiel-Engine und liefert:
+#   - TRS-Launcher-Xcode.zip     Xcode-Paket: entpacken, TRS-Launcher.xcworkspace öffnen, Team wählen, ▶
+#                                (App-Kern und Engine fertig gebaut – kein Rust/Node nötig)
 #   - TRS-Launcher-unsigned.ipa  für AltStore/SideStore, Feather, ESign, Scarlet, Sideloadly, TrollStore
 #   - TRS-Launcher.ipa           mit deinem Zertifikat + Profil signiert (nur wenn die Secrets gesetzt sind)
 #   - manifest.plist/install.html  OTA-Installation per Link (nur beim Veröffentlichen, signiert)
@@ -12,8 +14,8 @@ name: iOS app
 #   IOS_BUNDLE_ID                   Bundle-ID erzwingen (sonst aus dem Profil)
 # Anleitung: IOS.md
 #
-# Auslöser: von Hand (Actions → iOS app → Run workflow), Tag „ios-v*“ (veröffentlicht ein Release) und PRs, die
-# das Xcode-Projekt oder die iOS-Skripte ändern.
+# Auslöser: von Hand (Actions → iOS app → Run workflow), Push auf main und Tag „ios-v*“ (veröffentlichen ein
+# Release – main als „ios-latest“) und PRs, die das Xcode-Projekt oder die iOS-Skripte ändern.
 on:
   workflow_dispatch:
     inputs:
@@ -26,6 +28,7 @@ on:
         type: boolean
         default: false
   push:
+    branches: [main]
     tags: ['ios-v*']
   pull_request:
     paths:
@@ -132,9 +135,30 @@ jobs:
           ENGINE: ${{ needs.engine.result == 'success' && format('{0}/engine-ios', runner.temp) || '' }}
         run: bash scripts/ios/build-ipa.sh out ${ENGINE:+"$ENGINE"}
 
+      - name: Xcode package
+        env:
+          ENGINE: ${{ needs.engine.result == 'success' && format('{0}/engine-ios', runner.temp) || '' }}
+        run: bash scripts/ios/package-xcode.sh out/TRS-Launcher-Xcode.zip ${ENGINE:+"$ENGINE"}
+
+      # Wie beim Nutzer: Paket entpacken (ohne Quellcode daneben) und den Workspace bauen.
+      - name: Xcode package builds on its own
+        run: |
+          set -euo pipefail
+          test_dir="$RUNNER_TEMP/package-test"
+          rm -rf "$test_dir" && mkdir -p "$test_dir"
+          unzip -q out/TRS-Launcher-Xcode.zip -d "$test_dir"
+          xcodebuild -workspace "$test_dir/TRS-Launcher-Xcode/TRS-Launcher.xcworkspace" -scheme trs-launcher_iOS \
+            -configuration debug -destination 'generic/platform=iOS' -derivedDataPath "$test_dir/dd" \
+            CODE_SIGNING_ALLOWED=NO build
+          app="$(find "$test_dir/dd/Build/Products" -maxdepth 2 -name '*.app' -type d | head -n 1)"
+          ls "$app"
+          if [ -n "${{ needs.engine.result == 'success' && 'engine' || '' }}" ]; then
+            test -f "$app/Frameworks/libtrsengine.dylib" || { echo "::error::Engine fehlt in der App aus dem Xcode-Paket"; exit 1; }
+          fi
+
       - name: Release tag
         id: release
-        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then tag="$GITHUB_REF_NAME"; else tag=ios-latest; fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -155,6 +179,12 @@ jobs:
         with:
           name: trs-launcher-ios-app
           path: out/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TRS-Launcher-Xcode
+          path: out/TRS-Launcher-Xcode.zip
           if-no-files-found: error
 
   publish:
@@ -179,6 +209,7 @@ jobs:
           set -euo pipefail
           notes="iOS-Build von $GITHUB_SHA.
 
+          - **TRS-Launcher-Xcode.zip** – Xcode-Paket: entpacken, \`TRS-Launcher.xcworkspace\` öffnen, unter *Signing & Capabilities* dein Team wählen, iPhone anschließen, ▶ Run. App-Kern und Spiel-Engine sind fertig gebaut (Anleitung: LIESMICH.md im Paket).
           - **TRS-Launcher-unsigned.ipa** – mit Feather, ESign, Scarlet, Sideloadly, AltStore/SideStore oder TrollStore installieren (die signieren mit deinem Zertifikat/Profil bzw. deiner Apple-ID)."
           if [ -f out/TRS-Launcher.ipa ]; then
             notes="$notes
