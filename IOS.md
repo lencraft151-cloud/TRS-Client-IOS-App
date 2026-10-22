@@ -207,6 +207,26 @@ Mehr Arbeitsspeicher: Mit bezahltem Account die Capabilities *Increased Memory L
 Addressing* in der App-ID einschalten (Xcode macht das bei „Automatic“ selbst). Fehlen sie, wählt die App den
 Java-Heap kleiner.
 
+## Fehlerbehebung
+
+**App stürzt direkt beim Start ab (Xcode 27):**
+
+1. Neuesten Stand holen (`git pull`).
+2. In Xcode **Product → Clean Build Folder** (⇧⌘K), dann erneut ▶ Run.
+
+Der erste Build danach dauert länger: Die Build-Phase installiert `llvm-tools` (rustup) und baut den Rust-Kern
+einmal komplett neu. Hintergrund:
+
+- Mit dem iOS-27-SDK starten UIKit-Apps nur noch mit Scene-Lebenszyklus (`UIApplicationSceneManifest` in der
+  Info.plist).
+- Den Hintergrundabruf (BGTaskScheduler) meldet die App jetzt vor dem Start an (`main.mm`); später beendet iOS
+  sie sofort.
+- Unter Xcode 27 braucht `swift-rs` `llvm-objcopy`, sonst fehlen die Einstiegspunkte der Plugins.
+
+Stürzt sie weiter ab, in Xcode unten die Konsole öffnen (⇧⌘C) und die letzte rote Zeile bzw. den
+„Terminating app due to …“-Text schicken. Auf dem iPhone selbst liegen Absturzberichte unter
+Einstellungen → Datenschutz & Sicherheit → Analyse & Verbesserungen → Analysedaten („TRS Launcher-…“).
+
 ## Projekt nach Änderungen neu erzeugen
 
 Das Xcode-Projekt entsteht aus `scripts/ios/generate-xcodeproj.rb` (Ruby-Gem `xcodeproj`, läuft auch unter

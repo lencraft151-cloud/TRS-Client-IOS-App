@@ -79,6 +79,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios
+          # swift-rs braucht llvm-objcopy unter Xcode 27 (siehe scripts/build-rust.sh).
+          components: llvm-tools
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -232,6 +234,61 @@ jobs:
           name: TRS-Launcher-Xcode
           path: out/TRS-Launcher-Xcode.zip
           if-no-files-found: error
+
+  # Startet die App im iOS-Simulator (neuestes Xcode/iOS auf dem Runner) und schlägt fehl, wenn sie abstürzt.
+  # Absturzbericht, Konsole, System-Log und Screenshot: Artefakt „ios-simulator-smoke-test“.
+  simulator:
+    name: Simulator start test
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Newest Xcode
+        run: |
+          xcode="$(find /Applications -maxdepth 1 -name 'Xcode_*.app' | sort -V | tail -n 1)"
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - uses: pnpm/setup@v3
+        with:
+          install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim
+          components: llvm-tools
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: ios-simulator
+          cache-on-failure: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Frontend build
+        run: pnpm generate
+
+      - name: Start the app in the simulator
+        run: bash scripts/ios/simulator-smoke-test.sh "$RUNNER_TEMP/smoke"
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: ios-simulator-smoke-test
+          path: ${{ runner.temp }}/smoke
+          if-no-files-found: ignore
 
   publish:
     name: Publish

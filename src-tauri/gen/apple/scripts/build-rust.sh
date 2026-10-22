@@ -93,6 +93,16 @@ if [[ "${CURRENT_PROJECT_VERSION:-}" =~ ^[0-9]+$ ]]; then clean_env+=("TRS_BUILD
 cargo_flags=(--manifest-path "$TAURI_DIR/Cargo.toml" --lib --features tauri/custom-protocol)
 if [ "$profile" = release ]; then cargo_flags+=(--release); fi
 
+# Xcode 27: SwiftPM macht die @_cdecl-Exporte der Plugin-Pakete (Tauri-Plugins: init_plugin_…) intern; swift-rs
+# macht sie mit llvm-objcopy aus rustups llvm-tools wieder sichtbar. Fehlt es, startet die App nicht.
+# Schon gebaute Swift-Archive hat swift-rs dann ohne objcopy verarbeitet – einmal neu bauen (Marker im target-Ordner).
+fresh_llvm_tools=0
+if command -v rustup > /dev/null && ! rustup component list --installed 2> /dev/null | grep -q '^llvm-tools'; then
+  echo "rustup-Komponente llvm-tools installieren (für swift-rs unter Xcode 27)"
+  rustup component add llvm-tools
+  fresh_llvm_tools=1
+fi
+
 target_dir="${CARGO_TARGET_DIR:-$TAURI_DIR/target}"
 for i in "${!triples[@]}"; do
   triple="${triples[$i]}"
@@ -100,8 +110,15 @@ for i in "${!triples[@]}"; do
     echo "Rust-Ziel $triple installieren"
     rustup target add "$triple"
   fi
+  marker="$target_dir/$triple/.trs-llvm-tools"
+  # Nicht im CI (dort kommt llvm-tools mit der Toolchain, der Cache bleibt nutzbar).
+  if [ -z "${CI:-}" ] && { [ "$fresh_llvm_tools" = 1 ] || { [ -d "$target_dir/$triple" ] && [ ! -f "$marker" ]; }; }; then
+    echo "iOS-Build-Ordner $triple einmal leeren (Swift-Exporte mit llvm-objcopy neu erzeugen)"
+    env -i "${clean_env[@]}" cargo clean --manifest-path "$TAURI_DIR/Cargo.toml" --target "$triple"
+  fi
   echo "cargo build --target $triple ($profile)"
   env -i "${clean_env[@]}" cargo build "${cargo_flags[@]}" --target "$triple"
+  mkdir -p "$target_dir/$triple" && touch "$marker"
   lib="$target_dir/$triple/$profile/libtrs_launcher_lib.a"
   [ -f "$lib" ] || die "Rust-Bibliothek fehlt: $lib"
   out="$PROJECT_DIR/Externals/${arch_dirs[$i]}/$CONFIGURATION"
