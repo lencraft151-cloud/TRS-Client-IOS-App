@@ -28,6 +28,14 @@ How to write an entry:
   "node --experimental-strip-types scripts/changelog.mjs set-contributors <version> <name1,name2>".
 -->
 
+## Unreleased
+
+### English
+- **iPhone and iPad: install with your own profile.** The iOS app now comes as a ready-to-sign Xcode project and as an IPA signed with your own certificate and provisioning profile – install it straight from Safari, with Apple Configurator, Xcode or apps like Feather and ESign.
+
+### Deutsch
+- **iPhone und iPad: mit eigenem Profil installieren.** Die iOS-App gibt es jetzt als fertig signierbares Xcode-Projekt und als IPA, die mit deinem eigenen Zertifikat und Provisioning-Profil signiert ist – direkt aus Safari, mit Apple Configurator, Xcode oder Apps wie Feather und ESign installierbar.
+
 ## 0.27.1 – 2026-10-21 – Grand Entrance Fix | Feinschliff
 <!-- banner: accent=#ff9a4d motif=/news/0.27.1/banner.png -->
 <!-- shots:

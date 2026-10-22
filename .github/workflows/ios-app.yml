@@ -1,0 +1,195 @@
+name: iOS app
+
+# Baut die iOS-App aus dem eingecheckten Xcode-Projekt (src-tauri/gen/apple) mit Spiel-Engine und liefert:
+#   - TRS-Launcher-unsigned.ipa  für AltStore/SideStore, Feather, ESign, Scarlet, Sideloadly, TrollStore
+#   - TRS-Launcher.ipa           mit deinem Zertifikat + Profil signiert (nur wenn die Secrets gesetzt sind)
+#   - manifest.plist/install.html  OTA-Installation per Link (nur beim Veröffentlichen, signiert)
+#
+# Secrets (Settings → Secrets and variables → Actions), alle optional – ohne sie gibt es nur die unsignierte IPA:
+#   IOS_CERTIFICATE_P12_BASE64      base64 der .p12 (Zertifikat + privater Schlüssel)
+#   IOS_CERTIFICATE_PASSWORD        Passwort der .p12
+#   IOS_PROVISIONING_PROFILE_BASE64 base64 der .mobileprovision (Development, Ad Hoc oder Enterprise)
+#   IOS_BUNDLE_ID                   Bundle-ID erzwingen (sonst aus dem Profil)
+# Anleitung: IOS.md
+#
+# Auslöser: von Hand (Actions → iOS app → Run workflow), Tag „ios-v*“ (veröffentlicht ein Release) und PRs, die
+# das Xcode-Projekt oder die iOS-Skripte ändern.
+on:
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: Spiel-Engine bauen und einbetten (Minecraft-Start; dauert ~30–60 min länger)
+        type: boolean
+        default: true
+      publish:
+        description: Als Release „ios-latest“ veröffentlichen (IPA + OTA-Link)
+        type: boolean
+        default: false
+  push:
+    tags: ['ios-v*']
+  pull_request:
+    paths:
+      - src-tauri/gen/apple/**
+      - scripts/ios/**
+      - .github/workflows/ios-app.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-app-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  engine:
+    name: Engine
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.engine }}
+    uses: ./.github/workflows/ios-engine.yml
+
+  app:
+    name: App (macOS)
+    needs: engine
+    if: ${{ !cancelled() && (needs.engine.result == 'success' || needs.engine.result == 'skipped') }}
+    runs-on: macos-15
+    timeout-minutes: 120
+    outputs:
+      release-tag: ${{ steps.release.outputs.tag }}
+      install-link: ${{ steps.ota.outputs.link }}
+    env:
+      IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          shared-key: ios-app
+          cache-on-failure: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Tools
+        run: |
+          brew install ldid
+          gem install xcodeproj --no-document
+
+      # Das eingecheckte Projekt muss dem Generator entsprechen (sonst wurde es von Hand verändert oder ist veraltet).
+      - name: Xcode project is up to date
+        run: |
+          ruby scripts/ios/generate-xcodeproj.rb
+          git diff --exit-code -- src-tauri/gen/apple \
+            || { echo "::error::src-tauri/gen/apple ist nicht aktuell – ruby scripts/ios/generate-xcodeproj.rb ausführen und einchecken"; exit 1; }
+          xcodebuild -list -project src-tauri/gen/apple/trs-launcher.xcodeproj
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Frontend build
+        run: pnpm generate
+
+      - name: Download engine
+        if: ${{ needs.engine.result == 'success' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: engine-ios
+          path: ${{ runner.temp }}/engine-ios
+
+      - name: Signing data
+        env:
+          P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -n "$P12_BASE64" ] && [ -n "$PROFILE_BASE64" ]; then
+            mkdir -p "$RUNNER_TEMP/signing"
+            printf '%s' "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/signing/cert.p12"
+            printf '%s' "$PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing/profile.mobileprovision"
+            echo "IOS_P12_PATH=$RUNNER_TEMP/signing/cert.p12" >> "$GITHUB_ENV"
+            echo "IOS_PROFILE_PATH=$RUNNER_TEMP/signing/profile.mobileprovision" >> "$GITHUB_ENV"
+          else
+            echo "::notice::Keine Signier-Secrets – es entsteht nur die unsignierte IPA (siehe IOS.md)."
+          fi
+
+      - name: Build IPA
+        env:
+          IOS_P12_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          ENGINE: ${{ needs.engine.result == 'success' && format('{0}/engine-ios', runner.temp) || '' }}
+        run: bash scripts/ios/build-ipa.sh out ${ENGINE:+"$ENGINE"}
+
+      - name: Release tag
+        id: release
+        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag="$GITHUB_REF_NAME"; else tag=ios-latest; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: OTA manifest
+        id: ota
+        if: ${{ steps.release.outputs.tag && hashFiles('out/TRS-Launcher.ipa') != '' }}
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          bash scripts/ios/ota-manifest.sh out/TRS-Launcher.ipa "$base/TRS-Launcher.ipa" "$base/manifest.plist" out \
+            | tee "$RUNNER_TEMP/ota.txt"
+          echo "link=$(sed -n 's/^Link: //p' "$RUNNER_TEMP/ota.txt")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trs-launcher-ios-app
+          path: out/
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: app
+    if: ${{ needs.app.outputs.release-tag }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: trs-launcher-ios-app
+          path: out
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.app.outputs.release-tag }}
+          LINK: ${{ needs.app.outputs.install-link }}
+        run: |
+          set -euo pipefail
+          notes="iOS-Build von $GITHUB_SHA.
+
+          - **TRS-Launcher-unsigned.ipa** – mit Feather, ESign, Scarlet, Sideloadly, AltStore/SideStore oder TrollStore installieren (die signieren mit deinem Zertifikat/Profil bzw. deiner Apple-ID)."
+          if [ -f out/TRS-Launcher.ipa ]; then
+            notes="$notes
+          - **TRS-Launcher.ipa** – mit dem hinterlegten Profil signiert. Direkt installieren: diesen Link in Safari auf dem iPhone/iPad einfügen (oder install.html auf einer eigenen HTTPS-Seite ablegen):
+
+          \`\`\`
+          $LINK
+          \`\`\`"
+          fi
+          if [ "$TAG" = ios-latest ]; then
+            gh release delete ios-latest --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          fi
+          gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "TRS Launcher iOS ($TAG)" --notes "$notes"

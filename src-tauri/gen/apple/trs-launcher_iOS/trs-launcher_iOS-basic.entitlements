@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Ohne Zusatz-Capabilities (kostenloses Apple-Konto / Personal Team). Die App erkennt zur Laufzeit,
+  dass increased-memory-limit fehlt, und wählt -Xmx kleiner (plugins/tauri-plugin-trs-game, src/ios/memory.rs).
+-->
+<plist version="1.0">
+<dict/>
+</plist>
