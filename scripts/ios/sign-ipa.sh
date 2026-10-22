@@ -41,16 +41,35 @@ trap cleanup EXIT
 security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 security set-keychain-settings -lut 3600 "$KEYCHAIN"
 security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-security import "$P12" -k "$KEYCHAIN" -P "${P12_PASSWORD:-}" -T /usr/bin/codesign -T /usr/bin/security > /dev/null
+if ! security import "$P12" -k "$KEYCHAIN" -P "${P12_PASSWORD:-}" -T /usr/bin/codesign -T /usr/bin/security > /dev/null 2>&1; then
+  # .p12 von OpenSSL 3 (AES/PBKDF2) kennt der Schlüsselbund nicht – ins alte Format umpacken und erneut versuchen.
+  command -v openssl > /dev/null || die "Zertifikat nicht importierbar (Passwort falsch?) und openssl fehlt zum Umwandeln"
+  openssl pkcs12 -in "$P12" -passin "pass:${P12_PASSWORD:-}" -nodes -out "$TMP/cert.pem" -legacy 2> /dev/null \
+    || openssl pkcs12 -in "$P12" -passin "pass:${P12_PASSWORD:-}" -nodes -out "$TMP/cert.pem" \
+    || die "Zertifikat nicht lesbar – Passwort falsch?"
+  /usr/bin/openssl pkcs12 -export -in "$TMP/cert.pem" -out "$TMP/legacy.p12" -passout "pass:$KEYCHAIN_PASSWORD"
+  security import "$TMP/legacy.p12" -k "$KEYCHAIN" -P "$KEYCHAIN_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security > /dev/null
+fi
+# Apple-Zwischenzertifikate (WWDR): ohne sie kann codesign die Kette nicht bauen (frischer Mac). Fehlen darf es –
+# dann gilt, was im System-Schlüsselbund liegt.
+for ca in AppleWWDRCAG3 AppleWWDRCAG6; do
+  if curl -fsSL --max-time 20 -o "$TMP/$ca.cer" "https://www.apple.com/certificateauthority/$ca.cer"; then
+    security import "$TMP/$ca.cer" -k "$KEYCHAIN" > /dev/null 2>&1 || true
+  fi
+done
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
 while IFS= read -r kc; do old_keychains+=("$kc"); done < <(security list-keychains -d user | sed -e 's/^ *"//' -e 's/"$//')
 security list-keychains -d user -s "$KEYCHAIN" "${old_keychains[@]}"
-IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk 'NR==1 && $2 ~ /^[0-9A-F]{40}$/ {print $2}')"
-[ -n "$IDENTITY" ] || die "kein Signier-Zertifikat in $P12 (Passwort richtig? Zertifikat abgelaufen?)"
-echo "Zertifikat: $(security find-identity -v -p codesigning "$KEYCHAIN" | head -n 1 | cut -d'"' -f2)"
+# Ohne -v: auch Identitäten, deren Kette macOS (noch) nicht prüfen kann – codesign signiert trotzdem.
+identity_line="$(security find-identity -p codesigning "$KEYCHAIN" | awk '$2 ~ /^[0-9A-F]{40}$/ {print; exit}')"
+IDENTITY="$(awk '{print $2}' <<< "$identity_line")"
+[ -n "$IDENTITY" ] || die "kein Signier-Zertifikat in $P12 (Passwort richtig? Zertifikat mit privatem Schlüssel exportiert?)"
+echo "Zertifikat: $(cut -d'"' -f2 <<< "$identity_line")"
 
 # --- Profil lesen ---
-security cms -D -i "$PROFILE" > "$TMP/profile.plist"
+security cms -D -i "$PROFILE" > "$TMP/profile.plist" 2> /dev/null \
+  || openssl smime -verify -noverify -inform der -in "$PROFILE" -out "$TMP/profile.plist" 2> /dev/null \
+  || die "$PROFILE ist kein Provisioning-Profil"
 APP_ID="$($PB -c 'Print :Entitlements:application-identifier' "$TMP/profile.plist")"
 TEAM="$($PB -c 'Print :TeamIdentifier:0' "$TMP/profile.plist")"
 EXPIRES="$($PB -c 'Print :ExpirationDate' "$TMP/profile.plist")"

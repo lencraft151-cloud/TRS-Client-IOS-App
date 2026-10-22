@@ -108,6 +108,7 @@ jobs:
           if grep -qi 'error' <<< "$out"; then echo "::error::LLDB meldet Fehler im JIT-Helfer"; exit 1; fi
           grep -q 'JIT-Helfer geladen' <<< "$out"
           grep -q 'trs_jit.JitStopHook' <<< "$out"
+          python3 -I -B scripts/ios/tests/test_trs_jit.py
 
       - run: pnpm install --frozen-lockfile
 
@@ -144,6 +145,10 @@ jobs:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           ENGINE: ${{ needs.engine.result == 'success' && format('{0}/engine-ios', runner.temp) || '' }}
         run: bash scripts/ios/build-ipa.sh out ${ENGINE:+"$ENGINE"}
+
+      # sign-ipa.sh + ota-manifest.sh mit Wegwerf-Zertifikat und -Profil (läuft auch ohne deine Secrets).
+      - name: Signing scripts work
+        run: bash scripts/ios/test-signing.sh out/TRS-Launcher-unsigned.ipa
 
       - name: Xcode package
         env:
