@@ -193,8 +193,8 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastSwiftUpdateCheck = 1600;
-				LastUpgradeCheck = 1600;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
 			};
 			buildConfigurationList = 63B06C5C56ED4F6BF3D37F5BE5BAFF77 /* Build configuration list for PBXProject "trs-launcher" */;
 			compatibilityVersion = "Xcode 14.0";

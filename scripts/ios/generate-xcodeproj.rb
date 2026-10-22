@@ -24,7 +24,11 @@ alternate_icons = Dir[File.join(APPLE, 'Assets.xcassets/AppIcon-*.appiconset')].
 
 FileUtils.rm_rf(PROJECT_PATH)
 project = Xcodeproj::Project.new(PROJECT_PATH, false, 56)
-project.root_object.attributes['LastUpgradeCheck'] = '1600'
+# Stand Xcode 27: sonst bietet Xcode „Update to recommended settings“ an – das würde u. a. die Skript-Sandbox
+# einschalten, und die Build-Phasen (Rust, Engine-Download) liefen nicht mehr.
+XCODE_VERSION = '2700'
+project.root_object.attributes['LastUpgradeCheck'] = XCODE_VERSION
+project.root_object.attributes['LastSwiftUpdateCheck'] = XCODE_VERSION
 project.root_object.attributes['BuildIndependentTargetsInParallel'] = 'YES'
 project.root_object.development_region = 'en'
 project.root_object.known_regions = %w[en Base]
@@ -141,6 +145,7 @@ scheme.launch_action.environment_variables = Xcodeproj::XCScheme::EnvironmentVar
 ])
 # ▶ Run = JIT für Minecraft Java: LLDB lässt JVM-Signale durch und beantwortet die JIT-Anfragen der Engine.
 scheme.launch_action.xml_element.attributes['customLLDBInitFile'] = '$(SRCROOT)/lldb/trs-jit.lldbinit'
+scheme.doc.root.attributes['LastUpgradeVersion'] = XCODE_VERSION
 scheme.save_as(PROJECT_PATH, TARGET_NAME, true)
 
 # --- Workspace (das öffnet man in Xcode; im Xcode-Paket von scripts/ios/package-xcode.sh liegt er oben) ---
