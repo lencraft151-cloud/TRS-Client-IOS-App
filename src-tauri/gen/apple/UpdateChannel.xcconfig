@@ -1,0 +1,8 @@
+// Update-Kanal der iOS-App: Release, in dem mobile.json (signiert) + IPA + OTA-Manifest liegen.
+// Die App prüft beim Start und alle paar Stunden; bei einer neueren Version zeigt sie „Installieren“.
+// Veröffentlicht von .github/workflows/ios-app.yml (Secrets IOS_UPDATE_SIGNING_KEY + _PASSWORD, siehe IOS.md).
+// Leer lassen (TRS_UPDATE_REPO =), um den Kanal des Originals (theredstonee/TRS-Launcher) zu nutzen.
+TRS_UPDATE_REPO = lencraft151-cloud/TRS-Client-IOS-App
+TRS_UPDATE_TAG = ios-latest
+// Öffentlicher Minisign-Schlüssel (wie tauri.conf.json → plugins.updater.pubkey). Achtung: „//“ wäre hier ein Kommentar.
+TRS_UPDATE_PUBKEY = dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU2NUE4OURCMjU5N0NDOApSV1RJZkZteW5haGxCVUN6UlQrcW0xanp6WmdsWWJUN1ZDdW83NWdCMGJJYUtKbTIyOUJHb3pIbAo=

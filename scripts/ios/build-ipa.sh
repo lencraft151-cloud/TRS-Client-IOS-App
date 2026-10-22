@@ -12,6 +12,9 @@
 # Signier-Daten (optional, Umgebung):
 #   IOS_P12_PATH, IOS_P12_PASSWORD, IOS_PROFILE_PATH, [IOS_BUNDLE_ID]
 #
+# Update-Kanal (optional): BUILD_NUMBER (ganze Zahl → Version x.y.z.BUILD_NUMBER, CFBundleVersion),
+# UPDATE_REPO (owner/repo, überschreibt UpdateChannel.xcconfig).
+#
 # Engine-Ordner (scripts/ios/build-engine.sh / CI-Artefakt „engine-ios“) macht den Minecraft-Start möglich;
 # ohne ihn läuft der Launcher, nur der Spielstart meldet „Engine fehlt“.
 # Braucht macOS mit Xcode, Rust (Ziel aarch64-apple-ios), Node 22 + pnpm, ldid (brew install ldid).
@@ -41,6 +44,8 @@ xcodebuild -project "$APPLE/trs-launcher.xcodeproj" -scheme trs-launcher_iOS -co
   -sdk iphoneos -destination 'generic/platform=iOS' -archivePath "$WORK/TRS.xcarchive" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
   TRS_ENGINE_DIR="${ENGINE:-$WORK/no-engine}" \
+  ${BUILD_NUMBER:+CURRENT_PROJECT_VERSION="$BUILD_NUMBER"} \
+  ${UPDATE_REPO:+TRS_UPDATE_REPO="$UPDATE_REPO"} \
   ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES="$alt_icons" \
   archive
 

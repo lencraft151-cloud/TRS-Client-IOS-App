@@ -12,6 +12,8 @@ name: iOS app
 #   IOS_CERTIFICATE_PASSWORD        Passwort der .p12
 #   IOS_PROVISIONING_PROFILE_BASE64 base64 der .mobileprovision (Development, Ad Hoc oder Enterprise)
 #   IOS_BUNDLE_ID                   Bundle-ID erzwingen (sonst aus dem Profil)
+#   IOS_UPDATE_SIGNING_KEY          Update-Kanal: privater Minisign-Schlüssel (Inhalt von ios-update.key)
+#   IOS_UPDATE_SIGNING_KEY_PASSWORD Passwort dazu – ohne beide kein mobile.json, die App meldet dann keine Updates
 # Anleitung: IOS.md
 #
 # Auslöser: von Hand (Actions → iOS app → Run workflow), Push auf main und Tag „ios-v*“ (veröffentlichen ein
@@ -100,6 +102,8 @@ jobs:
           git diff --exit-code -- src-tauri/gen/apple \
             || { echo "::error::src-tauri/gen/apple ist nicht aktuell – ruby scripts/ios/generate-xcodeproj.rb ausführen und einchecken"; exit 1; }
           xcodebuild -list -project src-tauri/gen/apple/trs-launcher.xcodeproj
+          grep -qF "$(cat src-tauri/gen/apple/update-public.key)" src-tauri/gen/apple/UpdateChannel.xcconfig \
+            || { echo "::error::update-public.key und TRS_UPDATE_PUBKEY in UpdateChannel.xcconfig stimmen nicht überein"; exit 1; }
 
       # JIT-Helfer für ▶ Run: Xcodes LLDB muss Init-Datei und Skript fehlerfrei laden.
       - name: JIT helper loads in LLDB
@@ -146,6 +150,9 @@ jobs:
           IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           ENGINE: ${{ needs.engine.result == 'success' && format('{0}/engine-ios', runner.temp) || '' }}
+          # Version x.y.z.<Lauf> – jeder Build zählt in der App als Update (Kanal ios-latest).
+          BUILD_NUMBER: ${{ github.run_number }}
+          UPDATE_REPO: ${{ github.repository }}
         run: bash scripts/ios/build-ipa.sh out ${ENGINE:+"$ENGINE"}
 
       # sign-ipa.sh + ota-manifest.sh mit Wegwerf-Zertifikat und -Profil (läuft auch ohne deine Secrets).
@@ -191,6 +198,28 @@ jobs:
           bash scripts/ios/ota-manifest.sh out/TRS-Launcher.ipa "$base/TRS-Launcher.ipa" "$base/manifest.plist" out \
             | tee "$RUNNER_TEMP/ota.txt"
           echo "link=$(sed -n 's/^Link: //p' "$RUNNER_TEMP/ota.txt")" >> "$GITHUB_OUTPUT"
+
+      # Update-Kanal: signiertes mobile.json (+ AltStore-/SideStore-Quelle) neben die IPA ins Release.
+      - name: Update channel
+        if: ${{ steps.release.outputs.tag }}
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          RUN: ${{ github.run_number }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.IOS_UPDATE_SIGNING_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.IOS_UPDATE_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::notice::Kein IOS_UPDATE_SIGNING_KEY – kein Update-Kanal, die App meldet keine Updates (siehe IOS.md)."
+            exit 0
+          fi
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version").$RUN"
+          ota=()
+          if [ -f out/manifest.plist ]; then ota=(--ota "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/manifest.plist"); fi
+          git log -1 --format='%s' > "$RUNNER_TEMP/notes.md"
+          node scripts/mobile-channel.mjs --version "$version" --notes "$RUNNER_TEMP/notes.md" \
+            --ipa out/TRS-Launcher-unsigned.ipa --out out --in-place --repo "$GITHUB_REPOSITORY" --tag "$TAG" \
+            --pubkey-file src-tauri/gen/apple/update-public.key ${ota[@]+"${ota[@]}"}
 
       - uses: actions/upload-artifact@v7
         with:

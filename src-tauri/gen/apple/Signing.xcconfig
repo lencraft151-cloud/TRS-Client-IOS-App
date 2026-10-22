@@ -1,6 +1,9 @@
 // Signatur der iOS-App – die einzige Datei, die du zum Signieren anpassen musst.
 // (Alternativ alles in Xcode unter Target „trs-launcher_iOS“ → Signing & Capabilities einstellen.)
 
+// Update-Kanal (Repo, Release, Schlüssel) – normalerweise nichts zu ändern.
+#include "UpdateChannel.xcconfig"
+
 // Team-ID aus developer.apple.com → Membership (10 Zeichen), z. B. AB12CD34EF.
 DEVELOPMENT_TEAM =
 

@@ -73,8 +73,12 @@ in \`Signing.xcconfig\` die Zeile mit \`trs-launcher_iOS-basic.entitlements\` ak
 $engine_note
 **JIT (Just-in-Time) für Minecraft Java ist eingebaut:** Mit **▶ Run** aus Xcode gestartet, ist JIT automatisch an –
 auch auf iOS 26 (der Helfer in \`lldb/\` beantwortet die JIT-Anfragen der Engine im Debugger). Xcode bleibt dabei
-verbunden (Kabel oder WLAN). Ohne Mac: JIT mit StikDebug, SideStore oder AltServer einschalten – die App zeigt beim
-Spielstart eine Anleitung.
+verbunden (Kabel oder WLAN). Ohne Mac: In der App beim Spielstart auf "JIT mit StikDebug aktivieren" tippen
+(StikDebug muss eingerichtet sein) – oder SideStore/AltServer nutzen.
+
+**Ohne Kabel spielen:** iPhone einmal per Kabel anschließen, Xcode → Window → Devices and Simulators → dein iPhone →
+"Connect via network" anhaken, Kabel abziehen, ▶ Run. Mac und iPhone im selben WLAN, Mac wach halten
+(\`caffeinate -d\`), während Minecraft läuft nicht auf Stop drücken.
 
 Der App-Kern (Externals/arm64/…/libapp.a) ist vorgebaut, daher nur echte Geräte (arm64).
 Quellcode: ${remote:-dieses Repository} (Commit $commit), Original: https://github.com/theredstonee/TRS-Launcher

@@ -3240,6 +3240,16 @@
     "externalHint": "Paket yöneticinle kur (ör. AUR için yay/paru, apt veya dnf) ya da GitHub’dan indir.",
     "portableHint": "Taşınabilir sürüm: yeni ZIP’i sürüm sayfasından indir ve eski dosyaların yerine koy – “data” klasörünü sakla."
   },
+  "mobileUpdate": {
+    "available": "TRS Launcher {version} hazır",
+    "installHint": "“Yükle”ye dokun – cihazın bir kez daha sorar ve ardından uygulamayı günceller.",
+    "sideloadHint": "Uygulamayı nasıl yüklediysen öyle güncelle: SideStore/AltStore, yeni bir IPA veya Xcode’da Run.",
+    "install": "Yükle",
+    "installing": "Açılıyor …",
+    "later": "Sonra",
+    "iosStarted": "Pencerede “Yükle”yi onayla – uygulama kapanır ve kendini günceller.",
+    "permissionRequired": "TRS Launcher için “Bilinmeyen uygulamaları yükle” iznini ver, sonra tekrar “Yükle”ye dokun."
+  },
   "play": {
     "stopGame": "Oyunu durdur",
     "cancelLaunch": "Başlatmayı iptal et",

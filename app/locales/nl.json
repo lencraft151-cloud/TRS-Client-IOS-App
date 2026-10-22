@@ -3240,6 +3240,16 @@
     "externalHint": "Installeer het met je pakketbeheerder (bijv. yay/paru voor de AUR, apt of dnf) – of download het van GitHub.",
     "portableHint": "Draagbare versie: download de nieuwe ZIP van de releasepagina en vervang de oude bestanden – houd de map ‘data’."
   },
+  "mobileUpdate": {
+    "available": "TRS Launcher {version} is beschikbaar",
+    "installHint": "Tik op ‘Installeren’ – je apparaat vraagt het nog één keer en werkt de app daarna bij.",
+    "sideloadHint": "Werk bij zoals je de app hebt geïnstalleerd: SideStore/AltStore, een nieuwe IPA of Run in Xcode.",
+    "install": "Installeren",
+    "installing": "Openen …",
+    "later": "Later",
+    "iosStarted": "Bevestig ‘Installeren’ in het venster – de app sluit en werkt zichzelf bij.",
+    "permissionRequired": "Sta ‘Onbekende apps installeren’ toe voor TRS Launcher en tik daarna opnieuw op ‘Installeren’."
+  },
   "play": {
     "stopGame": "Spel stoppen",
     "cancelLaunch": "Starten annuleren",

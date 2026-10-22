@@ -3240,6 +3240,16 @@
     "externalHint": "Instale pelo seu gerenciador de pacotes (ex.: yay/paru para o AUR, apt ou dnf) – ou baixe do GitHub.",
     "portableHint": "Versão portátil: baixe o novo ZIP na página da versão e substitua os arquivos antigos – mantenha a pasta “data”."
   },
+  "mobileUpdate": {
+    "available": "TRS Launcher {version} está disponível",
+    "installHint": "Toque em “Instalar” – o aparelho pergunta mais uma vez e depois atualiza o app.",
+    "sideloadHint": "Atualize do jeito que você instalou o app: SideStore/AltStore, uma IPA nova ou Run no Xcode.",
+    "install": "Instalar",
+    "installing": "Abrindo …",
+    "later": "Depois",
+    "iosStarted": "Confirme “Instalar” na janela – o app fecha e se atualiza sozinho.",
+    "permissionRequired": "Permita “Instalar apps desconhecidos” para o TRS Launcher e toque em “Instalar” de novo."
+  },
   "play": {
     "stopGame": "Parar jogo",
     "cancelLaunch": "Cancelar inicialização",

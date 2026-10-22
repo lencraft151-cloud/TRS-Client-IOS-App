@@ -483,6 +483,8 @@ export interface MobileUpdateStatus {
   size: number | null
   /** AltStore-/SideStore-Quelle (iOS). */
   altstoreSource: string | null
+  /** iOS: `itms-services://…` einer mit Profil signierten IPA – installiert das Update direkt. */
+  installUrl: string | null
 }
 
 /** `started`: Installationsdialog des Systems offen; `permissionRequired`: erst „Unbekannte Apps installieren“ erlauben. */

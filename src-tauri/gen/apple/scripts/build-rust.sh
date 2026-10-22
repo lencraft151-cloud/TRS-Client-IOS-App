@@ -84,6 +84,11 @@ done
 # iOS-Überlagerung der Tauri-Konfiguration (sonst mischt sie der Tauri-Befehl ein).
 clean_env+=("TAURI_CONFIG=$(cat "$TAURI_DIR/tauri.ios.conf.json")")
 clean_env+=("IPHONEOS_DEPLOYMENT_TARGET=${IPHONEOS_DEPLOYMENT_TARGET:-15.0}")
+# Update-Kanal (UpdateChannel.xcconfig) und Buildnummer (CURRENT_PROJECT_VERSION, nur ganze Zahlen) für den Kern.
+for name in TRS_UPDATE_REPO TRS_UPDATE_TAG TRS_UPDATE_PUBKEY; do
+  if [ -n "${!name:-}" ]; then clean_env+=("$name=${!name}"); fi
+done
+if [[ "${CURRENT_PROJECT_VERSION:-}" =~ ^[0-9]+$ ]]; then clean_env+=("TRS_BUILD_NUMBER=$CURRENT_PROJECT_VERSION"); fi
 
 cargo_flags=(--manifest-path "$TAURI_DIR/Cargo.toml" --lib --features tauri/custom-protocol)
 if [ "$profile" = release ]; then cargo_flags+=(--release); fi

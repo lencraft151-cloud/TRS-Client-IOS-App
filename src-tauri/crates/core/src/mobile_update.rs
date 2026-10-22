@@ -8,8 +8,16 @@
 //! Android: Die App prüft den Kanal, lädt die APK nach `<daten>/mobile-update/`
 //! (Größe + SHA-256 aus dem signierten Manifest) und übergibt sie dem
 //! PackageInstaller – installiert wird erst nach Bestätigung durch den Nutzer.
-//! iOS: Installiert wird über AltStore/SideStore; die App zeigt nur, dass es
-//! eine neue Version gibt, und die Quelle dafür.
+//! iOS: Ist die IPA mit einem Profil signiert, nennt das Manifest ein OTA-Manifest
+//! (`ota`, manifest.plist) – die App öffnet dann `itms-services://…` und iOS
+//! installiert das Update nach einer Rückfrage über die laufende App. Sonst zeigt
+//! die App die AltStore-/SideStore-Quelle.
+//!
+//! Eigener Kanal (z. B. die iOS-Builds eines Forks): beim Bauen `TRS_UPDATE_REPO`
+//! (`owner/repo`), `TRS_UPDATE_TAG` (Release, Standard `mobile`) und
+//! `TRS_UPDATE_PUBKEY` (Minisign-Schlüssel wie in tauri.conf.json) setzen.
+//! `TRS_BUILD_NUMBER` hängt die Buildnummer als vierte Stelle an die Version
+//! (0.27.1 + Build 57 → 0.27.1.57), damit jeder neue Build als Update zählt.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -28,6 +36,8 @@ use crate::{Error, Result, fsutil};
 pub const CHANNEL_URL: &str = "https://github.com/theredstonee/TRS-Launcher/releases/download/mobile/";
 /// Downloads nur aus den Releases des eigenen Repos.
 pub const DOWNLOAD_PREFIX: &str = "https://github.com/theredstonee/TRS-Launcher/releases/download/";
+/// Release-Tag des Standard-Kanals.
+const DEFAULT_TAG: &str = "mobile";
 pub const MANIFEST_FILE: &str = "mobile.json";
 pub const SIGNATURE_FILE: &str = "mobile.json.sig";
 const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
@@ -58,6 +68,9 @@ pub struct IosAsset {
     /// AltStore-/SideStore-Quelle (JSON), die auf die IPA zeigt.
     #[serde(default)]
     pub altstore: Option<String>,
+    /// OTA-Manifest (manifest.plist) einer mit Profil signierten IPA – Installation per `itms-services`.
+    #[serde(default)]
+    pub ota: Option<String>,
 }
 
 /// Geprüftes Manifest aus `mobile.json`.
@@ -91,6 +104,53 @@ pub struct UpdateStatus {
     pub size: Option<u64>,
     /// AltStore-/SideStore-Quelle (iOS).
     pub altstore_source: Option<String>,
+    /// iOS: `itms-services://…` – öffnen installiert das Update (nur bei mit Profil signierten Builds).
+    pub install_url: Option<String>,
+}
+
+/// Kanal, aus dem die App liest: eigener (beim Bauen gesetzt) oder der des Originals.
+struct Channel {
+    base_url: String,
+    download_prefix: String,
+    public_key: String,
+}
+
+fn channel() -> Channel {
+    custom_channel(option_env!("TRS_UPDATE_REPO"), option_env!("TRS_UPDATE_TAG"), option_env!("TRS_UPDATE_PUBKEY"))
+        .unwrap_or_else(|| Channel {
+            base_url: CHANNEL_URL.to_owned(),
+            download_prefix: DOWNLOAD_PREFIX.to_owned(),
+            public_key: PUBLIC_KEY.to_owned(),
+        })
+}
+
+fn custom_channel(repo: Option<&str>, tag: Option<&str>, key: Option<&str>) -> Option<Channel> {
+    let name_ok = |s: &str| !s.is_empty() && s.len() <= 100 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b));
+    let repo = repo.filter(|r| r.split_once('/').is_some_and(|(o, n)| name_ok(o) && name_ok(n)))?;
+    let key = key.map(str::trim).filter(|k| !k.is_empty())?;
+    let tag = tag.filter(|t| name_ok(t)).unwrap_or(DEFAULT_TAG);
+    let download_prefix = format!("https://github.com/{repo}/releases/download/");
+    Some(Channel { base_url: format!("{download_prefix}{tag}/"), download_prefix, public_key: key.to_owned() })
+}
+
+/// Installierte Version für den Kanal: mit Buildnummer als vierter Stelle, wenn beim Bauen gesetzt.
+pub fn installed_version() -> String {
+    with_build(crate::LAUNCHER_VERSION, option_env!("TRS_BUILD_NUMBER"))
+}
+
+fn with_build(version: &str, build: Option<&str>) -> String {
+    match build.and_then(|b| b.trim().parse::<u32>().ok()) {
+        // Nur an reine Zahlenversionen (0.27.1) – eine Vorabversion bleibt, wie sie ist.
+        // Höchstens 9 Stellen je Teil (is_valid_version).
+        Some(build @ 1..=999_999_999) if !version.contains('-') && version.split('.').count() <= 3 => format!("{version}.{build}"),
+        _ => version.to_owned(),
+    }
+}
+
+/// `itms-services`-Link zu einem OTA-Manifest.
+fn itms_link(manifest_url: &str) -> String {
+    let encoded: String = url::form_urlencoded::byte_serialize(manifest_url.as_bytes()).collect();
+    format!("itms-services://?action=download-manifest&url={encoded}")
 }
 
 /// Für welche Plattform der Kanal gelesen wird.
@@ -123,7 +183,15 @@ pub struct MobileUpdater {
 impl MobileUpdater {
     /// Offizieller Kanal, Downloads unter `<daten>/mobile-update/`.
     pub fn new(paths: &Paths) -> Result<Self> {
-        Self::build(paths.root().join(UPDATE_DIR), CHANNEL_URL, DOWNLOAD_PREFIX, PUBLIC_KEY, crate::LAUNCHER_VERSION, true)
+        let channel = channel();
+        Self::build(
+            paths.root().join(UPDATE_DIR),
+            &channel.base_url,
+            &channel.download_prefix,
+            &channel.public_key,
+            &installed_version(),
+            true,
+        )
     }
 
     fn build(dir: PathBuf, base_url: &str, prefix: &str, public_key: &str, current: &str, https_only: bool) -> Result<Self> {
@@ -171,19 +239,31 @@ impl MobileUpdater {
     }
 
     fn status(&self, manifest: &Manifest, target: Target) -> UpdateStatus {
-        let (has_asset, size, altstore) = match target {
-            Target::Android => (manifest.android.is_some(), manifest.android.as_ref().map(|a| a.size), None),
-            Target::Ios => (manifest.ios.is_some(), None, manifest.ios.as_ref().and_then(|i| i.altstore.clone())),
+        let (has_asset, size, altstore, ota) = match target {
+            Target::Android => (manifest.android.is_some(), manifest.android.as_ref().map(|a| a.size), None, None),
+            Target::Ios => {
+                let ios = manifest.ios.as_ref();
+                (ios.is_some(), None, ios.and_then(|i| i.altstore.clone()), ios.and_then(|i| i.ota.as_deref()).map(itms_link))
+            }
         };
+        let available = has_asset && is_newer(&manifest.version, &self.current);
         UpdateStatus {
             current: self.current.clone(),
             latest: Some(manifest.version.clone()),
-            available: has_asset && is_newer(&manifest.version, &self.current),
+            available,
             notes: manifest.notes.clone(),
             pub_date: manifest.pub_date.clone(),
             size,
             altstore_source: altstore,
+            install_url: ota.filter(|_| available),
         }
+    }
+
+    /// iOS: `itms-services`-Link der zuletzt geprüften, neueren Version (nur mit OTA-Manifest).
+    pub async fn ios_install_url(&self) -> Option<String> {
+        let latest = self.latest.lock().await;
+        let manifest = latest.as_ref()?;
+        self.status(manifest, Target::Ios).install_url
     }
 
     async fn get(&self, file: &str, limit: u64) -> Result<Vec<u8>> {
@@ -316,7 +396,9 @@ pub fn verify_manifest(public_key: &str, prefix: &str, bytes: &[u8], signature: 
     manifest.android = manifest.android.filter(asset_ok);
     manifest.ios = manifest.ios.filter(|i| asset_ok(&i.file));
     if let Some(ios) = manifest.ios.as_mut() {
-        ios.altstore = ios.altstore.take().filter(|s| s.len() <= MAX_URL_LEN && s.starts_with(prefix));
+        let own = |s: &String| s.len() <= MAX_URL_LEN && s.starts_with(prefix) && url::Url::parse(s).is_ok();
+        ios.altstore = ios.altstore.take().filter(own);
+        ios.ota = ios.ota.take().filter(own);
     }
     Ok(manifest)
 }
@@ -410,5 +492,83 @@ mod tests {
         // Falsch signiert: Fehler.
         publish(&server, &url, &TestKey::generate(), "0.19.0", b"x");
         assert!(updater.check(Target::Android).await.is_err());
+    }
+
+    #[test]
+    fn build_number_is_fourth_part() {
+        assert_eq!(with_build("0.27.1", Some("57")), "0.27.1.57");
+        assert_eq!(with_build("0.27.1", None), "0.27.1");
+        assert_eq!(with_build("0.27.1", Some("0")), "0.27.1");
+        assert_eq!(with_build("0.27.1", Some("abc")), "0.27.1");
+        assert_eq!(with_build("0.28.0-beta.1", Some("3")), "0.28.0-beta.1");
+        assert_eq!(with_build("1.2.3.4", Some("3")), "1.2.3.4");
+        assert_eq!(with_build("0.27.1", Some("999999999")), "0.27.1.999999999");
+        assert_eq!(with_build("0.27.1", Some("1000000000")), "0.27.1");
+        assert!(is_valid_version(&with_build("0.27.1", Some("999999999"))));
+        // Neuer Build derselben Version, und die nächste Version schlägt jeden Build.
+        assert!(is_newer("0.27.1.58", "0.27.1.57"));
+        assert!(!is_newer("0.27.1.57", "0.27.1.57"));
+        assert!(is_newer("0.27.1.1", "0.27.1"));
+        assert!(is_newer("0.27.2", "0.27.1.999"));
+    }
+
+    #[test]
+    fn custom_channel_only_with_valid_repo_and_key() {
+        let c = custom_channel(Some("lencraft151-cloud/TRS-Client-IOS-App"), Some("ios-latest"), Some(" key ")).unwrap();
+        assert_eq!(c.base_url, "https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/");
+        assert_eq!(c.download_prefix, "https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/");
+        assert_eq!(c.public_key, "key");
+        assert_eq!(custom_channel(Some("o/r"), None, Some("k")).unwrap().base_url, "https://github.com/o/r/releases/download/mobile/");
+        assert!(custom_channel(Some("o/r"), Some("../x"), Some("k")).unwrap().base_url.ends_with("/mobile/"));
+        assert!(custom_channel(None, None, Some("k")).is_none());
+        assert!(custom_channel(Some("o/r"), None, None).is_none());
+        assert!(custom_channel(Some("o/r"), None, Some("")).is_none());
+        for bad in ["o", "o/", "/r", "o/r/x", "o/r?x", "evil.example/r#"] {
+            assert!(custom_channel(Some(bad), None, Some("k")).is_none(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn itms_link_encodes_manifest_url() {
+        assert_eq!(
+            itms_link("https://github.com/o/r/releases/download/ios-latest/manifest.plist"),
+            "itms-services://?action=download-manifest&url=https%3A%2F%2Fgithub.com%2Fo%2Fr%2Freleases%2Fdownload%2Fios-latest%2Fmanifest.plist"
+        );
+    }
+
+    #[tokio::test]
+    async fn ios_build_update_with_ota_link() {
+        let key = TestKey::generate();
+        let (server, url) = TestServer::start().await;
+        let dir = tempfile::tempdir().unwrap();
+        let updater = MobileUpdater::for_tests(dir.path().join(UPDATE_DIR), &url, &key.public, "0.27.1.5");
+        let manifest = |version: &str, ota: &str| {
+            serde_json::json!({
+                "version": version,
+                "ios": { "url": format!("{url}TRS-Launcher.ipa"), "sha256": "b".repeat(64), "size": 9, "ota": ota },
+            })
+            .to_string()
+            .into_bytes()
+        };
+        let put = |data: Vec<u8>| {
+            server.put(SIGNATURE_FILE, key.sign(&data, MANIFEST_FILE));
+            server.put(MANIFEST_FILE, data);
+        };
+
+        put(manifest("0.27.1.7", &format!("{url}manifest.plist")));
+        let status = updater.check(Target::Ios).await.unwrap();
+        assert!(status.available);
+        let link = status.install_url.unwrap();
+        assert!(link.starts_with("itms-services://?action=download-manifest&url=http"), "{link}");
+        assert_eq!(updater.ios_install_url().await, Some(link));
+
+        // Gleicher Build: kein Update, kein Link. Fremder Host im OTA-Manifest: fällt weg.
+        put(manifest("0.27.1.5", &format!("{url}manifest.plist")));
+        let status = updater.check(Target::Ios).await.unwrap();
+        assert!(!status.available && status.install_url.is_none());
+        assert_eq!(updater.ios_install_url().await, None);
+        put(manifest("0.27.1.9", "https://evil.example/manifest.plist"));
+        let status = updater.check(Target::Ios).await.unwrap();
+        assert!(status.available && status.install_url.is_none());
     }
 }

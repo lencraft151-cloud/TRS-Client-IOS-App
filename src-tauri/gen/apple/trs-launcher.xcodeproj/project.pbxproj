@@ -27,6 +27,7 @@
 		2810B647DF9BD3027223B0726147A645 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		2B10C650C222227B08FC5EE4F23AB1E8 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		3C7A4961E85505C3AC62BB60AAF0A2A4 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		406F0B37821B753E9698B6F78DF91E04 /* UpdateChannel.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = UpdateChannel.xcconfig; sourceTree = "<group>"; };
 		4AA8D6B7F3FE0E882DF1D1EFED096B91 /* build-rust.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "build-rust.sh"; sourceTree = "<group>"; };
 		5026ABC76C6FA6FABE380A0666CA7A4E /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		5A62B06061AED4C9C549C0B9BB05E5D9 /* ExportOptions-ad-hoc.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-ad-hoc.plist"; sourceTree = "<group>"; };
@@ -136,6 +137,7 @@
 				B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */,
 				9D17912958FB9749807143D391223546 /* trs-launcher_iOS */,
 				09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */,
+				406F0B37821B753E9698B6F78DF91E04 /* UpdateChannel.xcconfig */,
 				9B740BCCBD5B5340819C85AE43469DA8 /* scripts */,
 				8980BA3857A5C9715481B61AA60A7B34 /* lldb */,
 				E96AA7A847284B3BC85CBE51D1E690D2 /* ExportOptions-development.plist */,

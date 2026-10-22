@@ -116,6 +116,34 @@ scripts/ios/build-ipa.sh build/ios src-tauri/gen/apple/Engine
 P12_PASSWORD=… scripts/ios/sign-ipa.sh TRS-Launcher-unsigned.ipa zertifikat.p12 profil.mobileprovision TRS-Launcher.ipa
 ```
 
+## Automatische Updates
+
+Die App prüft beim Start und alle 4 Stunden das Release **`ios-latest`** dieses Repos (`mobile.json`, signiert).
+Jeder Build hat die Version `0.27.1.<Lauf-Nr.>`, also gilt jeder neue Build auf `main` als Update. Gibt es eins,
+erscheint oben ein Hinweis:
+
+- **Mit Profil signiert** (Secrets aus „Eigenes Zertifikat + Profil“ gesetzt): **Installieren** antippen →
+  iOS fragt einmal nach → die App wird ersetzt, Daten bleiben erhalten. Das Gerät muss im Profil stehen
+  (Development/Ad Hoc) bzw. das Profil ist Enterprise.
+- **Sonst** (AltStore/SideStore/Xcode): Der Hinweis sagt, wie du aktualisierst. Für SideStore/AltStore liegt im
+  Release auch eine Quelle: `https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/altstore.json`
+  – einmal als Quelle hinzufügen, dann kommen Updates dort an.
+
+### Einmalig einrichten: Signier-Schlüssel für den Update-Kanal
+
+Damit niemand der App ein falsches Update unterschieben kann, ist `mobile.json` signiert. Der öffentliche
+Schlüssel steckt in der App (`src-tauri/gen/apple/UpdateChannel.xcconfig`, `update-public.key`); den privaten
+legst du als Secret an – **Settings → Secrets and variables → Actions**:
+
+| Secret | Inhalt |
+|---|---|
+| `IOS_UPDATE_SIGNING_KEY` | Inhalt der Datei `ios-update.key` |
+| `IOS_UPDATE_SIGNING_KEY_PASSWORD` | Inhalt der Datei `ios-update.key.password` |
+
+Ohne diese Secrets baut alles weiter, nur meldet die App keine Updates. Eigenen Schlüssel statt des mitgelieferten:
+`pnpm tauri signer generate -w ios-update.key`, dann den öffentlichen Schlüssel in `update-public.key` **und**
+`TRS_UPDATE_PUBKEY` (UpdateChannel.xcconfig) eintragen.
+
 ## Minecraft starten: JIT
 
 Minecraft Java läuft in einer JVM und braucht auf iOS **JIT** (Just-in-Time-Kompilierung).
@@ -135,9 +163,33 @@ aus Xcode, ist JIT automatisch an – ohne StikDebug, SideStore oder Zusatz-Apps
 Solange Minecraft läuft, bleibt Xcode verbunden (Kabel oder WLAN-Debugging). In der Xcode-Konsole stehen dabei
 Zeilen wie `[TRS-JIT] JIT-Region …`.
 
-### JIT ohne Mac
+### Ohne Kabel spielen (WLAN-Debugging)
 
-Ohne Xcode braucht die App `get-task-allow` – also ein **Development-Profil** (oder AltStore/SideStore-/
+Einmal einrichten, danach startet ▶ Run die App über WLAN – das iPhone muss nicht am Mac hängen:
+
+1. iPhone **einmal per Kabel** anschließen und entsperren („Diesem Computer vertrauen“).
+2. Xcode → **Window → Devices and Simulators** → links dein iPhone → Haken bei **Connect via network**.
+3. Kabel abziehen. Neben dem Gerät erscheint ein Netzwerk-Symbol; oben in Xcode bleibt es als Ziel wählbar.
+4. **▶ Run** – App und JIT laufen wie mit Kabel.
+
+Damit es stabil bleibt:
+
+- Mac und iPhone im **selben WLAN**; Gast-Netze und „Client-Isolation“ (Schul-/Firmen-WLAN, manche Router)
+  blockieren das. Notfalls den persönlichen Hotspot des iPhones nutzen und den Mac damit verbinden.
+- Den Mac **wach halten**, solange du spielst (Deckel offen oder im Terminal `caffeinate -d`); schläft er ein,
+  trennt Xcode und – auf iOS 26 mit TXM – endet JIT.
+- iPhone vor dem Start entsperren; findet Xcode es nicht, einmal kurz das Kabel anstecken.
+- Nicht auf *Stop* oder *Debug → Detach* drücken, solange Minecraft läuft. Auf iOS 15–18 bleibt JIT nach einem
+  Detach zwar an, auf iOS 26 mit TXM aber nicht.
+
+### JIT ohne Mac: ein Tipp mit StikDebug
+
+Ist [StikDebug](https://github.com/StephenDev0/StikDebug) einmal eingerichtet (Pairing-Datei, LocalDevVPN), reicht
+in der App beim Spielstart **„JIT mit StikDebug aktivieren“**: TRS öffnet StikDebug mit seiner eigenen Prozess-ID,
+StikDebug hängt sich an die laufende App und springt zurück – Minecraft startet. Auf iOS 26 (TXM) wird das Skript
+`UniversalJIT26.js` automatisch mitgegeben, nichts muss von Hand zugewiesen werden.
+
+Allgemein braucht die App ohne Xcode `get-task-allow` – also ein **Development-Profil** (oder AltStore/SideStore-/
 TrollStore-Installation) – und ein Werkzeug, das JIT einschaltet: StikDebug (iOS 17+; ab iOS 26 mit dem
 mitgelieferten `UniversalJIT26.js`), SideStore, AltServer oder TrollStore. Die App zeigt beim Spielstart eine
 Anleitung und wartet, bis JIT aktiv ist.
