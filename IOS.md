@@ -94,12 +94,21 @@ open src-tauri/gen/apple/TRS-Launcher.xcworkspace
 
 Die Build-Phase **Build Rust Code** (`scripts/build-rust.sh`) baut Oberfläche und Rust-Kern automatisch;
 **Embed Game Engine** (`scripts/embed-engine.sh`) legt die Spiel-Engine aus `src-tauri/gen/apple/Engine/` in die App
-und signiert sie mit. Die Engine bekommst du so:
+und signiert sie mit.
+
+#### Spiel-Engine
+
+**Automatisch:** Fehlt `src-tauri/gen/apple/Engine`, lädt die Build-Phase die fertige Engine aus dem Release
+[`ios-engine`](../../releases/tag/ios-engine) dieses Repos (vom CI gebaut, SHA-256 geprüft) und legt sie dort ab.
+In der Build-Ausgabe steht dann „Spiel-Engine laden: …“. Neue Engine holen: den Ordner `Engine` löschen und neu bauen.
+Abschalten: `TRS_ENGINE_DOWNLOAD = NO` in `Signing.local.xcconfig`.
+
+Von Hand geht es auch:
 
 ```sh
-# Variante A: selbst bauen (braucht cmake und ein JDK 8)
+# selbst bauen (braucht cmake und ein JDK 8)
 JAVA8_HOME=$(/usr/libexec/java_home -v 1.8) scripts/ios/build-engine.sh src-tauri/gen/apple/Engine
-# Variante B: Artefakt „engine-ios“ eines Actions-Laufs herunterladen und nach src-tauri/gen/apple/Engine entpacken
+# oder: Artefakt „engine-ios“ eines Actions-Laufs herunterladen und nach src-tauri/gen/apple/Engine entpacken
 ```
 
 Ohne Engine läuft der Launcher vollständig, nur der Spielstart meldet „Engine fehlt“.

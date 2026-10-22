@@ -5,15 +5,52 @@
 # Engine-Ordner = Ergebnis von scripts/ios/build-engine.sh bzw. CI-Artefakt „engine-ios“
 # (Frameworks/, libs/, libs_caciocavallo*/, resources/, LICENSES/, engine.json).
 # Pfad: TRS_ENGINE_DIR (Signing.xcconfig, Standard: src-tauri/gen/apple/Engine).
-# Fehlt der Ordner, baut Xcode die App ohne Engine: der Launcher läuft, nur der Spielstart meldet „Engine fehlt“.
+# Fehlt der Ordner, lädt die Phase die fertige Engine aus dem Release TRS_ENGINE_TAG (UpdateChannel.xcconfig,
+# Standard ios-engine) von TRS_UPDATE_REPO – vom CI gebaut, mit SHA-256 geprüft. Neu laden: Ordner löschen.
+# Klappt das nicht (offline, Release fehlt), baut Xcode die App ohne Engine: der Launcher läuft, nur der
+# Spielstart meldet „Engine fehlt“.
 set -euo pipefail
 
 ENGINE="${TRS_ENGINE_DIR:-$PROJECT_DIR/Engine}"
 APP="${TARGET_BUILD_DIR:?nur aus Xcode aufrufen}/${WRAPPER_NAME:?}"
 
+download_engine() {
+  local repo="${TRS_UPDATE_REPO:-}" tag="${TRS_ENGINE_TAG:-ios-engine}"
+  [ -n "$repo" ] || return 1
+  local base="https://github.com/$repo/releases/download/$tag" tmp
+  tmp="$(mktemp -d)"
+  echo "Spiel-Engine laden: $base/engine-ios.zip"
+  if ! curl -fsSL --retry 3 --connect-timeout 15 -o "$tmp/engine-ios.zip" "$base/engine-ios.zip" \
+    || ! curl -fsSL --retry 3 --connect-timeout 15 -o "$tmp/engine-ios.zip.sha256" "$base/engine-ios.zip.sha256"; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  local expected actual
+  expected="$(tr -d '[:space:]' < "$tmp/engine-ios.zip.sha256")"
+  actual="$(shasum -a 256 "$tmp/engine-ios.zip" | cut -d' ' -f1)"
+  if [ "$expected" != "$actual" ]; then
+    echo "warning: Spiel-Engine: Prüfsumme stimmt nicht – nicht verwendet."
+    rm -rf "$tmp"
+    return 1
+  fi
+  mkdir -p "$tmp/engine"
+  unzip -q "$tmp/engine-ios.zip" -d "$tmp/engine"
+  if [ ! -f "$tmp/engine/engine.json" ]; then
+    rm -rf "$tmp"
+    return 1
+  fi
+  rm -rf "$ENGINE"
+  mkdir -p "$(dirname "$ENGINE")"
+  mv "$tmp/engine" "$ENGINE"
+  rm -rf "$tmp"
+}
+
 if [ ! -f "$ENGINE/engine.json" ]; then
-  echo "warning: Spiel-Engine nicht gefunden ($ENGINE) – App ohne Minecraft-Start. Siehe IOS.md (Engine bauen oder Artefakt engine-ios laden)."
-  exit 0
+  # Nicht im CI: dort kommt die Engine aus dem eigenen Job (oder der Build ist bewusst ohne).
+  if [ -n "${CI:-}" ] || [ "${TRS_ENGINE_DOWNLOAD:-YES}" = NO ] || ! download_engine; then
+    echo "warning: Spiel-Engine nicht gefunden ($ENGINE) – App ohne Minecraft-Start. Siehe IOS.md (Spiel-Engine)."
+    exit 0
+  fi
 fi
 
 echo "Engine aus $ENGINE einbetten"
