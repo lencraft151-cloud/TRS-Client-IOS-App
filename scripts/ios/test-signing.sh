@@ -9,6 +9,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 IPA="${1:?Aufruf: test-signing.sh <unsigned.ipa>}"
+[ -f "$IPA" ] || { echo "Test fehlgeschlagen: $IPA fehlt" >&2; exit 1; }
+IPA="$(cd "$(dirname "$IPA")" && pwd)/$(basename "$IPA")"
 TEAM=TRSTEST001
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
