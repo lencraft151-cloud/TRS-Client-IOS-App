@@ -274,6 +274,8 @@ jobs:
     name: Simulator start test
     runs-on: macos-latest
     timeout-minutes: 90
+    permissions:
+      contents: write
     env:
       IPHONEOS_DEPLOYMENT_TARGET: '15.0'
     steps:
@@ -322,6 +324,25 @@ jobs:
           name: ios-simulator-smoke-test
           path: ${{ runner.temp }}/smoke
           if-no-files-found: ignore
+
+      # Dieselbe Diagnose als Release „ios-diagnostics“ (Screenshots, Logs, Absturzberichte) – leicht herunterzuladen,
+      # auch ohne Anmeldung. Jeder Lauf ersetzt den vorigen.
+      - name: Diagnostics release
+        if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          files=()
+          while IFS= read -r -d '' f; do files+=("$f"); done < <(find "$RUNNER_TEMP/smoke" -maxdepth 1 -type f \
+            \( -name '*.png' -o -name '*.txt' -o -name '*.ips' -o -name '*.crash' -o -name '*.log' \) -print0 2> /dev/null)
+          [ ${#files[@]} -gt 0 ] || exit 0
+          gh release delete ios-diagnostics --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes 2> /dev/null || true
+          gh release create ios-diagnostics "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$TARGET" --prerelease \
+            --title "iOS-Starttest (Simulator): $STATUS" \
+            --notes "Diagnose des Simulator-Starttests von $TARGET (Ergebnis: $STATUS). Wird bei jedem Lauf ersetzt."
 
   publish:
     name: Publish
