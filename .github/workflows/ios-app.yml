@@ -336,7 +336,8 @@ jobs:
         run: |
           set -euo pipefail
           files=()
-          while IFS= read -r -d '' f; do files+=("$f"); done < <(find "$RUNNER_TEMP/smoke" -maxdepth 1 -type f \
+          # Leere Dateien (z. B. stdout.txt) lehnt der Upload ab.
+          while IFS= read -r -d '' f; do files+=("$f"); done < <(find "$RUNNER_TEMP/smoke" -maxdepth 1 -type f -size +0 \
             \( -name '*.png' -o -name '*.txt' -o -name '*.ips' -o -name '*.crash' -o -name '*.log' \) -print0 2> /dev/null)
           [ ${#files[@]} -gt 0 ] || exit 0
           gh release delete ios-diagnostics --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes 2> /dev/null || true
