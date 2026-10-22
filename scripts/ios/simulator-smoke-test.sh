@@ -54,20 +54,14 @@ touch "$marker"
 xcrun simctl spawn "$UDID" log stream --level debug --style compact --predicate "process == \"$EXE\"" \
   > "$OUT/system-log.txt" 2>&1 &
 log_pid=$!
-xcrun simctl launch --console-pty --terminate-running-process "$UDID" "$BUNDLE" > "$OUT/console.txt" 2>&1 &
-console_pid=$!
-
-# Läuft die App? `simctl launch` schreibt „<bundle-id>: <pid>“ in die Konsole, sobald der Prozess steht; Simulator-Apps
-# sind normale Prozesse auf dem Mac, also reicht danach kill -0. (Der Start dauert ein paar Sekunden – vorher prüfen
-# hieße „beendet“.)
+# Starten: `simctl launch` kehrt zurück, sobald der Prozess steht, und meldet „<bundle-id>: <pid>“. Simulator-Apps sind
+# normale Prozesse auf dem Mac – danach reicht kill -0. (Mit --console-pty im Hintergrund kam die PID-Zeile erst beim
+# Beenden aus dem Puffer.) stdout/stderr der App landen in Dateien.
+launched="$(xcrun simctl launch --terminate-running-process --stdout="$OUT/stdout.txt" --stderr="$OUT/stderr.txt" \
+  "$UDID" "$BUNDLE" 2>&1)" || { echo "$launched"; die "simctl launch"; }
 pid=""
-for _ in $(seq 1 60); do
-  pid="$(sed -nE "s/^$BUNDLE: ([0-9]+).*/\1/p" "$OUT/console.txt" 2> /dev/null | head -n 1)"
-  [ -n "$pid" ] && break
-  kill -0 "$console_pid" 2> /dev/null || break
-  sleep 1
-done
-echo "App-Prozess: ${pid:-nicht gestartet}"
+if [[ "$launched" =~ :\ ([0-9]+) ]]; then pid="${BASH_REMATCH[1]}"; fi
+echo "App-Prozess: ${pid:-nicht gestartet} ($launched)"
 
 alive=0
 seconds=0
@@ -85,7 +79,7 @@ echo "App lief ${seconds}s (läuft am Ende: $([ "$alive" = 1 ] && echo ja || ech
 xcrun simctl io "$UDID" screenshot "$OUT/screenshot.png" > /dev/null 2>&1 || true
 # Absturzberichte schreibt ReportCrash mit etwas Verzögerung.
 [ "$alive" = 1 ] || sleep 15
-kill "$log_pid" "$console_pid" 2> /dev/null || true
+kill "$log_pid" 2> /dev/null || true
 xcrun simctl spawn "$UDID" log show --last 5m --style compact \
   --predicate "process == \"$EXE\" OR eventMessage CONTAINS[c] \"trslauncher\"" > "$OUT/log-show.txt" 2>&1 || true
 
@@ -98,8 +92,10 @@ while IFS= read -r -d '' report; do
   head -n 150 "$report"
 done < <(find "$reports" -newer "$marker" \( -name "*${EXE}*" -o -name "*trs*" -o -name "*TRS*" \) -type f -print0 2> /dev/null)
 
-echo "===== Konsole (letzte 80 Zeilen)"
-tail -n 80 "$OUT/console.txt" || true
+echo "===== Konsole: stderr (letzte 80 Zeilen)"
+tail -n 80 "$OUT/stderr.txt" || true
+echo "===== Konsole: stdout (letzte 40 Zeilen)"
+tail -n 40 "$OUT/stdout.txt" || true
 echo "===== System-Log der App (letzte 80 Zeilen)"
 tail -n 80 "$OUT/log-show.txt" || true
 
