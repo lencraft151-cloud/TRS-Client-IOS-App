@@ -102,8 +102,8 @@ jobs:
           git diff --exit-code -- src-tauri/gen/apple \
             || { echo "::error::src-tauri/gen/apple ist nicht aktuell – ruby scripts/ios/generate-xcodeproj.rb ausführen und einchecken"; exit 1; }
           xcodebuild -list -project src-tauri/gen/apple/trs-launcher.xcodeproj
-          grep -qF "$(cat src-tauri/gen/apple/update-public.key)" src-tauri/gen/apple/UpdateChannel.xcconfig \
-            || { echo "::error::update-public.key und TRS_UPDATE_PUBKEY in UpdateChannel.xcconfig stimmen nicht überein"; exit 1; }
+          grep -qF "$(cat src-tauri/gen/apple/update-public-key.txt)" src-tauri/gen/apple/UpdateChannel.xcconfig \
+            || { echo "::error::update-public-key.txt und TRS_UPDATE_PUBKEY in UpdateChannel.xcconfig stimmen nicht überein"; exit 1; }
 
       # JIT-Helfer für ▶ Run: Xcodes LLDB muss Init-Datei und Skript fehlerfrei laden.
       - name: JIT helper loads in LLDB
@@ -219,7 +219,7 @@ jobs:
           git log -1 --format='%s' > "$RUNNER_TEMP/notes.md"
           node scripts/mobile-channel.mjs --version "$version" --notes "$RUNNER_TEMP/notes.md" \
             --ipa out/TRS-Launcher-unsigned.ipa --out out --in-place --repo "$GITHUB_REPOSITORY" --tag "$TAG" \
-            --pubkey-file src-tauri/gen/apple/update-public.key ${ota[@]+"${ota[@]}"}
+            --pubkey-file src-tauri/gen/apple/update-public-key.txt ${ota[@]+"${ota[@]}"}
 
       - uses: actions/upload-artifact@v7
         with:

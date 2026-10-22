@@ -132,7 +132,7 @@ erscheint oben ein Hinweis:
 ### Einmalig einrichten: Signier-Schlüssel für den Update-Kanal
 
 Damit niemand der App ein falsches Update unterschieben kann, ist `mobile.json` signiert. Der öffentliche
-Schlüssel steckt in der App (`src-tauri/gen/apple/UpdateChannel.xcconfig`, `update-public.key`); den privaten
+Schlüssel steckt in der App (`src-tauri/gen/apple/UpdateChannel.xcconfig`, `update-public-key.txt`); den privaten
 legst du als Secret an – **Settings → Secrets and variables → Actions**:
 
 | Secret | Inhalt |
@@ -141,7 +141,7 @@ legst du als Secret an – **Settings → Secrets and variables → Actions**:
 | `IOS_UPDATE_SIGNING_KEY_PASSWORD` | Inhalt der Datei `ios-update.key.password` |
 
 Ohne diese Secrets baut alles weiter, nur meldet die App keine Updates. Eigenen Schlüssel statt des mitgelieferten:
-`pnpm tauri signer generate -w ios-update.key`, dann den öffentlichen Schlüssel in `update-public.key` **und**
+`pnpm tauri signer generate -w ios-update.key`, dann den öffentlichen Schlüssel in `update-public-key.txt` **und**
 `TRS_UPDATE_PUBKEY` (UpdateChannel.xcconfig) eintragen.
 
 ## Minecraft starten: JIT
