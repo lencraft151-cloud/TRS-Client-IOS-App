@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starttest der iOS-App im Simulator: bauen (debug, arm64-Simulator), installieren, starten, 45 s beobachten.
-# Schlägt fehl, wenn die App nicht mehr läuft. Absturzbericht, Konsole, System-Log und ein Screenshot landen in
-# <ausgabe-ordner> (im CI als Artefakt „ios-simulator-smoke-test“).
+# Schlägt fehl, wenn die App nicht mehr läuft oder die Oberfläche nicht lädt. Absturzbericht, Konsole, System-Log und
+# Screenshots landen in <ausgabe-ordner> (im CI als Artefakt „ios-simulator-smoke-test“).
 #
 #   scripts/ios/simulator-smoke-test.sh <ausgabe-ordner>
 #
@@ -54,30 +54,32 @@ touch "$marker"
 xcrun simctl spawn "$UDID" log stream --level debug --style compact --predicate "process == \"$EXE\"" \
   > "$OUT/system-log.txt" 2>&1 &
 log_pid=$!
-xcrun simctl launch --console-pty --terminate-running-process "$UDID" "$BUNDLE" > "$OUT/console.txt" 2>&1 &
-console_pid=$!
-
-# Läuft die App? Simulator-Apps sind normale Prozesse auf dem Mac – direkt per pgrep prüfen (eine Pipe mit grep -q
-# und pipefail meldet sonst zufällig „beendet“, wenn launchctl beim Schreiben SIGPIPE bekommt).
-# Installiert liegt die App unter …/CoreSimulator/Devices/<UDID>/…/TRS Launcher.app/TRS Launcher.
-app_pattern="Devices/$UDID/.*/$(basename "$APP")/$EXE"
-app_running() { pgrep -f "$app_pattern" > /dev/null 2>&1; }
+# Starten: `simctl launch` kehrt zurück, sobald der Prozess steht, und meldet „<bundle-id>: <pid>“. Simulator-Apps sind
+# normale Prozesse auf dem Mac – danach reicht kill -0. (Mit --console-pty im Hintergrund kam die PID-Zeile erst beim
+# Beenden aus dem Puffer.) stdout/stderr der App landen in Dateien.
+launched="$(xcrun simctl launch --terminate-running-process --stdout="$OUT/stdout.txt" --stderr="$OUT/stderr.txt" \
+  "$UDID" "$BUNDLE" 2>&1)" || { echo "$launched"; die "simctl launch"; }
+pid=""
+if [[ "$launched" =~ :\ ([0-9]+) ]]; then pid="${BASH_REMATCH[1]}"; fi
+echo "App-Prozess: ${pid:-nicht gestartet} ($launched)"
 
 alive=0
 seconds=0
-for _ in $(seq 1 "$WAIT_SECONDS"); do
-  sleep 1
-  seconds=$((seconds + 1))
-  if app_running; then alive=1; else alive=0; break; fi
-  if [ "$seconds" = 10 ]; then
-    xcrun simctl io "$UDID" screenshot "$OUT/screenshot-10s.png" > /dev/null 2>&1 || true
-  fi
-done
+if [ -n "$pid" ]; then
+  for _ in $(seq 1 "$WAIT_SECONDS"); do
+    sleep 1
+    seconds=$((seconds + 1))
+    if kill -0 "$pid" 2> /dev/null; then alive=1; else alive=0; break; fi
+    if [ "$seconds" = 10 ]; then
+      xcrun simctl io "$UDID" screenshot "$OUT/screenshot-10s.png" > /dev/null 2>&1 || true
+    fi
+  done
+fi
 echo "App lief ${seconds}s (läuft am Ende: $([ "$alive" = 1 ] && echo ja || echo nein))"
 xcrun simctl io "$UDID" screenshot "$OUT/screenshot.png" > /dev/null 2>&1 || true
 # Absturzberichte schreibt ReportCrash mit etwas Verzögerung.
 [ "$alive" = 1 ] || sleep 15
-kill "$log_pid" "$console_pid" 2> /dev/null || true
+kill "$log_pid" 2> /dev/null || true
 xcrun simctl spawn "$UDID" log show --last 5m --style compact \
   --predicate "process == \"$EXE\" OR eventMessage CONTAINS[c] \"trslauncher\"" > "$OUT/log-show.txt" 2>&1 || true
 
@@ -90,8 +92,10 @@ while IFS= read -r -d '' report; do
   head -n 150 "$report"
 done < <(find "$reports" -newer "$marker" \( -name "*${EXE}*" -o -name "*trs*" -o -name "*TRS*" \) -type f -print0 2> /dev/null)
 
-echo "===== Konsole (letzte 80 Zeilen)"
-tail -n 80 "$OUT/console.txt" || true
+echo "===== Konsole: stderr (letzte 80 Zeilen)"
+tail -n 80 "$OUT/stderr.txt" || true
+echo "===== Konsole: stdout (letzte 40 Zeilen)"
+tail -n 40 "$OUT/stdout.txt" || true
 echo "===== System-Log der App (letzte 80 Zeilen)"
 tail -n 80 "$OUT/log-show.txt" || true
 
@@ -101,4 +105,7 @@ if [ "$alive" != 1 ]; then
   [ "$found" = 1 ] || echo "(kein Absturzbericht gefunden – siehe Konsole/System-Log)"
   die "die App läuft nach ${seconds}s nicht mehr"
 fi
-echo "Starttest bestanden: App läuft nach ${WAIT_SECONDS}s, Screenshot: $OUT/screenshot.png"
+# Oberfläche geladen? WebKit meldet das Ende des Hauptdokuments im Log der App.
+grep -q 'didFinishLoadForFrame: .*isMainFrame=1' "$OUT/system-log.txt" \
+  || die "die App läuft, aber die Oberfläche wurde nicht geladen (schwarzer Bildschirm) – siehe system-log.txt"
+echo "Starttest bestanden: App läuft nach ${WAIT_SECONDS}s mit geladener Oberfläche, Screenshot: $OUT/screenshot.png"
