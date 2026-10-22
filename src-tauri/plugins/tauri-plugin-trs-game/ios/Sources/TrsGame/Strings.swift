@@ -23,6 +23,10 @@ enum Strings {
       """
       So aktivierst du JIT (eine Möglichkeit reicht):
 
+      • StikDebug (eingerichtet): unten auf „JIT mit StikDebug aktivieren“ tippen – StikDebug schaltet JIT für diese laufende App ein, danach hierher zurückkehren.
+
+      • Mac mit Xcode: App mit ▶ Run aus Xcode starten – JIT ist dann automatisch an.
+
       • SideStore + StikDebug (iOS 17.4 und neuer): StikDebug öffnen, „Connect by App“ wählen und TRS Launcher antippen. Danach hierher zurückkehren.
 
       • AltStore: AltServer auf deinem Mac/PC starten (gleiches WLAN oder Kabel), im AltServer-Menü „Enable JIT“ → dein Gerät → TRS Launcher.
@@ -35,6 +39,10 @@ enum Strings {
       """,
       """
       How to enable JIT (one way is enough):
+
+      • StikDebug (set up): tap “Enable JIT with StikDebug” below – StikDebug enables JIT for this running app, then come back here.
+
+      • Mac with Xcode: start the app with ▶ Run from Xcode – JIT is then enabled automatically.
 
       • SideStore + StikDebug (iOS 17.4 and later): open StikDebug, choose “Connect by App” and tap TRS Launcher. Then come back here.
 
@@ -53,6 +61,9 @@ enum Strings {
       """
       Dein Gerät braucht unter iOS 26 einen dauerhaft verbundenen Debugger mit Skript:
 
+      Am einfachsten: unten auf „JIT mit StikDebug aktivieren“ tippen – das Skript wird automatisch mitgegeben. Oder die App am Mac mit ▶ Run aus Xcode starten.
+
+      Von Hand:
       1. Öffne StikDebug und tippe lange auf TRS Launcher.
       2. Wähle „Assign Script“ und nimm „UniversalJIT26.js“ aus dem Ordner von TRS Launcher (Dateien-App → Auf meinem iPhone → TRS Launcher).
       3. Starte TRS Launcher über StikDebug („Connect by App“) und lass StikDebug verbunden.
@@ -62,6 +73,9 @@ enum Strings {
       """
       On iOS 26 your device needs a debugger that stays attached, with a script:
 
+      Easiest: tap “Enable JIT with StikDebug” below – the script is passed along automatically. Or start the app with ▶ Run from Xcode on a Mac.
+
+      By hand:
       1. Open StikDebug and long-press TRS Launcher.
       2. Choose “Assign Script” and pick “UniversalJIT26.js” from the TRS Launcher folder (Files app → On My iPhone → TRS Launcher).
       3. Launch TRS Launcher through StikDebug (“Connect by App”) and keep StikDebug attached.
@@ -71,6 +85,12 @@ enum Strings {
   }
 
   static var jitWaiting: String { t("Warte auf JIT …", "Waiting for JIT …") }
+  static var jitStikButton: String { t("JIT mit StikDebug aktivieren", "Enable JIT with StikDebug") }
+  static var jitStikMissing: String {
+    t(
+      "StikDebug ist nicht installiert. Installiere StikDebug (z. B. über SideStore) und richte es einmal ein (Pairing-Datei, LocalDevVPN).",
+      "StikDebug is not installed. Install StikDebug (e.g. via SideStore) and set it up once (pairing file, LocalDevVPN).")
+  }
   static var checkAgain: String { t("Erneut prüfen", "Check again") }
   static var cancel: String { t("Abbrechen", "Cancel") }
   static var close: String { t("Schließen", "Close") }
