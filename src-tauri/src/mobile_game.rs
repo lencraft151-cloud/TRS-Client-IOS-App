@@ -106,6 +106,8 @@ pub async fn launch<R: Runtime>(
     let _attach = attach_lock();
     let session = engine.launch(spec).map_err(engine_error)?;
     log::info!("Spiel gestartet (Sitzung {})", session.0);
+    // iOS: Das Spielende beendet die App – das ist kein Absturz des Launchers.
+    crate::crash_report::mark(crate::crash_report::Stage::Game);
     let stop_app = app.clone();
     let stop_session = session.clone();
     let stop: trs_core::process::StopFn = Arc::new(move || match stop_app.trs_game().stop(&stop_session) {

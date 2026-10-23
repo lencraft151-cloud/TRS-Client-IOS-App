@@ -64,6 +64,8 @@ function onCreated(instance: { id: string }) {
 }
 
 onMounted(async () => {
+  // Die Oberfläche steht: iOS-Start-Wächter aus (sonst zeigt die App nach 25 s „Die Oberfläche lädt nicht“).
+  if (isTauri()) void backend.uiReady().catch(() => {})
   ui.restore()
   window.addEventListener('keydown', onKey)
   games.init()
@@ -265,7 +267,10 @@ onBeforeUnmount(() => void backListener?.unregister())
     <CurseForgeBlockedDialog v-if="curseforge.blockedFor" :key="curseforge.blockedFor" :instance-id="curseforge.blockedFor" @close="curseforge.closeBlocked()" />
     <!-- Halloween 2026: Mondnacht-Atmosphäre über jeder Seite, nur solange das Event läuft. -->
     <HalloweenAtmosphere v-if="events.halloween && !isBig" />
-    <StartIntroHint v-if="!isBig" />
+    <!-- Nicht über dem Einrichtungs-Assistenten (verdeckte dort am Handy die Sprachauswahl). -->
+    <StartIntroHint v-if="!isBig && !onboarding.open" />
+    <!-- iOS: Absturzberichte vom letzten Lauf. -->
+    <CrashReportDialog v-if="!onboarding.open" />
     <ToastHost />
     <SocialToastHost />
     <JoinServerDialog />

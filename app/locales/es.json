@@ -380,6 +380,10 @@
       "signatureMismatch": "Firma no válida (verificación)",
       "signatureWrongFile": "Firma no válida (archivo incorrecto)"
     },
+    "crashReport": {
+      "notFound": "Este informe ya no existe.",
+      "shareUnsupported": "Aquí no se puede compartir; copia el informe."
+    },
     "content": {
       "fileGone": "El archivo ya no existe.",
       "invalidFileName": "Nombre de archivo no válido",
@@ -2293,6 +2297,23 @@
       }
     }
   },
+  "crashReport": {
+    "title": "TRS Launcher se cerró inesperadamente la última vez",
+    "text": "Esto es lo que pasó. Comparte el informe con el equipo de TRS para que podamos solucionarlo: no contiene contraseñas ni tokens.",
+    "filesHint": "Todos los informes están también en la app Archivos, en «TRS Launcher → Crash Reports».",
+    "share": "Compartir",
+    "previous": "Informe anterior",
+    "next": "Informe siguiente",
+    "position": "Informe {n} de {total}",
+    "kind": {
+      "panic": "Error en el núcleo del launcher",
+      "ios": "Cierre informado por iOS",
+      "hang": "La app dejó de responder",
+      "unclean": "El inicio se interrumpió",
+      "boot": "La interfaz no se cargó",
+      "unknown": "Informe de errores"
+    }
+  },
   "exportPack": {
     "title": "Exportar como modpack",
     "summary": "Descripción breve (opcional)",
@@ -2842,6 +2863,7 @@
     "login": {
       "signInMicrosoft": "Iniciar sesión con Microsoft",
       "browserOpened": "El inicio de sesión se ha abierto en tu navegador. Complétalo allí y el launcher continuará automáticamente.",
+      "windowOpened": "Inicia sesión en la ventana que se acaba de abrir; el launcher continuará automáticamente.",
       "enterCode": "Introduce este código en la página de Microsoft que se ha abierto:",
       "copyCode": "Copiar código",
       "clickToCopy": "Haz clic para copiar",

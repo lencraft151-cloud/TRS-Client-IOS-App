@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/core", "plugins/tauri-plugin-trs-game", "plugins/tauri-plugin-trs-push"]
+members = [".", "crates/core", "plugins/tauri-plugin-trs-game", "plugins/tauri-plugin-trs-ios", "plugins/tauri-plugin-trs-push"]
 resolver = "3"
 
 [workspace.package]
@@ -58,6 +58,10 @@ tauri-plugin-window-state = "2.4.1"
 tauri-plugin-trs-game = { path = "plugins/tauri-plugin-trs-game" }
 tauri-plugin-trs-push = { path = "plugins/tauri-plugin-trs-push" }
 tauri-plugin-barcode-scanner = "2.4.6"
+
+# Nur iOS: Absturzberichte, Start-Wächter, Anmeldefenster, Teilen.
+[target.'cfg(target_os = "ios")'.dependencies]
+tauri-plugin-trs-ios = { path = "plugins/tauri-plugin-trs-ios" }
 
 # Android: JNI-Einstieg für das Abholen der Push-Hinweise im Hintergrund (dieselbe Version wie in Tauri).
 [target.'cfg(target_os = "android")'.dependencies]
