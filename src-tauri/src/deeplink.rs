@@ -14,8 +14,9 @@
 //!
 //! - `trs-launcher://play/<Instanz-ID oder last>?k=<Schlüssel>` (iOS-Kurzbefehl, Siri, Widget) → Seite der Instanz;
 //!   gestartet wird nur mit dem Schlüssel dieser Installation ([`crate::shortcuts`]), sonst erst nach einem Klick.
-//! - `file://…/<name>.mrpack|.zip|.png` (iOS „Öffnen in TRS Launcher“ aus der Dateien-App oder Safari) → Modpack: der
-//!   Import-Dialog mit Vorschau; Skin: die Seite „Skins“ mit der Übernahme. Angelegt wird erst nach einem Klick.
+//! - `file://…/<name>.mrpack|.zip|.png|.trsbackup` (iOS „Öffnen in TRS Launcher“ aus der Dateien-App oder Safari) →
+//!   Modpack: der Import-Dialog mit Vorschau; Skin: die Seite „Skins“ mit der Übernahme; Sicherung: der Dialog
+//!   „Wiederherstellen“. Angelegt bzw. eingespielt wird erst nach einem Klick.
 //!
 //! Läuft der Launcher schon, reicht das Single-Instance-Plugin den Link an das offene Fenster weiter.
 //! Android/iOS: Das Schema steht im App-Manifest bzw. in der Info.plist (`plugins.deep-link.mobile`), das System
@@ -86,6 +87,8 @@ pub struct PendingOpenedSkins(Mutex<Option<u64>>);
 enum OpenedKind {
     Pack,
     Skin,
+    /// Sicherung des Launchers (`.trsbackup`, [`crate::backup`]).
+    Backup,
 }
 
 fn opened_kind(name: &str) -> Option<OpenedKind> {
@@ -93,6 +96,7 @@ fn opened_kind(name: &str) -> Option<OpenedKind> {
     match ext.as_str() {
         "mrpack" | "zip" => Some(OpenedKind::Pack),
         "png" => Some(OpenedKind::Skin),
+        "trsbackup" => Some(OpenedKind::Backup),
         _ => None,
     }
 }
@@ -269,6 +273,7 @@ async fn open_file(app: AppHandle, url: String) {
             }
             let _ = app.emit("open-skin-files", ());
         }
+        Some(OpenedKind::Backup) => crate::backup::opened(&app, path),
         None => {}
     }
 }
@@ -409,6 +414,7 @@ mod tests {
         assert!(opened_file_from_link("https://example.com/pack.mrpack").is_none());
         assert_eq!(opened_kind("a.MRPACK"), Some(OpenedKind::Pack));
         assert_eq!(opened_kind("skin.png"), Some(OpenedKind::Skin));
+        assert_eq!(opened_kind("TRS-Launcher_2026-10-23.trsbackup"), Some(OpenedKind::Backup));
         assert_eq!(opened_kind("mod.jar"), None);
         assert_eq!(opened_kind("ohne-endung"), None);
     }

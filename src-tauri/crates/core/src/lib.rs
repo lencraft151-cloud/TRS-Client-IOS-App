@@ -5,6 +5,7 @@
 //! Spielstart. Die Tauri-App ist nur eine dünne Command-Schicht darüber.
 
 pub mod auth;
+pub mod backup;
 pub mod bedrock;
 pub mod boost;
 pub mod client_mod;

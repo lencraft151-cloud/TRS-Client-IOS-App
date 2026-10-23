@@ -19,6 +19,11 @@ CODE_SIGN_STYLE = Automatic
 // Volle Entitlements (mehr RAM für Minecraft, bezahlter Account) oder ohne Zusatz-Capabilities (kostenloses Konto).
 TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS.entitlements
 // TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS-basic.entitlements
+// Volle Entitlements + iCloud Drive für Sicherungen (nur bezahlter Account; `bash scripts/ios/mac-setup.sh --icloud`).
+// TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS-icloud.entitlements
+
+// iCloud-Container für Sicherungen (nur mit der icloud-Zeile oben). Xcode legt ihn bei automatischer Signatur an.
+TRS_ICLOUD_CONTAINER = iCloud.$(PRODUCT_BUNDLE_IDENTIFIER)
 
 // App-Gruppe für das Widget (Instanzliste „Zuletzt gespielt“). Aus der Team-ID gebildet – passt zu jedem Konto
 // und jeder Bundle-ID; Xcode legt sie bei automatischer Signatur selbst an.

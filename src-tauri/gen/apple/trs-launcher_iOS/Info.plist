@@ -85,9 +85,19 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
-	<!-- „Öffnen in TRS Launcher“ (Dateien-App, Safari): Modpacks und Skins (src-tauri/src/deeplink.rs). -->
+	<!-- „Öffnen in TRS Launcher“ (Dateien-App, Safari): Modpacks, Skins und Sicherungen (src-tauri/src/deeplink.rs). -->
 	<key>CFBundleDocumentTypes</key>
 	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>TRS Launcher Backup</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>dev.theredstonee.trslauncher.backup</string>
+			</array>
+		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>Modrinth Modpack</string>
@@ -119,6 +129,40 @@
 			</array>
 		</dict>
 	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>dev.theredstonee.trslauncher.backup</string>
+			<key>UTTypeDescription</key>
+			<string>TRS Launcher Backup</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.archive</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>trsbackup</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<!-- Sicherungen in iCloud Drive (Ordner „TRS Launcher“) – nur mit trs-launcher_iOS-icloud.entitlements. -->
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>$(TRS_ICLOUD_CONTAINER)</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>TRS Launcher</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>

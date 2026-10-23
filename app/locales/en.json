@@ -1010,7 +1010,15 @@
       "invalidWindow": "The end must be after the start.",
       "invalidOrder": "The order doesn't match – please reload the list."
     },
-    "messeBlocked": "Not available on the trade-fair PC."
+    "messeBlocked": "Not available on the trade-fair PC.",
+    "backup": {
+      "invalid": "This is not a TRS Launcher backup.",
+      "tooNew": "This backup comes from a newer version ({version}) – please update the launcher first.",
+      "notFound": "This backup no longer exists.",
+      "noPlace": "No place for backups found.",
+      "downloadFailed": "The backup could not be downloaded from iCloud.",
+      "gameRunning": "Minecraft is running – please quit it first, then restore."
+    }
   },
   "browse": {
     "title": "Discover",
@@ -2314,6 +2322,43 @@
       "unknown": "Crash report"
     }
   },
+  "backup": {
+    "title": "Backup",
+    "placeIcloud": "Backups go to iCloud Drive › TRS Launcher › Backups – they are there on every device with your Apple ID.",
+    "placeLocal": "Backups go to the Files app under On My iPhone › TRS Launcher › Backups – and with it into your device's iCloud backup.",
+    "icloudHint": "Want them in iCloud Drive? Tap “Share” on a backup and pick “Save to Files”. Builds with the iCloud option save there directly.",
+    "createTitle": "Back up now",
+    "createDescription": "Settings, all instances with worlds, mods and game settings, skins and touch controls – about {size} before packing. Sign-ins stay on this device.",
+    "createDescriptionEmpty": "Settings, all instances with worlds, mods and game settings, skins and touch controls.",
+    "create": "Back up",
+    "creating": "Backing up …",
+    "created": "Backup saved",
+    "taskTitle": "Launcher backup",
+    "autoTitle": "Back up automatically every day",
+    "autoDescription": "Once a day when the app starts or comes back – not while Minecraft is running. The last three automatic backups are kept.",
+    "lastAutomatic": "Last one: {time}.",
+    "listTitle": "Backups",
+    "empty": "No backups yet.",
+    "icloud": "iCloud",
+    "local": "On this device",
+    "automatic": "Automatic",
+    "more": "+ {n} more",
+    "noInstances": "No instances",
+    "notDownloaded": "Only in iCloud so far – it is downloaded when you restore or share it.",
+    "unreadable": "This file can't be read.",
+    "restore": "Restore",
+    "share": "Share",
+    "deleteTitle": "Delete backup?",
+    "deleteText": "The backup from {time} will be deleted – also in iCloud, if it is stored there.",
+    "deleted": "Backup deleted",
+    "restoreTitle": "Restore backup?",
+    "restoreText": "Instances from the backup replace the ones with the same name on this device – worlds, mods and settings return to the state of the backup. Other instances and your sign-ins stay as they are. The launcher reloads afterwards.",
+    "fromVersion": "TRS Launcher {version}",
+    "restoreTaskTitle": "Restore backup",
+    "restoring": "Restoring …",
+    "downloading": "Downloading from iCloud …",
+    "restored": "Backup restored"
+  },
   "exportPack": {
     "title": "Export as modpack",
     "summary": "Short description (optional)",
@@ -3448,6 +3493,7 @@
       "defaults": "Default settings",
       "java": "Java installations",
       "storage": "Storage",
+      "backup": "Backup",
       "network": "Network",
       "clips": "Clips & recording",
       "notifications": "Notifications",

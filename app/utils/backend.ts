@@ -4,6 +4,7 @@ import { isMesseBlockedCommand, MESSE, messeRestricted } from './messe'
 import { z } from 'zod'
 import { savedTextSchema, textFileSchema } from './config/types'
 import { crashReportSchema } from './crashReport'
+import { backupEntrySchema, backupOverviewSchema } from './backup'
 import { instanceLocationSchema, movePlanSchema, pickedFolderSchema, unavailableInstancesSchema } from './relocate'
 import {
   trsAdminCapeSchema,
@@ -1116,6 +1117,19 @@ export const backend = {
     markSeen: (ids: string[]) => call<void>('crash_reports_seen', { ids }),
     /** Teilen-Menü von iOS für den Bericht. */
     share: (id: string) => call<void>('crash_report_share', { id }),
+  },
+  /** iOS: Sicherung des Launchers (Einstellungen → Sicherung). */
+  backup: {
+    overview: () => checked(backupOverviewSchema, 'backup_overview'),
+    create: (onProgress: (percent: number) => void, taskId?: string) =>
+      checked(backupEntrySchema, 'backup_create', { onProgress: channel(onProgress), taskId }),
+    /** Spielt die Sicherung ein; liefert die IDs der wiederhergestellten Instanzen. */
+    restore: (path: string, onProgress: (percent: number) => void, taskId?: string) =>
+      call<string[]>('backup_restore', { path, onProgress: channel(onProgress), taskId }),
+    remove: (path: string) => call<void>('backup_delete', { path }),
+    share: (path: string) => call<void>('backup_share', { path }),
+    /** Über „Öffnen in TRS Launcher“ geöffnete Sicherung (einmalig). */
+    takeOpened: () => checked(backupEntrySchema.nullable(), 'take_opened_backup'),
   },
   /** Oberfläche geladen: iOS-Start-Wächter aus, Startverlauf „ui“. */
   uiReady: () => call<void>('ui_ready'),

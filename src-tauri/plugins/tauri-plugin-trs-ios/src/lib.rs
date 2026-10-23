@@ -8,6 +8,7 @@
 //!   (`ASWebAuthenticationSession`). Die App bleibt dabei vorn – der Loopback-Server bekommt die Weiterleitung.
 //!   In Safari würde iOS die App anhalten, und die Anmeldung liefe ins Leere.
 //! - **Teilen:** [`TrsIos::share`] öffnet das Teilen-Menü für Dateien (Berichte).
+//! - **Sicherungen:** [`TrsIos::backup_dirs`] (Dateien-App bzw. iCloud Drive), [`TrsIos::icloud_download`].
 //! - **Kurzbefehle, Widget, Live-Aktivität:** [`TrsIos::shared_dirs`], [`TrsIos::shared_changed`] und
 //!   [`TrsIos::live_activity`] (Widget-Erweiterung in `gen/apple/Widgets`).
 //! - **Öffnen in …:** [`TrsIos::import_file`] kopiert eine aus der Dateien-App oder Safari geöffnete Datei (an ihrem
@@ -103,6 +104,20 @@ pub struct ActivityUpdate<'a> {
     pub done: bool,
 }
 
+/// Ordner für Sicherungen (siehe [`TrsIos::backup_dirs`]).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct BackupDirs {
+    /// `Dokumente/Backups` – in der Dateien-App unter „Auf meinem iPhone › TRS Launcher“.
+    pub local: Option<std::path::PathBuf>,
+    /// `iCloud Drive › TRS Launcher › Backups` – nur mit iCloud-Entitlement und angemeldetem iCloud.
+    pub icloud: Option<std::path::PathBuf>,
+}
+
+#[derive(Serialize)]
+struct PathArg<'a> {
+    path: &'a str,
+}
+
 /// Zugriff auf den nativen Teil.
 pub struct TrsIos<R: Runtime> {
     #[cfg(target_os = "ios")]
@@ -164,6 +179,16 @@ impl<R: Runtime> TrsIos<R> {
     /// Live-Aktivität starten, aktualisieren oder beenden.
     pub fn live_activity(&self, update: &ActivityUpdate<'_>) -> Result<()> {
         self.call::<serde_json::Value, _>("liveActivity", update).map(|_| ())
+    }
+
+    /// Ordner für Sicherungen (lokal, iCloud).
+    pub fn backup_dirs(&self) -> Result<BackupDirs> {
+        self.call("backupDirs", ())
+    }
+
+    /// Sicherung aus iCloud aufs Gerät holen (startet nur den Download).
+    pub fn icloud_download(&self, path: &std::path::Path) -> Result<()> {
+        self.call::<serde_json::Value, _>("icloudDownload", PathArg { path: &path.to_string_lossy() }).map(|_| ())
     }
 
     /// Modell, iOS-Version, Arbeitsspeicher.

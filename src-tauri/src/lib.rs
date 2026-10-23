@@ -1,3 +1,4 @@
+mod backup;
 mod clip_overlay;
 mod commands;
 mod crash_report;
@@ -298,7 +299,11 @@ pub fn run() {
             app.manage(commands::export::PackPickState::default());
             app.manage(commands::tasks::TaskRegistry::default());
             app.manage(trs_core::trs_api::cape_video::VideoPicks::default());
+            app.manage(backup::OpenedBackups::default());
             deeplink::setup(app);
+            // iOS: tägliche automatische Sicherung (wenn eingeschaltet), kurz nach dem Start.
+            #[cfg(target_os = "ios")]
+            backup::start(app.handle());
             // Push: Gerät beim Start abgleichen (neue Version, Sprache, Sitzung) – nur am Handy.
             push::start(app.handle());
             // Kern bereit – ab hier wartet der Start nur noch auf die Oberfläche (crash_report::ui_ready).
@@ -365,6 +370,8 @@ pub fn run() {
                 }
                 tauri::WindowEvent::Resumed => {
                     crash_report::resumed();
+                    #[cfg(target_os = "ios")]
+                    backup::automatic_soon(window.app_handle(), std::time::Duration::from_secs(20));
                     return push::on_foreground(window.app_handle(), true);
                 }
                 _ => {}
@@ -657,6 +664,12 @@ pub fn run() {
             deeplink::take_pending_modpack_link,
             deeplink::take_opened_pack,
             deeplink::take_pending_play,
+            backup::backup_overview,
+            backup::backup_create,
+            backup::backup_restore,
+            backup::backup_delete,
+            backup::backup_share,
+            backup::take_opened_backup,
             shortcuts::live_activity,
             deeplink::opened_skins_pending,
             deeplink::take_opened_skins,

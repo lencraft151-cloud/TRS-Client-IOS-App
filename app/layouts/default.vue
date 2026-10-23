@@ -322,6 +322,7 @@ onBeforeUnmount(() => void backListener?.unregister())
     <StartIntroHint v-if="!isBig && !onboarding.open" />
     <!-- iOS: Absturzberichte vom letzten Lauf. -->
     <CrashReportDialog v-if="!onboarding.open" />
+    <BackupRestoreDialog />
     <ToastHost />
     <SocialToastHost />
     <JoinServerDialog />

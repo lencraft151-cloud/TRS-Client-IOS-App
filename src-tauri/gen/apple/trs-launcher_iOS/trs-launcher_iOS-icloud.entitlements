@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Wie trs-launcher_iOS.entitlements, dazu iCloud Drive: Sicherungen landen in „iCloud Drive › TRS Launcher › Backups“
+  und sind auf jedem Gerät mit derselben Apple-ID da. Nur mit bezahltem Apple-Developer-Account (das kostenlose
+  Konto kennt kein iCloud). Einschalten: in Signing.local.xcconfig
+    TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS-icloud.entitlements
+  (das erledigt auch mac-setup.sh mit der Option icloud, siehe IOS.md). Xcode legt den Container selbst an.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<true/>
+	<key>com.apple.developer.kernel.extended-virtual-addressing</key>
+	<true/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(TRS_APP_GROUP)</string>
+	</array>
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>$(TRS_ICLOUD_CONTAINER)</string>
+	</array>
+	<key>com.apple.developer.ubiquity-container-identifiers</key>
+	<array>
+		<string>$(TRS_ICLOUD_CONTAINER)</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudDocuments</string>
+	</array>
+</dict>
+</plist>

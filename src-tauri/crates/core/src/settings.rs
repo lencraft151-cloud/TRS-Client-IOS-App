@@ -91,6 +91,8 @@ pub struct Settings {
     pub remote: RemoteSettings,
     /// Android/iOS: auch den Beta-Kanal nach Updates fragen (ab Werk aus).
     pub mobile_beta: bool,
+    /// iOS: einmal am Tag automatisch sichern (iCloud Drive, sonst Dateien-App; die letzten drei bleiben).
+    pub auto_backup: bool,
 }
 
 /// PC-Fernbedienung (API §33): das Handy desselben TRS-Kontos darf diesen PC steuern.
@@ -444,6 +446,7 @@ impl Default for Settings {
             shared_folders: Vec::new(),
             remote: RemoteSettings::default(),
             mobile_beta: false,
+            auto_backup: false,
         }
     }
 }
@@ -481,6 +484,13 @@ impl Settings {
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Einstellungen aus einem JSON-Text (z. B. aus einer Sicherung) – mit denselben Migrationen und Reparaturen
+    /// wie beim Laden der Datei.
+    pub fn from_json(text: &str) -> Result<Self> {
+        let value = serde_json::from_str(text).map_err(|e| Error::json("settings.json", e))?;
+        Ok(Self::from_value(migrate(value)))
     }
 
     fn from_value(value: serde_json::Value) -> Self {

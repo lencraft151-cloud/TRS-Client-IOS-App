@@ -378,8 +378,9 @@ pub async fn crash_report_share(app: AppHandle, id: String) -> CommandResult<()>
     share(&app, path).await
 }
 
+/// Teilen-Menü für eine Datei (auch für Sicherungen, [`crate::backup`]).
 #[cfg(target_os = "ios")]
-async fn share(app: &AppHandle, path: PathBuf) -> CommandResult<()> {
+pub(crate) async fn share(app: &AppHandle, path: PathBuf) -> CommandResult<()> {
     use tauri_plugin_trs_ios::TrsIosExt;
     let app = app.clone();
     let paths = vec![path.display().to_string()];
@@ -391,7 +392,7 @@ async fn share(app: &AppHandle, path: PathBuf) -> CommandResult<()> {
 }
 
 #[cfg(not(target_os = "ios"))]
-async fn share(_app: &AppHandle, _path: PathBuf) -> CommandResult<()> {
+pub(crate) async fn share(_app: &AppHandle, _path: PathBuf) -> CommandResult<()> {
     Err(trs_core::Error::validation(trs_core::msg!("crashReport.shareUnsupported", "Teilen gibt es hier nicht – kopiere den Bericht.")).into())
 }
 

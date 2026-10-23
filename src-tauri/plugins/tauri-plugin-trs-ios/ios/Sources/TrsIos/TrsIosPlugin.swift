@@ -1,4 +1,4 @@
-// Plugin `trs-ios`: Start-Wächter, Anmeldefenster, Teilen und Geräteangaben. Aufgerufen wird es nur aus Rust
+// Plugin `trs-ios`: Start-Wächter, Anmeldefenster, Teilen, Geräteangaben, Sicherungsordner (iCloud). Aufgerufen wird es nur aus Rust
 // (tauri-plugin-trs-ios/src/lib.rs), nie direkt aus der Web-Ansicht.
 
 import AuthenticationServices
@@ -10,6 +10,10 @@ import WidgetKit
 
 class UrlArgs: Decodable {
   let url: String
+}
+
+class PathArgs: Decodable {
+  let path: String
 }
 
 class ShareArgs: Decodable {
@@ -127,6 +131,40 @@ class TrsIosPlugin: Plugin {
         return
       }
       invoke.resolve(["path": dest.path])
+    }
+  }
+
+  /// Ordner für Sicherungen: „Auf meinem iPhone › TRS Launcher › Backups“ (Dateien-App, im iCloud-Geräte-Backup) und –
+  /// mit iCloud-Entitlement und angemeldetem iCloud – „iCloud Drive › TRS Launcher › Backups“.
+  @objc public func backupDirs(_ invoke: Invoke) {
+    // `url(forUbiquityContainerIdentifier:)` kann dauern und darf nicht auf den Hauptthread.
+    DispatchQueue.global(qos: .userInitiated).async {
+      let fm = FileManager.default
+      var result: JsonObject = [:]
+      if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
+        result["local"] = documents.appendingPathComponent("Backups", isDirectory: true).path
+      }
+      if fm.ubiquityIdentityToken != nil, let container = fm.url(forUbiquityContainerIdentifier: nil) {
+        result["icloud"] = container.appendingPathComponent("Documents/Backups", isDirectory: true).path
+      }
+      invoke.resolve(result)
+    }
+  }
+
+  /// Sicherung aus iCloud aufs Gerät holen (kehrt sofort zurück; fertig ist sie, wenn die Datei lesbar ist).
+  @objc public func icloudDownload(_ invoke: Invoke) {
+    guard let args = try? invoke.parseArgs(PathArgs.self) else {
+      invoke.reject("invalid_args", code: "invalid_args")
+      return
+    }
+    DispatchQueue.global(qos: .userInitiated).async {
+      do {
+        try FileManager.default.startDownloadingUbiquitousItem(at: URL(fileURLWithPath: args.path))
+        invoke.resolve()
+      } catch {
+        NSLog("TrsIos: iCloud-Download: \(error)")
+        invoke.reject("download_failed", code: "download_failed")
+      }
     }
   }
 
