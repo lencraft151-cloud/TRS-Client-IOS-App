@@ -27,8 +27,10 @@ const toasts = useToasts()
 const root = ref<HTMLElement | null>(null)
 const step = ref<StepKey>('language')
 const stepIndex = computed(() => stepOrder.value.indexOf(step.value))
-// Handy: Anmeldung per Code (der Rückruf an localhost klappt dort nicht zuverlässig).
+// Android: Anmeldung per Code (der Rückruf an localhost klappt dort nicht zuverlässig). iOS: Anmeldefenster über der
+// App – die App bleibt vorn, der Rückruf kommt an.
 const mobile = mobileUi
+const codeLogin = computed(() => mobile.value && hostOs !== 'ios')
 const deviceCode = ref<DeviceCode | null>(null)
 const codeCopied = ref(false)
 
@@ -43,7 +45,7 @@ async function login() {
   loggingIn.value = true
   deviceCode.value = null
   try {
-    if (mobile.value) await accounts.loginDeviceCode((code) => (deviceCode.value = code))
+    if (codeLogin.value) await accounts.loginDeviceCode((code) => (deviceCode.value = code))
     else await accounts.loginBrowser()
   } catch (e) {
     if (!isCancelled(e)) {
@@ -403,14 +405,14 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-else-if="loggingIn" class="card mt-6 p-4">
-            <template v-if="mobile">
+            <template v-if="codeLogin">
               <p class="text-sm text-base-200">{{ deviceCode ? t('accounts.login.enterCode') : t('accounts.login.requestingCode') }}</p>
               <template v-if="deviceCode">
                 <p class="mt-3 w-full rounded-md border border-base-700 bg-base-950 py-3 text-center font-mono text-2xl font-bold tracking-[0.3em] text-base-50 select-text" data-testid="onboarding-code">{{ deviceCode.userCode }}</p>
                 <button class="btn btn-primary mt-3 w-full" @click="openCodePage">{{ codeCopied ? t('common.status.copied') : t('mobile.accountsPage.openPage') }}</button>
               </template>
             </template>
-            <p v-else class="text-sm text-base-200">{{ t('accounts.login.browserOpened') }}</p>
+            <p v-else class="text-sm text-base-200">{{ mobile ? t('accounts.login.windowOpened') : t('accounts.login.browserOpened') }}</p>
             <p class="mt-3 flex items-center gap-2 text-xs text-base-400">
               <span class="size-2 animate-pulse rounded-full bg-redstone-400" /> {{ t('accounts.login.waiting') }}
             </p>

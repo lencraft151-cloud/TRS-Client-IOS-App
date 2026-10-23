@@ -5245,6 +5245,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-trs-ios"
+version = "0.27.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+]
+
+[[package]]
 name = "tauri-plugin-trs-push"
 version = "0.27.1"
 dependencies = [
@@ -5895,6 +5905,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-single-instance",
  "tauri-plugin-trs-game",
+ "tauri-plugin-trs-ios",
  "tauri-plugin-trs-push",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",

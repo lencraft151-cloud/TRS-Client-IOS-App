@@ -1,0 +1,150 @@
+//! iOS-Systemfunktionen des TRS Launchers (Swift `TrsIosPlugin`):
+//!
+//! - **Start-Wächter:** Meldet die Oberfläche nicht binnen 25 s [`TrsIos::ui_ready`], zeigt die App ein natives Fenster
+//!   mit „Neu laden“ und „Bericht teilen“ – statt eines schwarzen Bildschirms.
+//! - **Absturzberichte:** iOS-Abstürze und Hänger (MetricKit, beim nächsten Start) und Objective-C-Ausnahmen landen als
+//!   Text in `Dokumente/Crash Reports` (siehe `src/crash_report.rs` der App). Eingerichtet wird das in `main.mm`.
+//! - **Anmeldefenster:** [`TrsIos::auth_start`] öffnet die Microsoft-Anmeldung in einem Fenster über der App
+//!   (`ASWebAuthenticationSession`). Die App bleibt dabei vorn – der Loopback-Server bekommt die Weiterleitung.
+//!   In Safari würde iOS die App anhalten, und die Anmeldung liefe ins Leere.
+//! - **Teilen:** [`TrsIos::share`] öffnet das Teilen-Menü für Dateien (Berichte).
+//!
+//! Auf anderen Plattformen meldet jede Funktion „nicht unterstützt“.
+
+use serde::{Deserialize, Serialize};
+use tauri::plugin::{Builder, TauriPlugin};
+use tauri::{Manager, Runtime};
+
+#[cfg(target_os = "ios")]
+tauri::ios_plugin_binding!(init_plugin_trs_ios);
+
+/// Fehler des nativen Teils (Code wie `unsupported`).
+#[derive(Debug)]
+pub struct Error(pub String);
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Error {}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// Wie das Anmeldefenster zu ging.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AuthOutcome {
+    /// Vom Nutzer geschlossen – oder von [`TrsIos::auth_close`] nach der Weiterleitung.
+    Cancelled,
+    /// iOS hat das Fenster nicht geöffnet (z. B. kein Fenster da).
+    Failed,
+}
+
+#[derive(Debug, Deserialize)]
+struct AuthResult {
+    status: AuthOutcome,
+}
+
+/// Gerät und Ausstattung (Leistungsprofil, Berichte).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DeviceInfo {
+    /// Modellkennung, z. B. `iPhone14,4`.
+    pub model: String,
+    /// iOS-Version, z. B. `27.2`.
+    pub system_version: String,
+    /// Arbeitsspeicher in Byte.
+    pub memory_bytes: u64,
+    /// Rechenkerne.
+    pub processor_count: u32,
+    /// Stromsparmodus an.
+    pub low_power: bool,
+}
+
+#[derive(Serialize)]
+struct UrlArgs<'a> {
+    url: &'a str,
+}
+
+#[derive(Serialize)]
+struct ShareArgs<'a> {
+    paths: &'a [String],
+}
+
+/// Zugriff auf den nativen Teil.
+pub struct TrsIos<R: Runtime> {
+    #[cfg(target_os = "ios")]
+    handle: tauri::plugin::PluginHandle<R>,
+    #[cfg(not(target_os = "ios"))]
+    _marker: std::marker::PhantomData<fn() -> R>,
+}
+
+impl<R: Runtime> TrsIos<R> {
+    /// Blockiert bis zur Antwort – aus Rust nur außerhalb der Async-Runtime aufrufen (`spawn_blocking`).
+    #[cfg(target_os = "ios")]
+    fn call<T: serde::de::DeserializeOwned, A: Serialize>(&self, command: &str, args: A) -> Result<T> {
+        self.handle.run_mobile_plugin(command, args).map_err(|e| match e {
+            tauri::plugin::mobile::PluginInvokeError::InvokeRejected(r) => Error(r.code.or(r.message).unwrap_or_else(|| "rejected".into())),
+            other => Error(other.to_string()),
+        })
+    }
+
+    #[cfg(not(target_os = "ios"))]
+    fn call<T: serde::de::DeserializeOwned, A: Serialize>(&self, _command: &str, _args: A) -> Result<T> {
+        Err(Error("unsupported".into()))
+    }
+
+    /// Die Oberfläche ist da: Start-Wächter aus (ein offenes Wächter-Fenster schließt sich).
+    pub fn ui_ready(&self) -> Result<()> {
+        self.call::<serde_json::Value, _>("uiReady", ()).map(|_| ())
+    }
+
+    /// Öffnet `url` im Anmeldefenster und wartet, bis es zu ist (blockiert – nur aus einem eigenen Thread).
+    pub fn auth_start(&self, url: &str) -> Result<AuthOutcome> {
+        self.call::<AuthResult, _>("authStart", UrlArgs { url }).map(|r| r.status)
+    }
+
+    /// Schließt ein offenes Anmeldefenster (nach der Weiterleitung oder beim Abbruch).
+    pub fn auth_close(&self) -> Result<()> {
+        self.call::<serde_json::Value, _>("authClose", ()).map(|_| ())
+    }
+
+    /// Teilen-Menü für diese Dateien (absolute Pfade).
+    pub fn share(&self, paths: &[String]) -> Result<()> {
+        self.call::<serde_json::Value, _>("share", ShareArgs { paths }).map(|_| ())
+    }
+
+    /// Modell, iOS-Version, Arbeitsspeicher.
+    pub fn device_info(&self) -> Result<DeviceInfo> {
+        self.call("deviceInfo", ())
+    }
+}
+
+/// Zugriff über `app.trs_ios()`.
+pub trait TrsIosExt<R: Runtime> {
+    fn trs_ios(&self) -> &TrsIos<R>;
+}
+
+impl<R: Runtime, T: Manager<R>> TrsIosExt<R> for T {
+    fn trs_ios(&self) -> &TrsIos<R> {
+        self.state::<TrsIos<R>>().inner()
+    }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+    Builder::new("trs-ios")
+        .setup(|app, api| {
+            #[cfg(target_os = "ios")]
+            let state = TrsIos { handle: api.register_ios_plugin(init_plugin_trs_ios)? };
+            #[cfg(not(target_os = "ios"))]
+            let state = {
+                let _ = api;
+                TrsIos::<R> { _marker: std::marker::PhantomData }
+            };
+            app.manage(state);
+            Ok(())
+        })
+        .build()
+}

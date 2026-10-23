@@ -3,6 +3,7 @@ import { hasKey, t, tKey } from './i18n'
 import { isMesseBlockedCommand, MESSE, messeRestricted } from './messe'
 import { z } from 'zod'
 import { savedTextSchema, textFileSchema } from './config/types'
+import { crashReportSchema } from './crashReport'
 import { instanceLocationSchema, movePlanSchema, pickedFolderSchema, unavailableInstancesSchema } from './relocate'
 import {
   trsAdminCapeSchema,
@@ -1102,6 +1103,15 @@ export const backend = {
     /** Route einer angetippten Benachrichtigung beim Start (einmalig abholen). */
     takePendingTarget: () => call<string | null>('take_pending_push_target'),
   },
+  /** iOS: Absturzberichte aus `Dokumente/Crash Reports` (anderswo leer). */
+  crashReports: {
+    list: () => checked(z.array(crashReportSchema).max(50), 'crash_reports'),
+    markSeen: (ids: string[]) => call<void>('crash_reports_seen', { ids }),
+    /** Teilen-Menü von iOS für den Bericht. */
+    share: (id: string) => call<void>('crash_report_share', { id }),
+  },
+  /** Oberfläche geladen: iOS-Start-Wächter aus, Startverlauf „ui“. */
+  uiReady: () => call<void>('ui_ready'),
 
   /** Sozial: Chat, Bilder, Meldungen, Moderation – alles über den Kern, ohne Token im Webview. */
   social: {

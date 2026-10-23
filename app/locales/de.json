@@ -380,6 +380,10 @@
       "signatureMismatch": "Signatur ungültig (Prüfung)",
       "signatureWrongFile": "Signatur ungültig (falsche Datei)"
     },
+    "crashReport": {
+      "notFound": "Den Bericht gibt es nicht mehr.",
+      "shareUnsupported": "Teilen gibt es hier nicht – kopiere den Bericht."
+    },
     "content": {
       "fileGone": "Die Datei existiert nicht mehr.",
       "invalidFileName": "Ungültiger Dateiname",
@@ -2293,6 +2297,23 @@
       }
     }
   },
+  "crashReport": {
+    "title": "TRS Launcher ist beim letzten Mal abgestürzt",
+    "text": "Das ist passiert. Teile den Bericht mit dem TRS-Team, damit wir es beheben können – er enthält keine Passwörter oder Tokens.",
+    "filesHint": "Alle Berichte liegen auch in der Dateien-App unter „TRS Launcher → Crash Reports“.",
+    "share": "Teilen",
+    "previous": "Vorheriger Bericht",
+    "next": "Nächster Bericht",
+    "position": "Bericht {n} von {total}",
+    "kind": {
+      "panic": "Fehler im Launcher-Kern",
+      "ios": "Absturz laut iOS",
+      "hang": "Die App reagierte nicht mehr",
+      "unclean": "Start wurde abgebrochen",
+      "boot": "Die Oberfläche hat nicht geladen",
+      "unknown": "Absturzbericht"
+    }
+  },
   "exportPack": {
     "title": "Als Modpack exportieren",
     "summary": "Kurzbeschreibung (optional)",
@@ -2842,6 +2863,7 @@
     "login": {
       "signInMicrosoft": "Mit Microsoft anmelden",
       "browserOpened": "Die Anmeldung wurde in deinem Browser geöffnet. Schließe sie dort ab – der Launcher macht dann automatisch weiter.",
+      "windowOpened": "Melde dich im Anmeldefenster an – der Launcher macht dann automatisch weiter.",
       "enterCode": "Gib diesen Code auf der geöffneten Microsoft-Seite ein:",
       "copyCode": "Code kopieren",
       "clickToCopy": "Klicken zum Kopieren",

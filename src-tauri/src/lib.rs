@@ -1,5 +1,6 @@
 mod clip_overlay;
 mod commands;
+mod crash_report;
 mod deeplink;
 mod dialog_text;
 mod error;
@@ -48,6 +49,8 @@ fn qr_scanner<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // iOS: Absturzberichte und Startverlauf – vor allem anderen, damit auch ein Absturz beim Start einen Bericht hat.
+    crash_report::init();
     #[cfg(desktop)]
     if let Ok(exe) = std::env::current_exe() {
         trs_core::firewall::set_helper_exe(exe);
@@ -93,6 +96,9 @@ pub fn run() {
         .plugin(mobile::init())
         // Push-Benachrichtigungen: UnifiedPush (Android) bzw. Abholen im Hintergrund (iOS).
         .plugin(tauri_plugin_trs_push::init());
+    // iOS: Start-Wächter, Anmeldefenster, Teilen (Absturzberichte selbst richtet main.mm ein).
+    #[cfg(target_os = "ios")]
+    let builder = builder.plugin(tauri_plugin_trs_ios::init());
     builder
         .setup(|app| {
             // Spiel-Engine (eingebettete JVM) – nur Android/iOS.
@@ -290,6 +296,8 @@ pub fn run() {
             deeplink::setup(app);
             // Push: Gerät beim Start abgleichen (neue Version, Sprache, Sitzung) – nur am Handy.
             push::start(app.handle());
+            // Kern bereit – ab hier wartet der Start nur noch auf die Oberfläche (crash_report::ui_ready).
+            crash_report::mark(crash_report::Stage::Setup);
             Ok(())
         })
         // Clips abspielen: `trsclip://localhost/<art>/<instanz>/<datei>` – nur Dateien im
@@ -346,8 +354,14 @@ pub fn run() {
             // Handy: App im Hintergrund → Echtzeit-Kanal zu (der Server schickt dann Push), vorn → wieder auf.
             #[cfg(mobile)]
             match event {
-                tauri::WindowEvent::Suspended => return push::on_foreground(window.app_handle(), false),
-                tauri::WindowEvent::Resumed => return push::on_foreground(window.app_handle(), true),
+                tauri::WindowEvent::Suspended => {
+                    crash_report::suspended();
+                    return push::on_foreground(window.app_handle(), false);
+                }
+                tauri::WindowEvent::Resumed => {
+                    crash_report::resumed();
+                    return push::on_foreground(window.app_handle(), true);
+                }
                 _ => {}
             }
             let payload = match event {
@@ -413,6 +427,10 @@ pub fn run() {
             mobile::mobile_update_check,
             mobile::mobile_update_install,
             mobile::mobile_exit_app,
+            crash_report::crash_reports,
+            crash_report::crash_reports_seen,
+            crash_report::crash_report_share,
+            crash_report::ui_ready,
             event_icon::event_icon_sync,
             push::push_status,
             push::push_set_settings,

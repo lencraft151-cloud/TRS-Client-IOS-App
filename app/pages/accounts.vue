@@ -16,7 +16,9 @@ const router = useRouter()
 // Handy: Anmeldung per Code zuerst – der Rückruf an localhost klappt dort nicht zuverlässig.
 const mobile = mobileUi
 // Handy (auch schmaler Touch-Bildschirm): Gerätecode, sonst der Standard des Systems.
-const primaryMode = computed<LoginMode>(() => (mobile.value ? 'code' : defaultLoginMode))
+// iOS: Anmeldefenster über der App (die App bleibt vorn); Android: per Code.
+const inAppLogin = hostOs === 'ios'
+const primaryMode = computed<LoginMode>(() => (inAppLogin ? 'browser' : mobile.value ? 'code' : defaultLoginMode))
 
 onMounted(() => accounts.load().catch((e) => (error.value = errorMessage(e))))
 
@@ -93,9 +95,9 @@ async function confirmRemove() {
   <div class="mx-auto max-w-2xl p-6 mobile:p-4">
     <PageHeader :title="t('accounts.title')" :subtitle="t('accounts.subtitle')">
       <template v-if="mobile">
-        <button class="btn btn-primary w-full" :disabled="!!login" data-testid="accounts-code" @click="start('code')">
+        <button class="btn btn-primary w-full" :disabled="!!login" data-testid="accounts-code" @click="start(primaryMode)">
           <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14" /></svg>
-          {{ t('accounts.signInWithCode') }}
+          {{ inAppLogin ? t('accounts.add') : t('accounts.signInWithCode') }}
         </button>
       </template>
       <template v-else>
@@ -138,14 +140,14 @@ async function confirmRemove() {
       <button v-if="!messeRestricted" class="btn btn-primary" :disabled="!!login" @click="start(primaryMode)">{{ t('accounts.login.signInMicrosoft') }}</button>
     </RedstoneEmpty>
 
-    <!-- Handy: Browser-Anmeldung nur als Ausweg (der Rückruf an localhost klappt dort nicht immer). -->
-    <button v-if="mobile" class="btn btn-ghost mt-4 w-full" :disabled="!!login" data-testid="accounts-browser" @click="start('browser')">
-      {{ t('mobile.accountsPage.browser') }}
+    <!-- Android: Browser-Anmeldung nur als Ausweg (der Rückruf an localhost klappt dort nicht immer); iOS: Code als Ausweg. -->
+    <button v-if="mobile" class="btn btn-ghost mt-4 w-full" :disabled="!!login" data-testid="accounts-browser" @click="start(inAppLogin ? 'code' : 'browser')">
+      {{ inAppLogin ? t('accounts.signInWithCode') : t('mobile.accountsPage.browser') }}
     </button>
 
     <BaseDialog v-if="login" :title="t('accounts.login.signInMicrosoft')" @close="cancel">
       <template v-if="login.mode === 'browser'">
-        <p class="text-sm text-base-200">{{ t('accounts.login.browserOpened') }}</p>
+        <p class="text-sm text-base-200">{{ inAppLogin ? t('accounts.login.windowOpened') : t('accounts.login.browserOpened') }}</p>
       </template>
       <template v-else-if="login.code">
         <p class="text-sm text-base-200">{{ t('accounts.login.enterCode') }}</p>
