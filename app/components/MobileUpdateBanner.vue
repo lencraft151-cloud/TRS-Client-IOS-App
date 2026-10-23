@@ -44,6 +44,17 @@ onMounted(() => {
   if (!isTauri() || !isMobile || MESSE) return
   timer = setTimeout(check, FIRST_CHECK_MS)
 })
+
+// „Beta-Versionen“ umgeschaltet: gleich neu prüfen (ein Beta-Update verschwindet beim Ausschalten wieder).
+const settings = useSettingsStore()
+watch(
+  () => settings.current?.mobileBeta,
+  (now, before) => {
+    if (before === undefined || now === before || !isTauri() || !isMobile || MESSE) return
+    clearTimeout(timer)
+    void check()
+  },
+)
 onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
@@ -57,7 +68,10 @@ onBeforeUnmount(() => clearTimeout(timer))
         </svg>
       </span>
       <div class="min-w-0 flex-1 text-sm">
-        <p class="font-semibold text-base-50">{{ t('mobileUpdate.available', { version: status.latest ?? '' }) }}</p>
+        <p class="font-semibold text-base-50">
+          {{ t('mobileUpdate.available', { version: status.latest ?? '' }) }}
+          <span v-if="status.beta" class="badge ml-1 bg-lamp-400/15 text-lamp-300">{{ t('mobileUpdate.betaBadge') }}</span>
+        </p>
         <p class="text-xs text-base-300">
           {{ message || (canInstall ? t('mobileUpdate.installHint') : t('mobileUpdate.sideloadHint')) }}
         </p>

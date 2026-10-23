@@ -8,6 +8,8 @@
 //!   (`ASWebAuthenticationSession`). Die App bleibt dabei vorn – der Loopback-Server bekommt die Weiterleitung.
 //!   In Safari würde iOS die App anhalten, und die Anmeldung liefe ins Leere.
 //! - **Teilen:** [`TrsIos::share`] öffnet das Teilen-Menü für Dateien (Berichte).
+//! - **Öffnen in …:** [`TrsIos::import_file`] kopiert eine aus der Dateien-App oder Safari geöffnete Datei (an ihrem
+//!   Ort, mit Sicherheitsbereich) in den eigenen temporären Ordner.
 //!
 //! Auf anderen Plattformen meldet jede Funktion „nicht unterstützt“.
 
@@ -73,6 +75,11 @@ struct ShareArgs<'a> {
     paths: &'a [String],
 }
 
+#[derive(Debug, Deserialize)]
+struct ImportedFile {
+    path: String,
+}
+
 /// Zugriff auf den nativen Teil.
 pub struct TrsIos<R: Runtime> {
     #[cfg(target_os = "ios")]
@@ -114,6 +121,11 @@ impl<R: Runtime> TrsIos<R> {
     /// Teilen-Menü für diese Dateien (absolute Pfade).
     pub fn share(&self, paths: &[String]) -> Result<()> {
         self.call::<serde_json::Value, _>("share", ShareArgs { paths }).map(|_| ())
+    }
+
+    /// Kopiert eine geöffnete Datei (`file://…`, evtl. in iCloud Drive) in den temporären Ordner der App.
+    pub fn import_file(&self, url: &str) -> Result<std::path::PathBuf> {
+        self.call::<ImportedFile, _>("importFile", UrlArgs { url }).map(|f| std::path::PathBuf::from(f.path))
     }
 
     /// Modell, iOS-Version, Arbeitsspeicher.

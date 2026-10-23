@@ -343,6 +343,7 @@ onBeforeUnmount(() => {
     aria-modal="true"
     aria-labelledby="onboarding-title"
     class="onboarding absolute inset-0 z-40 flex flex-col overflow-y-auto mobile:pb-[var(--safe-bottom)]"
+    :data-tour-step="step"
   >
     <!-- Schrittanzeige: echte Reihenfolge, die Leitung lädt pro Schritt auf. -->
     <header class="mx-auto w-full max-w-2xl px-6 pt-8 mobile:px-4 mobile:pt-4">
@@ -376,7 +377,7 @@ onBeforeUnmount(() => {
             <LanguagePicker :model-value="language" :search="false" compact @update:model-value="chooseLanguage" />
           </div>
           <div class="mt-6 flex gap-3">
-            <button data-primary class="btn btn-primary h-11 px-6 text-base" @click="next">{{ t('common.actions.continue') }}</button>
+            <button data-primary data-tour-next class="btn btn-primary h-11 px-6 text-base" @click="next">{{ t('common.actions.continue') }}</button>
             <button class="btn btn-ghost h-11 px-5" @click="skip">{{ t('common.actions.skip') }}</button>
           </div>
         </div>
@@ -386,7 +387,7 @@ onBeforeUnmount(() => {
           <h1 id="onboarding-title" class="display text-6xl leading-tight text-base-50 mobile:text-5xl">TRS Launcher</h1>
           <p class="mt-3 max-w-lg text-base-200">{{ t('onboarding.welcome.text') }}</p>
           <div class="mt-8 flex gap-3">
-            <button data-primary class="btn btn-primary h-11 px-6 text-base" @click="next">{{ t('onboarding.welcome.start') }}</button>
+            <button data-primary data-tour-next class="btn btn-primary h-11 px-6 text-base" @click="next">{{ t('onboarding.welcome.start') }}</button>
             <button class="btn btn-ghost h-11 px-5" @click="skip">{{ t('common.actions.skip') }}</button>
           </div>
         </div>
@@ -430,14 +431,14 @@ onBeforeUnmount(() => {
 
           <div class="mt-8 flex gap-3">
             <template v-if="accounts.active">
-              <button data-primary class="btn btn-primary h-11 px-6 text-base" @click="next">{{ t('common.actions.continue') }}</button>
+              <button data-primary data-tour-next class="btn btn-primary h-11 px-6 text-base" @click="next">{{ t('common.actions.continue') }}</button>
             </template>
             <template v-else-if="loggingIn">
               <button data-primary class="btn btn-ghost h-11 px-5" @click="cancelLogin">{{ t('common.actions.cancel') }}</button>
             </template>
             <template v-else>
               <button data-primary class="btn btn-primary h-11 px-6 text-base" @click="login">{{ t('accounts.login.signInMicrosoft') }}</button>
-              <button class="btn btn-ghost h-11 px-5" @click="next">{{ t('common.actions.later') }}</button>
+              <button class="btn btn-ghost h-11 px-5" data-tour-next @click="next">{{ t('common.actions.later') }}</button>
             </template>
           </div>
         </div>
@@ -488,7 +489,7 @@ onBeforeUnmount(() => {
           <p v-if="importError" role="alert" class="mt-3 text-sm text-redstone-300">{{ importError }}</p>
 
           <div class="mt-8 flex gap-3">
-            <button data-primary class="btn btn-primary h-11 px-6 text-base" :disabled="!!importing" @click="next">{{ t('common.actions.continue') }}</button>
+            <button data-primary data-tour-next class="btn btn-primary h-11 px-6 text-base" :disabled="!!importing" @click="next">{{ t('common.actions.continue') }}</button>
           </div>
         </div>
 
@@ -540,7 +541,7 @@ onBeforeUnmount(() => {
             >
               {{ createLabel }}
             </button>
-            <button class="btn btn-ghost h-11 px-5" :disabled="!!creating" @click="next">{{ t('common.actions.later') }}</button>
+            <button class="btn btn-ghost h-11 px-5" data-tour-next :disabled="!!creating" @click="next">{{ t('common.actions.later') }}</button>
           </div>
         </div>
 
@@ -589,7 +590,7 @@ onBeforeUnmount(() => {
           </ul>
 
           <div class="mt-8 flex gap-3">
-            <button data-primary class="btn btn-primary h-11 px-6 text-base" @click="finish(false)">{{ t('onboarding.done.home') }}</button>
+            <button data-primary data-tour-next class="btn btn-primary h-11 px-6 text-base" @click="finish(false)">{{ t('onboarding.done.home') }}</button>
             <button v-if="summaryInstance" class="btn btn-ghost h-11 px-5" @click="finish(true)">
               <svg viewBox="0 0 24 24" class="size-4" fill="currentColor"><path d="M7 4v16l13-8z" /></svg>
               {{ t('onboarding.done.playNow') }}

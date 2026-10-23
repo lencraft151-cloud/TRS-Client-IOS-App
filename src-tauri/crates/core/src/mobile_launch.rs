@@ -319,7 +319,7 @@ impl Launcher {
             && client_mod::build_for(catalog.builds(), instance.loader.kind, &instance.game_version).is_some()
             && client_mod::installed_jar(&self.paths, &instance.id).is_file();
         let configured = instance.overrides.max_memory_mb.unwrap_or(settings.max_memory_mb);
-        let memory = mobile_heap_mb(configured, crate::platform::total_memory_mb());
+        let memory = mobile_heap_mb(configured, crate::mobile_profile::heap_base_mb());
         let mut spec = spec_from_command(&prepared, command, instance, memory, trs_client)?;
         spec.assets_dir = assets_dir;
         // Touch-Steuerung: Layout der Instanz (fehlt es, gilt PvP) und der Ordner der Layouts.

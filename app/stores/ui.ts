@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { Platform } from '~/types'
+import type { PickedPack, Platform } from '~/types'
 
 const NAV_KEY = 'trs.nav.expanded'
 const RECENT_KEY = 'trs.palette.recent'
@@ -29,6 +29,8 @@ export const useUiStore = defineStore('ui', () => {
   const palette = ref(false)
   const creating = ref(false)
   const importing = ref(false)
+  /** „Öffnen in TRS Launcher“: schon gelesene Modpack-Datei, die der Import-Dialog übernimmt. */
+  const importPack = ref<PickedPack | null>(null)
   /** Modpack, das vor der Installation fragt „mit oder ohne TRS Client“. */
   const modpackInstall = ref<{ pack: { projectId: string; title: string; iconUrl: string | null }; platform: Platform } | null>(null)
   const navExpanded = ref(false)
@@ -69,6 +71,7 @@ export const useUiStore = defineStore('ui', () => {
     palette,
     creating,
     importing,
+    importPack,
     modpackInstall,
     navExpanded,
     recentCommands,

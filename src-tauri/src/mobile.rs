@@ -34,10 +34,11 @@ pub struct InstallOutcome {
     pub status: String,
 }
 
-/// Prüft den Kanal `mobile` (Signatur wie beim TRS-Client-Kanal).
+/// Prüft den Kanal `mobile` (Signatur wie beim TRS-Client-Kanal) – mit „Beta-Versionen“ auch den Beta-Kanal.
 #[tauri::command]
-pub async fn mobile_update_check(state: State<'_, UpdateState>) -> CommandResult<UpdateStatus> {
-    Ok(state.0.check(Target::current()).await?)
+pub async fn mobile_update_check(state: State<'_, UpdateState>, launcher: State<'_, LauncherState>) -> CommandResult<UpdateStatus> {
+    let beta = launcher.settings().await.mobile_beta;
+    Ok(state.0.check(Target::current(), beta).await?)
 }
 
 /// Android: lädt die neue APK (Aufgabe mit Fortschritt, abbrechbar) und

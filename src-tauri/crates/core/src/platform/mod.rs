@@ -200,13 +200,14 @@ fn update_mode() -> &'static str {
 }
 
 /// `MemTotal:       16314280 kB` aus `/proc/meminfo` → MB.
-#[cfg_attr(not(unix), allow(dead_code))]
+// macOS/iOS lesen den Speicher per sysctl – dort nur in Tests benutzt.
+#[cfg_attr(any(not(unix), target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn parse_meminfo(text: &str) -> Option<u32> {
     parse_meminfo_field(text, "MemTotal:").filter(|mb| *mb > 0)
 }
 
 /// Ein Feld aus `/proc/meminfo` (z. B. `MemAvailable:`) → MB.
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg_attr(any(not(unix), target_os = "macos", target_os = "ios"), allow(dead_code))]
 pub(crate) fn parse_meminfo_field(text: &str, field: &str) -> Option<u32> {
     let line = text.lines().find_map(|l| l.strip_prefix(field))?;
     let mut parts = line.split_whitespace();

@@ -2496,7 +2496,9 @@
       "restartOnboardingTitle": "Repetir la configuración inicial",
       "restartOnboardingDescription": "Te guía de nuevo por el inicio de sesión y la primera instancia.",
       "showBedrockTitle": "Mostrar Minecraft Bedrock en la biblioteca",
-      "showBedrockDescription": "Si la versión de Microsoft Store está instalada, una tarjeta la inicia desde aquí."
+      "showBedrockDescription": "Si la versión de Microsoft Store está instalada, una tarjeta la inicia desde aquí.",
+      "mobileBetaTitle": "Versiones beta",
+      "mobileBetaDescription": "Recibe las nuevas versiones de la app antes, antes de que salgan para todos. Las versiones beta pueden tener errores."
     },
     "profile": {
       "title": "Cuentas de Minecraft",
@@ -3309,6 +3311,7 @@
   },
   "mobileUpdate": {
     "available": "TRS Launcher {version} está disponible",
+    "betaBadge": "Beta",
     "installHint": "Toca «Instalar»: tu dispositivo te lo vuelve a preguntar y luego actualiza la app.",
     "sideloadHint": "Actualiza como instalaste la app: SideStore/AltStore, una IPA nueva o Run en Xcode.",
     "install": "Instalar",

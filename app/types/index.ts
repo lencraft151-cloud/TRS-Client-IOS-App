@@ -245,6 +245,8 @@ export interface Settings {
   sharedFolders: SharedFolder[]
   /** PC-Fernbedienung vom Handy (ab Werk aus) */
   remote: RemoteSettings
+  /** Android/iOS: auch den Beta-Kanal nach Updates fragen (ab Werk aus). */
+  mobileBeta: boolean
 }
 
 /** PC-Fernbedienung (Rust: `RemoteSettings`): an/aus und je Befehlsart erlaubt. */
@@ -485,6 +487,10 @@ export interface MobileUpdateStatus {
   altstoreSource: string | null
   /** iOS: `itms-services://…` einer mit Profil signierten IPA – installiert das Update direkt. */
   installUrl: string | null
+  /** Die gezeigte Version kommt aus dem Beta-Kanal. */
+  beta: boolean
+  /** Dieser Build kennt einen Beta-Kanal. */
+  betaChannel: boolean
 }
 
 /** `started`: Installationsdialog des Systems offen; `permissionRequired`: erst „Unbekannte Apps installieren“ erlauben. */
@@ -505,6 +511,8 @@ export interface AppInfo {
   dataMovable: boolean
   /** Gewählter eigener Datenordner, der beim Start fehlte (dann gilt der Standard). */
   missingDataDir: string | null
+  /** Android/iOS: Dieser Build kennt einen Beta-Kanal (Schalter „Beta-Versionen“). */
+  mobileBetaChannel?: boolean
 }
 
 /** TRS Client (In-Game-Mod): mitgelieferte Version, `update` = neuere aus dem Update-Kanal. */

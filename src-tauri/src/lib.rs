@@ -10,6 +10,7 @@ mod mobile;
 mod mobile_game;
 mod open;
 mod push;
+mod ui_tour;
 
 use std::sync::Arc;
 
@@ -431,6 +432,8 @@ pub fn run() {
             crash_report::crash_reports_seen,
             crash_report::crash_report_share,
             crash_report::ui_ready,
+            ui_tour::ui_tour,
+            ui_tour::ui_tour_step,
             event_icon::event_icon_sync,
             push::push_status,
             push::push_set_settings,
@@ -648,6 +651,9 @@ pub fn run() {
             deeplink::take_pending_remote_pair,
             deeplink::take_pending_push_target,
             deeplink::take_pending_modpack_link,
+            deeplink::take_opened_pack,
+            deeplink::opened_skins_pending,
+            deeplink::take_opened_skins,
             commands::remote::remote_pair_start,
             commands::remote::remote_pair_cancel,
             commands::remote::remote_publish_status,

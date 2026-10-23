@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Starttest der iOS-App im Simulator: bauen (debug, arm64-Simulator), installieren, starten, 45 s beobachten.
-# Schlägt fehl, wenn die App nicht mehr läuft oder die Oberfläche nicht lädt. Absturzbericht, Konsole, System-Log und
-# Screenshots landen in <ausgabe-ordner> (im CI als Artefakt „ios-simulator-smoke-test“).
+# Starttest der iOS-App im Simulator: bauen (debug, arm64-Simulator), installieren, starten, mindestens 45 s beobachten.
+# Dabei läuft der Klick-Test (TRS_UI_TOUR=1, app/utils/uiTour.ts): Die App geht selbst durch die Einrichtung und die
+# Hauptseiten und meldet jeden Schritt im Log – dazu entsteht je ein Screenshot tour-<nr>-<schritt>.png.
+# Schlägt fehl, wenn die App nicht mehr läuft, die Oberfläche nicht lädt, eine Seite leer bleibt oder der Klick-Test
+# nicht fertig wird. Absturzbericht, Konsole, System-Log und Screenshots landen in <ausgabe-ordner> (im CI als Artefakt
+# „ios-simulator-smoke-test“ und Release „ios-diagnostics“).
 #
 #   scripts/ios/simulator-smoke-test.sh <ausgabe-ordner>
 #
@@ -12,6 +15,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APPLE="$ROOT/src-tauri/gen/apple"
 OUT="${1:?Aufruf: simulator-smoke-test.sh <ausgabe-ordner>}"
 WAIT_SECONDS="${SMOKE_WAIT_SECONDS:-45}"
+TOUR_SECONDS="${SMOKE_TOUR_SECONDS:-180}"
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 DD="$OUT/derived-data"
@@ -57,22 +61,44 @@ log_pid=$!
 # Starten: `simctl launch` kehrt zurück, sobald der Prozess steht, und meldet „<bundle-id>: <pid>“. Simulator-Apps sind
 # normale Prozesse auf dem Mac – danach reicht kill -0. (Mit --console-pty im Hintergrund kam die PID-Zeile erst beim
 # Beenden aus dem Puffer.) stdout/stderr der App landen in Dateien.
-launched="$(xcrun simctl launch --terminate-running-process --stdout="$OUT/stdout.txt" --stderr="$OUT/stderr.txt" \
-  "$UDID" "$BUNDLE" 2>&1)" || { echo "$launched"; die "simctl launch"; }
+# SIMCTL_CHILD_… gibt simctl als Umgebungsvariable an die App weiter (Klick-Test an).
+launched="$(SIMCTL_CHILD_TRS_UI_TOUR=1 xcrun simctl launch --terminate-running-process --stdout="$OUT/stdout.txt" \
+  --stderr="$OUT/stderr.txt" "$UDID" "$BUNDLE" 2>&1)" || { echo "$launched"; die "simctl launch"; }
 pid=""
 if [[ "$launched" =~ :\ ([0-9]+) ]]; then pid="${BASH_REMATCH[1]}"; fi
 echo "App-Prozess: ${pid:-nicht gestartet} ($launched)"
 
 alive=0
+ticks=0
 seconds=0
+seen=0
+shots=0
+tour_done=0
+tour_failed=()
 if [ -n "$pid" ]; then
-  for _ in $(seq 1 "$WAIT_SECONDS"); do
-    sleep 1
-    seconds=$((seconds + 1))
+  while :; do
+    sleep 0.5
+    ticks=$((ticks + 1))
+    seconds=$((ticks / 2))
     if kill -0 "$pid" 2> /dev/null; then alive=1; else alive=0; break; fi
-    if [ "$seconds" = 10 ]; then
+    if [ "$ticks" = 20 ]; then
       xcrun simctl io "$UDID" screenshot "$OUT/screenshot-10s.png" > /dev/null 2>&1 || true
     fi
+    # Neue Schritte des Klick-Tests: Screenshot, solange der Schritt zu sehen ist (die App wartet je 2 s).
+    steps="$(grep -oE 'ui-tour: [a-z0-9-]+ (ok|FEHLER)' "$OUT/system-log.txt" 2> /dev/null || true)"
+    count="$(printf '%s\n' "$steps" | grep -c . || true)"
+    while [ "$seen" -lt "$count" ]; do
+      seen=$((seen + 1))
+      line="$(printf '%s\n' "$steps" | sed -n "${seen}p")"
+      name="$(printf '%s' "$line" | awk '{print $2}')"
+      result="$(printf '%s' "$line" | awk '{print $3}')"
+      shots=$((shots + 1))
+      xcrun simctl io "$UDID" screenshot "$OUT/tour-$(printf '%02d' "$shots")-$name.png" > /dev/null 2>&1 || true
+      echo "Klick-Test: $name $result"
+      if [ "$result" = FEHLER ]; then tour_failed+=("$name"); fi
+      if [ "$name" = fertig ]; then tour_done=1; fi
+    done
+    if [ "$seconds" -ge "$WAIT_SECONDS" ] && { [ "$tour_done" = 1 ] || [ "$seconds" -ge "$TOUR_SECONDS" ]; }; then break; fi
   done
 fi
 echo "App lief ${seconds}s (läuft am Ende: $([ "$alive" = 1 ] && echo ja || echo nein))"
@@ -108,4 +134,6 @@ fi
 # Oberfläche geladen? WebKit meldet das Ende des Hauptdokuments im Log der App.
 grep -q 'didFinishLoadForFrame: .*isMainFrame=1' "$OUT/system-log.txt" \
   || die "die App läuft, aber die Oberfläche wurde nicht geladen (schwarzer Bildschirm) – siehe system-log.txt"
-echo "Starttest bestanden: App läuft nach ${WAIT_SECONDS}s mit geladener Oberfläche, Screenshot: $OUT/screenshot.png"
+[ "$tour_done" = 1 ] || die "Klick-Test nicht fertig geworden (${shots} Schritte in ${seconds}s) – siehe tour-*.png und system-log.txt"
+[ "${#tour_failed[@]}" = 0 ] || die "Klick-Test: ohne Inhalt: ${tour_failed[*]} – siehe tour-*.png"
+echo "Starttest bestanden: App läuft ${seconds}s mit geladener Oberfläche, Klick-Test mit ${shots} Schritten, Screenshots in $OUT"

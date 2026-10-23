@@ -146,6 +146,12 @@ erscheint oben ein Hinweis:
   Release auch eine Quelle: `https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/altstore.json`
   – einmal als Quelle hinzufügen, dann kommen Updates dort an.
 
+### Beta-Versionen
+
+Pushes auf den Branch **`beta`** landen im Release **`ios-beta`** (auch von Hand: *Run workflow* → *publish* →
+Kanal `ios-beta`). In der App unter **Einstellungen → Verhalten → Beta-Versionen** einschalten: Sie prüft dann
+beide Releases und bietet die neuere Version an – ist `main` weiter, wieder die normale.
+
 ### Einmalig einrichten: Signier-Schlüssel für den Update-Kanal
 
 Damit niemand der App ein falsches Update unterschieben kann, ist `mobile.json` signiert. Der öffentliche
@@ -243,6 +249,11 @@ einmal komplett neu. Hintergrund:
 Stürzt sie weiter ab, in Xcode unten die Konsole öffnen (⇧⌘C) und die letzte rote Zeile bzw. den
 „Terminating app due to …“-Text schicken. Auf dem iPhone selbst liegen Absturzberichte unter
 Einstellungen → Datenschutz & Sicherheit → Analyse & Verbesserungen → Analysedaten („TRS Launcher-…“).
+
+**Absturzberichte der App:** Die App schreibt eigene Berichte nach **Dateien → Auf meinem iPhone → TRS Launcher →
+Crash Reports** – Abstürze und Hänger (von iOS beim nächsten Start nachgeliefert), Fehler im Rust-Kern und Starts,
+die vor der Oberfläche abbrachen. Der nächste Start zeigt neue Berichte mit **Teilen**. Lädt die Oberfläche nach
+25 Sekunden nicht, erscheint ein Fenster mit **Neu laden** und **Bericht teilen**.
 
 ## Projekt nach Änderungen neu erzeugen
 

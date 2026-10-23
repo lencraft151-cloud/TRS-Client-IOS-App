@@ -22,6 +22,8 @@ pub struct AppInfo {
     data_movable: bool,
     /// Gewählter eigener Datenordner, der beim Start fehlte (dann gilt der Standard).
     missing_data_dir: Option<String>,
+    /// Android/iOS: Dieser Build kennt einen Beta-Kanal (Schalter „Beta-Versionen“).
+    mobile_beta_channel: bool,
 }
 
 #[tauri::command]
@@ -35,6 +37,7 @@ pub fn app_info(launcher: State<'_, LauncherState>, location: State<'_, DataLoca
         data_source: location.source,
         data_movable: location.movable(),
         missing_data_dir: location.missing_custom.as_ref().map(|p| p.display().to_string()),
+        mobile_beta_channel: trs_core::platform::MOBILE && trs_core::mobile_update::has_beta_channel(),
     }
 }
 
