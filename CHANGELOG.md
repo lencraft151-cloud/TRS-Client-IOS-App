@@ -60,6 +60,18 @@ How to write an entry:
 - **Sicherungen auf iPhone und iPad.** Einstellungen → Sicherung legt deine Einstellungen, alle Instanzen mit Welten und Mods, Skins und die Touch-Steuerung in eine Datei – in iCloud Drive oder die Dateien-App, auf Wunsch jeden Tag automatisch. Wiederhergestellt ist sie mit einem Tipp oder durch Öffnen der Datei im Launcher, auch auf einem neuen Gerät.
 - **Widget, Live-Aktivität und Siri auf iPhone und iPad.** Ein Widget auf dem Home-Bildschirm startet deine zuletzt gespielte Instanz mit einem Tipp. Downloads und Installationen zeigen ihren Fortschritt auf dem Sperrbildschirm und in der Dynamic Island. „Starte TRS Launcher“ in Siri oder der Kurzbefehle-App startet deine letzte Instanz – oder eine, die du auswählst.
 
+## 0.27.4 – 2026-10-23 – Clean Cut Fix | Feinschliff
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.4/banner.png -->
+<!-- shots:
+/news/0.27.4/overlay-on-screen.png | The clip overlay above the game – it no longer keeps the launcher running after you close it | Das Clip-Overlay über dem Spiel – es hält den Launcher nach dem Schließen nicht mehr am Laufen
+-->
+
+### English
+- **Fixed: the launcher sometimes didn't open any more.** After playing with clips turned on, closing the launcher could leave it running invisibly in the background – starting it again then did nothing, and updates couldn't install. Closing the launcher window now always quits it completely.
+
+### Deutsch
+- **Behoben: Der Launcher ging manchmal nicht mehr auf.** Nach dem Spielen mit eingeschalteten Clips konnte der Launcher nach dem Schließen unsichtbar im Hintergrund weiterlaufen – ein neuer Start tat dann nichts, und Updates ließen sich nicht installieren. Schließt du das Launcher-Fenster, beendet er sich jetzt immer vollständig.
+
 ## 0.27.3 – 2026-10-23 – Clean Cut Fix | Feinschliff
 <!-- banner: accent=#3ee6c8 motif=/news/0.27.3/banner.png -->
 <!-- shots:
