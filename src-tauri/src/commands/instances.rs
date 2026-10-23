@@ -37,6 +37,8 @@ pub(crate) fn view(app: &AppHandle, launcher: &Launcher, instance: Instance) -> 
 #[tauri::command]
 pub async fn list_instances(app: AppHandle, launcher: State<'_, LauncherState>) -> CommandResult<Vec<InstanceView>> {
     let list = launcher.instances().list().await?;
+    // iOS: Kurzbefehle, Siri und Widget bekommen die aktuelle Liste.
+    crate::shortcuts::publish(&app, launcher.paths().root(), &list);
     Ok(list.into_iter().map(|i| view(&app, &launcher, i)).collect())
 }
 

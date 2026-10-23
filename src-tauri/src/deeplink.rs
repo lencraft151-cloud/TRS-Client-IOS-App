@@ -12,6 +12,8 @@
 //! - `trs-launcher://modpack/modrinth/<ID oder Slug>` bzw. `trs-launcher://modpack/curseforge/<Zahl>` (z. B. aus den
 //!   empfohlenen Modpacks) → Projektseite im Launcher. Installiert wird erst nach einem Klick.
 //!
+//! - `trs-launcher://play/<Instanz-ID oder last>?k=<Schlüssel>` (iOS-Kurzbefehl, Siri, Widget) → Seite der Instanz;
+//!   gestartet wird nur mit dem Schlüssel dieser Installation ([`crate::shortcuts`]), sonst erst nach einem Klick.
 //! - `file://…/<name>.mrpack|.zip|.png` (iOS „Öffnen in TRS Launcher“ aus der Dateien-App oder Safari) → Modpack: der
 //!   Import-Dialog mit Vorschau; Skin: die Seite „Skins“ mit der Übernahme. Angelegt wird erst nach einem Klick.
 //!
@@ -43,6 +45,33 @@ pub struct PendingPushTarget(Mutex<Option<String>>);
 /// Modpack-Projekt (`modrinth/<ID>` bzw. `curseforge/<Zahl>`) beim Start, bis die Oberfläche es abholt.
 #[derive(Default)]
 pub struct PendingModpackLink(Mutex<Option<String>>);
+
+/// Instanz aus einem Kurzbefehl/Widget beim Start, bis die Oberfläche sie abholt.
+#[derive(Default)]
+pub struct PendingPlay(Mutex<Option<PlayRequest>>);
+
+/// `trs-launcher://play/…`: welche Instanz (`last` = zuletzt gespielte) und ob der Schlüssel stimmte.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayRequest {
+    pub instance: String,
+    /// Mit Schlüssel (Kurzbefehl/Widget): gleich starten. Sonst nur die Instanz zeigen.
+    pub start: bool,
+}
+
+/// `trs-launcher://play/survival?k=…` → Instanz-ID (oder `last`) und Schlüssel.
+fn play_from_link(url: &str) -> Option<(String, String)> {
+    let parsed = tauri::Url::parse(url).ok()?;
+    if !parsed.scheme().eq_ignore_ascii_case(trs_core::pack_share::LINK_SCHEME) || url.len() > 300 || parsed.host_str() != Some("play") {
+        return None;
+    }
+    let id = parsed.path().trim_matches('/');
+    if id != "last" && trs_core::instance::validate_id(id).is_err() {
+        return None;
+    }
+    let key = parsed.query_pairs().find(|(k, _)| k == "k").map(|(_, v)| v.into_owned()).unwrap_or_default();
+    Some((id.to_owned(), key))
+}
 
 /// Geöffnete Modpack-Datei (gelesen und vorgemerkt), bis die Oberfläche sie abholt.
 #[derive(Default)]
@@ -87,6 +116,7 @@ enum Link {
     Modpack(String),
     /// `file://…` (Modpack oder Skin).
     File(String),
+    Play(PlayRequest),
 }
 
 /// `trs-launcher://modpack/modrinth/AANobbMI` → `modrinth/AANobbMI`; `…/curseforge/925200` → `curseforge/925200`.
@@ -122,6 +152,9 @@ fn push_target_from_link(url: &str) -> Option<String> {
 fn parse(url: &str) -> Option<Link> {
     if let Some(file) = opened_file_from_link(url) {
         return Some(Link::File(file));
+    }
+    if let Some((instance, key)) = play_from_link(url) {
+        return Some(Link::Play(PlayRequest { instance, start: crate::shortcuts::key_matches(&key) }));
     }
     if let Some(code) = trs_core::pack_share::pack_code_from_link(url) {
         return Some(Link::Pack(code));
@@ -181,6 +214,13 @@ fn handle(app: &AppHandle, urls: impl IntoIterator<Item = String>) {
         Link::File(url) => {
             log::info!("Datei geöffnet");
             tauri::async_runtime::spawn(open_file(app.clone(), url));
+        }
+        Link::Play(request) => {
+            log::info!("Link geöffnet: Instanz {} (starten: {})", request.instance, request.start);
+            if let Some(state) = app.try_state::<PendingPlay>() {
+                *state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(request.clone());
+            }
+            let _ = app.emit("open-play", request);
         }
     }
     if let Some(window) = app.get_webview_window("main") {
@@ -257,6 +297,7 @@ pub fn setup(app: &tauri::App) {
     app.manage(PendingPushTarget::default());
     app.manage(PendingModpackLink::default());
     app.manage(PendingOpenedPack::default());
+    app.manage(PendingPlay::default());
     app.manage(PendingOpenedSkins::default());
     // Installer melden das Protokoll an; zusätzlich beim Start (nur für den eigenen Benutzer), damit es auch nach
     // Updates über ältere Installer, im AppImage und in Entwicklungs-Builds zum laufenden Programm zeigt.
@@ -303,6 +344,12 @@ pub fn take_pending_modpack_link(state: State<'_, PendingModpackLink>) -> Option
     state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
 }
 
+/// Instanz aus einem Kurzbefehl/Widget (einmalig).
+#[tauri::command]
+pub fn take_pending_play(state: State<'_, PendingPlay>) -> Option<PlayRequest> {
+    state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
+}
+
 /// Geöffnete Modpack-Datei (einmalig) – für den Import-Dialog.
 #[tauri::command]
 pub fn take_opened_pack(state: State<'_, PendingOpenedPack>) -> Option<crate::commands::export::PickedPack> {
@@ -335,6 +382,21 @@ mod tests {
         assert!(push_target_from_link("trs-launcher://notifyx/chat").is_none());
         assert!(push_target_from_link("https://notify/chat").is_none());
         assert!(matches!(parse("trs-launcher://notify/worlds/r1/requests"), Some(Link::PushTarget(t)) if t == "/worlds/r1/requests"));
+    }
+
+    #[test]
+    fn play_links_need_a_valid_instance() {
+        assert_eq!(play_from_link("trs-launcher://play/survival?k=abc"), Some(("survival".into(), "abc".into())));
+        assert_eq!(play_from_link("trs-launcher://play/last"), Some(("last".into(), String::new())));
+        // `..` löst die URL selbst auf; übrig bleiben nur gültige IDs.
+        assert_eq!(play_from_link("trs-launcher://play/../etc").map(|(id, _)| id), Some("etc".into()));
+        assert!(play_from_link("trs-launcher://play/a/b").is_none());
+        assert!(play_from_link("trs-launcher://play/a%2F..%2Fb").is_none());
+        assert!(play_from_link("trs-launcher://play/").is_none());
+        assert!(play_from_link("trs-launcher://pack/ABCD").is_none());
+        assert!(play_from_link("https://play/survival").is_none());
+        // Ohne gespeicherten Schlüssel wird nie gleich gestartet.
+        assert!(matches!(parse("trs-launcher://play/survival?k=x"), Some(Link::Play(PlayRequest { start: false, .. }))));
     }
 
     #[test]

@@ -1119,6 +1119,11 @@ export const backend = {
   },
   /** Oberfläche geladen: iOS-Start-Wächter aus, Startverlauf „ui“. */
   uiReady: () => call<void>('ui_ready'),
+  /** iOS: Live-Aktivität einer Aufgabe (Sperrbildschirm, Dynamic Island). `progress` 0…1, negativ = unbestimmt. */
+  liveActivity: (update: { id: string; kind: string; title: string; detail: string; progress: number; done: boolean }) =>
+    call<void>('live_activity', update),
+  /** iOS: Kurzbefehl/Widget/Siri hat eine Instanz geöffnet (einmalig abholen). */
+  takePendingPlay: () => call<{ instance: string; start: boolean } | null>('take_pending_play'),
   /** Klick-Test im CI (`TRS_UI_TOUR=1`): läuft er, und welcher Schritt ist zu sehen. */
   uiTour: () => call<boolean>('ui_tour'),
   uiTourStep: (name: string, ok: boolean) => call<void>('ui_tour_step', { name, ok }),

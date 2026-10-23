@@ -11,6 +11,8 @@
 # Profil-Arten: Development (mit get-task-allow → JIT für den Minecraft-Start möglich), Ad Hoc und Enterprise
 # (Launcher läuft, Minecraft startet ohne JIT nicht). Die Entitlements kommen aus dem Profil – was das Profil
 # nicht erlaubt (z. B. increased-memory-limit), fällt weg; die App passt den Speicher zur Laufzeit an.
+# Widget-Erweiterung (PlugIns/TRSWidgets.appex, Bundle-ID <app>.widgets): mit Wildcard-Profil wird sie mitsigniert,
+# mit einem Profil nur für die App fällt sie weg (die App läuft dann ohne Widget und Live-Aktivität).
 # Braucht macOS (security, codesign, PlistBuddy).
 set -euo pipefail
 
@@ -104,6 +106,14 @@ $PB -c "Set :CFBundleIdentifier $bundle" "$PLIST"
 $PB -c "Set :CFBundleURLTypes:0:CFBundleURLName $bundle" "$PLIST" 2> /dev/null || true
 $PB -c "Set :application-identifier $TEAM.$bundle" "$TMP/entitlements.plist"
 echo "Bundle-ID: $bundle"
+# App-Gruppe (Widget sieht die Instanzliste): nur, wenn das Profil eine erlaubt.
+app_group="$($PB -c 'Print :com.apple.security.application-groups:0' "$TMP/entitlements.plist" 2> /dev/null || true)"
+set_app_group() {
+  $PB -c "Delete :TRSAppGroup" "$1" 2> /dev/null || true
+  if [ -n "$app_group" ]; then $PB -c "Add :TRSAppGroup string $app_group" "$1"; fi
+}
+set_app_group "$PLIST"
+echo "  App-Gruppe: ${app_group:-keine}"
 for key in get-task-allow com.apple.developer.kernel.increased-memory-limit com.apple.developer.kernel.extended-virtual-addressing; do
   if [ "$($PB -c "Print :$key" "$TMP/entitlements.plist" 2> /dev/null)" = true ]; then
     echo "  $key: ja"
@@ -112,7 +122,17 @@ for key in get-task-allow com.apple.developer.kernel.increased-memory-limit com.
   fi
 done
 
-# --- Signieren: erst eingebettete Bibliotheken/Frameworks, zuletzt die App mit Profil + Entitlements ---
+# --- Erweiterungen: gilt das Profil auch für <bundle>.<endung>? ---
+if [ -d "$APP/PlugIns" ]; then
+  if [ "$profile_bundle" = '*' ] || [[ "$profile_bundle" == *'.*' ]]; then
+    echo "Erweiterungen: $(find "$APP/PlugIns" -maxdepth 1 -name '*.appex' -exec basename {} \; | tr '\n' ' ')(Wildcard-Profil)"
+  else
+    echo "Erweiterungen entfernt (Profil nur für $profile_bundle – für Widget und Live-Aktivität ein Wildcard-Profil nehmen)"
+    rm -rf "$APP/PlugIns"
+  fi
+fi
+
+# --- Signieren: erst eingebettete Bibliotheken/Frameworks, dann Erweiterungen, zuletzt die App mit Profil + Entitlements ---
 rm -rf "$APP/_CodeSignature"
 cp "$PROFILE" "$APP/embedded.mobileprovision"
 sign() { codesign --force --sign "$IDENTITY" --keychain "$KEYCHAIN" --timestamp=none "$@"; }
@@ -122,9 +142,22 @@ if [ -d "$APP/Frameworks" ]; then
 fi
 while IFS= read -r -d '' file; do
   [ "$file" = "$APP/$EXE" ] && continue
-  case "$file" in *.framework/*) continue ;; esac
+  case "$file" in *.framework/* | "$APP"/PlugIns/*) continue ;; esac
   if file "$file" | grep -q 'Mach-O'; then sign "$file"; fi
 done < <(find "$APP" -type f -print0)
+while IFS= read -r -d '' ext; do
+  ext_plist="$ext/Info.plist"
+  ext_old="$($PB -c 'Print :CFBundleIdentifier' "$ext_plist")"
+  ext_bundle="$bundle.${ext_old##*.}"
+  $PB -c "Set :CFBundleIdentifier $ext_bundle" "$ext_plist"
+  set_app_group "$ext_plist"
+  cp "$TMP/entitlements.plist" "$TMP/ext-entitlements.plist"
+  $PB -c "Set :application-identifier $TEAM.$ext_bundle" "$TMP/ext-entitlements.plist"
+  rm -rf "$ext/_CodeSignature"
+  cp "$PROFILE" "$ext/embedded.mobileprovision"
+  sign --entitlements "$TMP/ext-entitlements.plist" "$ext"
+  echo "  $(basename "$ext"): $ext_bundle"
+done < <(find "$APP/PlugIns" -maxdepth 1 -name '*.appex' -type d -print0 2> /dev/null)
 sign --entitlements "$TMP/entitlements.plist" "$APP"
 codesign --verify --deep --strict "$APP"
 codesign -d --entitlements - "$APP" 2> /dev/null | grep -q "$TEAM.$bundle" || die "Entitlements fehlen in der Signatur"

@@ -53,10 +53,12 @@ cat > "$PKG/LIESMICH.md" << EOF
 # TRS Launcher $version – Xcode-Paket
 
 1. **TRS-Launcher.xcworkspace** doppelklicken (Xcode 16 oder neuer).
-2. Links das Projekt **trs-launcher** → Target **trs-launcher_iOS** → **Signing & Capabilities**:
-   bei **Team** dein Apple-Konto wählen (Xcode → Settings → Accounts, falls noch keins angemeldet ist).
-   Meldet Xcode, die Bundle-ID sei vergeben: unter *Bundle Identifier* eine eigene eintragen,
-   z. B. \`de.deinname.trslauncher\`.
+2. **Signing.xcconfig** öffnen und bei \`DEVELOPMENT_TEAM =\` deine Team-ID eintragen (10 Zeichen, steht in
+   Xcode → Settings → Accounts → dein Konto → Team bzw. auf developer.apple.com → Membership).
+   Meldet Xcode, die Bundle-ID sei vergeben: dort bei \`PRODUCT_BUNDLE_IDENTIFIER\` eine eigene eintragen,
+   z. B. \`de.deinname.trslauncher\`. Die Datei gilt für beide Targets (App **trs-launcher_iOS** und Widget
+   **TRSWidgets**, Bundle-ID der App + \`.widgets\`) – in *Signing & Capabilities* müsstest du beides sonst
+   bei beiden Targets einstellen.
 3. iPhone/iPad per Kabel anschließen und oben als Ziel wählen (kein Simulator), dann **▶ Run**.
    Auf dem Gerät: Einstellungen → Allgemein → VPN und Geräteverwaltung → Entwickler vertrauen;
    ab iOS 16 zusätzlich Datenschutz & Sicherheit → Entwicklermodus einschalten.
@@ -66,9 +68,9 @@ per Doppelklick installieren, dann in *Signing & Capabilities* "Automatically ma
 Profil wählen – oder alles in \`Signing.xcconfig\` eintragen.
 **IPA zum Verteilen:** Product → Archive → Distribute App (Development, Ad Hoc oder Enterprise).
 
-**Kostenloses Apple-Konto (Personal Team):** Meldet Xcode, *Increased Memory Limit* werde nicht unterstützt,
-in \`Signing.xcconfig\` die Zeile mit \`trs-launcher_iOS-basic.entitlements\` aktivieren
-(die andere \`TRS_ENTITLEMENTS\`-Zeile mit \`//\` auskommentieren).
+**Kostenloses Apple-Konto (Personal Team):** Meldet Xcode, *Increased Memory Limit* oder *App Groups* werde nicht
+unterstützt, in \`Signing.xcconfig\` die Zeilen mit \`trs-launcher_iOS-basic.entitlements\` und
+\`TRSWidgets-basic.entitlements\` aktivieren (die anderen beiden Zeilen mit \`//\` auskommentieren).
 
 $engine_note
 **JIT (Just-in-Time) für Minecraft Java ist eingebaut:** Mit **▶ Run** aus Xcode gestartet, ist JIT automatisch an –

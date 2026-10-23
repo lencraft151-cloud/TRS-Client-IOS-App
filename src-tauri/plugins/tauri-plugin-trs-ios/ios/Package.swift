@@ -1,5 +1,6 @@
 // swift-tools-version:5.5
-// TRS Launcher – iOS: Absturzberichte (MetricKit), Start-Wächter, Anmeldefenster (ASWebAuthenticationSession), Teilen.
+// TRS Launcher – iOS: Absturzberichte (MetricKit), Start-Wächter, Anmeldefenster (ASWebAuthenticationSession), Teilen,
+// Live-Aktivität und Widget-Aktualisierung.
 
 import PackageDescription
 

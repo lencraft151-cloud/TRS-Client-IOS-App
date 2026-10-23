@@ -170,6 +170,29 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => unlistenOpened.forEach((u) => u()))
 
+// iOS-Kurzbefehl, Siri oder Widget (`trs-launcher://play/<id|last>`): Instanz zeigen – mit dem Schlüssel der App
+// (`start`) gleich starten, von anderswo erst nach einem Tipp.
+let unlistenPlay: (() => void) | null = null
+onMounted(async () => {
+  if (!isTauri() || hostOs !== 'ios') return
+  // Laufende Aufgaben als Live-Aktivität (Sperrbildschirm, Dynamic Island).
+  startLiveActivities(() => useTasksStore().tasks)
+  const open = async (request: { instance: string; start: boolean } | null) => {
+    if (!request) return
+    if (!instances.loaded) await instances.load().catch(() => {})
+    const target = request.instance === 'last' ? lastPlayedInstance(instances.items) : instances.items.find((i) => i.id === request.instance)
+    if (!target) return
+    await router.push(`/instances/${target.id}`)
+    if (request.start && games.state(target.id).phase === 'idle') void games.launch(target.id)
+  }
+  // Das Backend merkt jede Anfrage vor; abgeholt wird sie genau einmal (sonst käme sie nach einem Neuladen der
+  // Oberfläche oder beim gleichzeitigen Abholen unten ein zweites Mal).
+  const takePending = () => backend.takePendingPlay().catch(() => null)
+  unlistenPlay = await listen('open-play', () => void takePending().then(open))
+  await open(await takePending())
+})
+onBeforeUnmount(() => unlistenPlay?.())
+
 // Tipp auf eine Push-Benachrichtigung (`trs-launcher://notify/<Route>`, §33.5): passende Seite bzw. Dialog öffnen.
 let unlistenPushTarget: (() => void) | null = null
 onMounted(async () => {

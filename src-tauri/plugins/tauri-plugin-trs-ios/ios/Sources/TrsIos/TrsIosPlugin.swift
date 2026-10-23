@@ -6,6 +6,7 @@ import Foundation
 import Tauri
 import UIKit
 import WebKit
+import WidgetKit
 
 class UrlArgs: Decodable {
   let url: String
@@ -127,6 +128,49 @@ class TrsIosPlugin: Plugin {
       }
       invoke.resolve(["path": dest.path])
     }
+  }
+
+  /// Ordner für `shared.json` (Kurzbefehle, Widget): App-Gruppe, falls die Entitlements sie erlauben, und immer
+  /// Application Support der App.
+  @objc public func sharedDirs(_ invoke: Invoke) {
+    var dirs: [String] = []
+    if let group = Bundle.main.object(forInfoDictionaryKey: "TRSAppGroup") as? String, !group.isEmpty, !group.contains("$("),
+      let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    {
+      dirs.append(url.appendingPathComponent("TRS", isDirectory: true).path)
+    }
+    if let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+      dirs.append(support.appendingPathComponent("TRS-Shared", isDirectory: true).path)
+    }
+    invoke.resolve(["dirs": dirs])
+  }
+
+  /// `shared.json` ist neu: Widget neu laden, Siri die neuen Instanznamen geben (TrsShortcutsBridge im App-Target).
+  @objc public func sharedChanged(_ invoke: Invoke) {
+    WidgetCenter.shared.reloadAllTimelines()
+    DispatchQueue.main.async {
+      // Klassenmethode `+refresh` über die Objective-C-Laufzeit (die Klasse liegt nicht in diesem Paket).
+      if let bridge = NSClassFromString("TrsShortcutsBridge") {
+        let selector = NSSelectorFromString("refresh")
+        let object = bridge as AnyObject
+        if object.responds(to: selector) {
+          _ = object.perform(selector)
+        }
+      }
+    }
+    invoke.resolve()
+  }
+
+  /// Live-Aktivität einer Aufgabe (Download, Installation) – ab iOS 16.2, sonst nichts.
+  @objc public func liveActivity(_ invoke: Invoke) {
+    guard let args = try? invoke.parseArgs(ActivityArgs.self) else {
+      invoke.reject("invalid_args", code: "invalid_args")
+      return
+    }
+    if #available(iOS 16.2, *) {
+      DispatchQueue.main.async { LiveActivities.shared.update(args) }
+    }
+    invoke.resolve()
   }
 
   @objc public func deviceInfo(_ invoke: Invoke) {

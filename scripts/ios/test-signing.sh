@@ -76,6 +76,18 @@ while IFS= read -r -d '' lib; do
   codesign -dvv "$lib" 2>&1 | grep -q "Authority=TRS Test Signing" || die "nicht signiert: ${lib#"$app"/}"
 done < <(find "$app/Frameworks" -name '*.dylib' -print0 2> /dev/null)
 
+# Widget-Erweiterung: mit dem Wildcard-Profil mitsigniert, Bundle-ID <app>.widgets.
+ext="$app/PlugIns/TRSWidgets.appex"
+[ -d "$ext" ] || die "Widget-Erweiterung fehlt (PlugIns/TRSWidgets.appex)"
+[ -f "$ext/embedded.mobileprovision" ] || die "Widget: embedded.mobileprovision fehlt"
+[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$ext/Info.plist")" = "$bundle.widgets" ] || die "Widget: Bundle-ID"
+codesign -d --entitlements :- "$ext" > ext-ent.plist 2> /dev/null
+[ "$(/usr/libexec/PlistBuddy -c 'Print :application-identifier' ext-ent.plist)" = "$TEAM.$bundle.widgets" ] \
+  || die "Widget: application-identifier falsch"
+if /usr/libexec/PlistBuddy -c 'Print :TRSAppGroup' "$app/Info.plist" > /dev/null 2>&1; then
+  die "TRSAppGroup gesetzt, obwohl das Profil keine App-Gruppe erlaubt"
+fi
+
 # --- OTA-Manifest ---
 bash "$ROOT/scripts/ios/ota-manifest.sh" signed.ipa https://example.com/TRS.ipa https://example.com/manifest.plist ota > /dev/null
 plutil -lint ota/manifest.plist

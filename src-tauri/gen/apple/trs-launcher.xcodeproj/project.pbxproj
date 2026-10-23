@@ -7,93 +7,168 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		30DBBA0B5FF5D0C12808541EC4E29B20 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D422CF2A96BC850B1F581790F4072EA /* WebKit.framework */; };
-		35333A38E306280544A8ADF933C2A5E8 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5026ABC76C6FA6FABE380A0666CA7A4E /* Security.framework */; };
-		3BB304EDFE71BCA2E9A28CC0BD772D50 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8287175D30EAAC6B6DBD206A7724922D /* main.mm */; };
-		3BD81C44299BA8E1B3F30FB12D1B8CAC /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2810B647DF9BD3027223B0726147A645 /* UIKit.framework */; };
-		4DEF202A8BEB4E64E14E3B9FDEA956B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1207921198E4D912332437064C25D903 /* Assets.xcassets */; };
-		9F11A686301B5E4DAFF1EAA3E45C698C /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E81AE92DFEC189D6F2A0ED65F126F936 /* MetalKit.framework */; };
-		CA2BE358D76E1E8C5BE394FE82541414 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B10C650C222227B08FC5EE4F23AB1E8 /* CoreGraphics.framework */; };
-		E899AD604DDB1FCCE25C970412CDC1D8 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C7A4961E85505C3AC62BB60AAF0A2A4 /* QuartzCore.framework */; };
-		F29A56BA95644B3C389B0202616B73E5 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */; };
-		F2E23B7F7C29813D5D66FF55BC843EF4 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C16B550917315ABF0D27676FFFF50635 /* Metal.framework */; };
+		14313FEEE21F0533958FBCFF98FB976B /* TrsShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */; };
+		262C72CCFD68396E126215A2BF26F5D8 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A984DEF92B6E7EAA1E49690FFB957B08 /* CoreGraphics.framework */; };
+		2F66C6454A546F9D64B0C6EE6DD80813 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A791BC293CF363F2AD57EA09C420A2AB /* WebKit.framework */; };
+		4129C410A41B561C08C64FD69ED560DE /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF22F0A4B2A52FA41C09362E6EAAFB62 /* SwiftUI.framework */; };
+		50D5E041E077BF754E28A5D5830F7905 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93466DBDBA728BE947821B3855AF8EF2 /* UIKit.framework */; };
+		59265EEADC4C78077792B4EB00F3D72B /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E28CCCF481879521DF4B097E8663508 /* QuartzCore.framework */; };
+		5B7FF6ADF87479B63D2AB23C541769FB /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6432A0E65855671CDB7B8014F15BF63F /* Shortcuts.swift */; };
+		780C1EADADA7751073CFF1238AD82B07 /* TrsShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */; };
+		7AC98BAFCE117F45426D863D2477C89D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = E7D49F66059797459928047886EE8DEF /* main.mm */; };
+		7E8697287FB05464485FA3B238A48B11 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C008F6ACB686EA6C5BCBD1AFFA01C0E /* Metal.framework */; };
+		A5653855C749571574795C187244E441 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */; };
+		AACBAC6DB630A17648D2D4CC85F4F7EE /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA10167A743586B41C4E4B0D40B54C6B /* MetalKit.framework */; };
+		B1EDA3DC3C801A71C78373510BB48B44 /* TRSWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E37EAA50A562150A15A2D57CE192D2 /* TRSWidgets.swift */; };
+		BEBE937649B9481B530B3E1DDC88459F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08FA78A494B319AB3D067862D1432388 /* WidgetKit.framework */; };
+		C6714B5490ACC233F867342F4116B6AC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1207921198E4D912332437064C25D903 /* Assets.xcassets */; };
+		E2C9CF880494E473F87DBFE69DB1980E /* TRSWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ACF709A80F0D8A0CC436F327E71C9A01 /* TRSWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EA888FB2A1ABF988B95D5F927C987502 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F691D726D3A6AD1DB49748E8C14796CD /* ActivityKit.framework */; };
+		F92A5395D41A9BB6ED1F910338F1DD2E /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DE152AAD5AE8B9D12B7753AC37CBB990 /* Security.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		1E513BFF7AF55DFEB434B5FCF4F29116 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 719EC1A2CD9EA72C09E3A9C2264871AE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4687B9567CE8D538C8F96C9986D11A59;
+			remoteInfo = TRSWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		23A80404B0C35B41C5A99364338472EE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				E2C9CF880494E473F87DBFE69DB1980E /* TRSWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		08C8EA1DDF717E60C0D404A8441BF2EE /* bindings.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		08FA78A494B319AB3D067862D1432388 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		1207921198E4D912332437064C25D903 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		2671622B13B64D97590DB8A4AC7C5DB1 /* TRS Launcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TRS Launcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2810B647DF9BD3027223B0726147A645 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
-		2B10C650C222227B08FC5EE4F23AB1E8 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
-		3C7A4961E85505C3AC62BB60AAF0A2A4 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		17E37EAA50A562150A15A2D57CE192D2 /* TRSWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TRSWidgets.swift; sourceTree = "<group>"; };
+		384EEB8DE98F43E78FDE3301FAF79CE4 /* bindings.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		3C008F6ACB686EA6C5BCBD1AFFA01C0E /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		406F0B37821B753E9698B6F78DF91E04 /* UpdateChannel.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = UpdateChannel.xcconfig; sourceTree = "<group>"; };
 		4AA8D6B7F3FE0E882DF1D1EFED096B91 /* build-rust.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "build-rust.sh"; sourceTree = "<group>"; };
-		5026ABC76C6FA6FABE380A0666CA7A4E /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		4BC9CC1982F963EDFAF65B0F6402C433 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		4E28CCCF481879521DF4B097E8663508 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		4FE994C4E27C416E015A81A417995F08 /* TRSWidgets-basic.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "TRSWidgets-basic.entitlements"; sourceTree = "<group>"; };
 		5A62B06061AED4C9C549C0B9BB05E5D9 /* ExportOptions-ad-hoc.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-ad-hoc.plist"; sourceTree = "<group>"; };
 		5E461E63D8727FD93E55B054B565B672 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		8287175D30EAAC6B6DBD206A7724922D /* main.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = main.mm; sourceTree = "<group>"; };
-		8D422CF2A96BC850B1F581790F4072EA /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		6432A0E65855671CDB7B8014F15BF63F /* Shortcuts.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
+		7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrsShared.swift; sourceTree = "<group>"; };
 		92E772C5D2D1BE8122F60CF5C057B6BD /* ExportOptions-enterprise.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-enterprise.plist"; sourceTree = "<group>"; };
+		93466DBDBA728BE947821B3855AF8EF2 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		A791BC293CF363F2AD57EA09C420A2AB /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		A984DEF92B6E7EAA1E49690FFB957B08 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		AAD4BF65A7E1EE0D7AD3800D51333073 /* TRSWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = TRSWidgets.entitlements; sourceTree = "<group>"; };
+		ACF709A80F0D8A0CC436F327E71C9A01 /* TRSWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TRSWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF22F0A4B2A52FA41C09362E6EAAFB62 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		BA704E0E2501102FF20CBE5FE06D1A2D /* trs-launcher_iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS.entitlements"; sourceTree = "<group>"; };
 		BB11233413CB7A3BA3079B8A99E7B9AA /* embed-engine.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "embed-engine.sh"; sourceTree = "<group>"; };
+		BEE94D02CA6DBFBCAECE14213B97D5C4 /* TRS Launcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TRS Launcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFB42F85E1C642ABB515C2CC8095B1F6 /* trs_jit.py */ = {isa = PBXFileReference; includeInIndex = 1; path = trs_jit.py; sourceTree = "<group>"; };
-		C16B550917315ABF0D27676FFFF50635 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		C9CBAE332F66E7CEE3E79B898B099588 /* trs-jit.lldbinit */ = {isa = PBXFileReference; includeInIndex = 1; path = "trs-jit.lldbinit"; sourceTree = "<group>"; };
-		E81AE92DFEC189D6F2A0ED65F126F936 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		DA10167A743586B41C4E4B0D40B54C6B /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		DE152AAD5AE8B9D12B7753AC37CBB990 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		E7D49F66059797459928047886EE8DEF /* main.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = main.mm; sourceTree = "<group>"; };
 		E96AA7A847284B3BC85CBE51D1E690D2 /* ExportOptions-development.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-development.plist"; sourceTree = "<group>"; };
 		F369D2F302D61A70177310A4FE333558 /* trs-launcher_iOS-basic.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS-basic.entitlements"; sourceTree = "<group>"; };
+		F691D726D3A6AD1DB49748E8C14796CD /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		7D54D2EB0F418E248953E637802B1463 /* Frameworks */ = {
+		3E3EBA2CFFD607BB3E3FFD7E4634350E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CA2BE358D76E1E8C5BE394FE82541414 /* CoreGraphics.framework in Frameworks */,
-				F2E23B7F7C29813D5D66FF55BC843EF4 /* Metal.framework in Frameworks */,
-				9F11A686301B5E4DAFF1EAA3E45C698C /* MetalKit.framework in Frameworks */,
-				E899AD604DDB1FCCE25C970412CDC1D8 /* QuartzCore.framework in Frameworks */,
-				35333A38E306280544A8ADF933C2A5E8 /* Security.framework in Frameworks */,
-				3BD81C44299BA8E1B3F30FB12D1B8CAC /* UIKit.framework in Frameworks */,
-				30DBBA0B5FF5D0C12808541EC4E29B20 /* WebKit.framework in Frameworks */,
+				262C72CCFD68396E126215A2BF26F5D8 /* CoreGraphics.framework in Frameworks */,
+				7E8697287FB05464485FA3B238A48B11 /* Metal.framework in Frameworks */,
+				AACBAC6DB630A17648D2D4CC85F4F7EE /* MetalKit.framework in Frameworks */,
+				59265EEADC4C78077792B4EB00F3D72B /* QuartzCore.framework in Frameworks */,
+				F92A5395D41A9BB6ED1F910338F1DD2E /* Security.framework in Frameworks */,
+				50D5E041E077BF754E28A5D5830F7905 /* UIKit.framework in Frameworks */,
+				2F66C6454A546F9D64B0C6EE6DD80813 /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAB689AB3881BBFEB77AB9D7B72C164D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EA888FB2A1ABF988B95D5F927C987502 /* ActivityKit.framework in Frameworks */,
+				4129C410A41B561C08C64FD69ED560DE /* SwiftUI.framework in Frameworks */,
+				BEBE937649B9481B530B3E1DDC88459F /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0CAF1C3B3EBA9A63391E0338F203BEAF /* Frameworks */ = {
+		030665A93F7491B2619BFC58451CF2E4 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				2B10C650C222227B08FC5EE4F23AB1E8 /* CoreGraphics.framework */,
-				C16B550917315ABF0D27676FFFF50635 /* Metal.framework */,
-				E81AE92DFEC189D6F2A0ED65F126F936 /* MetalKit.framework */,
-				3C7A4961E85505C3AC62BB60AAF0A2A4 /* QuartzCore.framework */,
-				5026ABC76C6FA6FABE380A0666CA7A4E /* Security.framework */,
-				2810B647DF9BD3027223B0726147A645 /* UIKit.framework */,
-				8D422CF2A96BC850B1F581790F4072EA /* WebKit.framework */,
+				7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */,
 			);
-			name = Frameworks;
+			name = Shared;
+			path = Shared;
 			sourceTree = "<group>";
 		};
-		5B9CE0CB97755836BB2705DCF143FE30 /* Products */ = {
+		2C4E453E1FF4AB6C57DEEC36DB0C16BF /* trs-launcher */ = {
 			isa = PBXGroup;
 			children = (
-				2671622B13B64D97590DB8A4AC7C5DB1 /* TRS Launcher.app */,
+				E7D49F66059797459928047886EE8DEF /* main.mm */,
+				6432A0E65855671CDB7B8014F15BF63F /* Shortcuts.swift */,
+				80DE66BE2D0377B2D5931E95842DFF1C /* bindings */,
+			);
+			name = "trs-launcher";
+			path = "trs-launcher";
+			sourceTree = "<group>";
+		};
+		4BE190579A5387D2854ED7313839F263 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BEE94D02CA6DBFBCAECE14213B97D5C4 /* TRS Launcher.app */,
+				ACF709A80F0D8A0CC436F327E71C9A01 /* TRSWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		61583AC84C2C3C0B6F3DE40A756080F8 /* trs-launcher */ = {
+		5B9FCC7F1653D63A5BEC7BE9D6E5AE53 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				8287175D30EAAC6B6DBD206A7724922D /* main.mm */,
-				B1E1CC8C31AFCAEAA42E1E04B917595A /* bindings */,
+				A984DEF92B6E7EAA1E49690FFB957B08 /* CoreGraphics.framework */,
+				3C008F6ACB686EA6C5BCBD1AFFA01C0E /* Metal.framework */,
+				DA10167A743586B41C4E4B0D40B54C6B /* MetalKit.framework */,
+				4E28CCCF481879521DF4B097E8663508 /* QuartzCore.framework */,
+				DE152AAD5AE8B9D12B7753AC37CBB990 /* Security.framework */,
+				93466DBDBA728BE947821B3855AF8EF2 /* UIKit.framework */,
+				A791BC293CF363F2AD57EA09C420A2AB /* WebKit.framework */,
+				F691D726D3A6AD1DB49748E8C14796CD /* ActivityKit.framework */,
+				AF22F0A4B2A52FA41C09362E6EAAFB62 /* SwiftUI.framework */,
+				08FA78A494B319AB3D067862D1432388 /* WidgetKit.framework */,
 			);
-			name = "trs-launcher";
-			path = "trs-launcher";
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		80DE66BE2D0377B2D5931E95842DFF1C /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				384EEB8DE98F43E78FDE3301FAF79CE4 /* bindings.h */,
+			);
+			name = bindings;
+			path = bindings;
 			sourceTree = "<group>";
 		};
 		8980BA3857A5C9715481B61AA60A7B34 /* lldb */ = {
@@ -127,15 +202,29 @@
 			path = "trs-launcher_iOS";
 			sourceTree = "<group>";
 		};
+		A7AE56E4C5589BE8E256C7610B3505B1 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				17E37EAA50A562150A15A2D57CE192D2 /* TRSWidgets.swift */,
+				4BC9CC1982F963EDFAF65B0F6402C433 /* Info.plist */,
+				AAD4BF65A7E1EE0D7AD3800D51333073 /* TRSWidgets.entitlements */,
+				4FE994C4E27C416E015A81A417995F08 /* TRSWidgets-basic.entitlements */,
+			);
+			name = Widgets;
+			path = Widgets;
+			sourceTree = "<group>";
+		};
 		AAEC4B13893FBEC48E366075D238793A = {
 			isa = PBXGroup;
 			children = (
-				5B9CE0CB97755836BB2705DCF143FE30 /* Products */,
-				0CAF1C3B3EBA9A63391E0338F203BEAF /* Frameworks */,
-				B3077B82070737B1A5CF29EB35261EA7 /* Sources */,
+				4BE190579A5387D2854ED7313839F263 /* Products */,
+				5B9FCC7F1653D63A5BEC7BE9D6E5AE53 /* Frameworks */,
+				DC122AD0CE050F836A9A994140B305E7 /* Sources */,
 				1207921198E4D912332437064C25D903 /* Assets.xcassets */,
 				B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */,
 				9D17912958FB9749807143D391223546 /* trs-launcher_iOS */,
+				030665A93F7491B2619BFC58451CF2E4 /* Shared */,
+				A7AE56E4C5589BE8E256C7610B3505B1 /* Widgets */,
 				09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */,
 				406F0B37821B753E9698B6F78DF91E04 /* UpdateChannel.xcconfig */,
 				9B740BCCBD5B5340819C85AE43469DA8 /* scripts */,
@@ -146,19 +235,10 @@
 			);
 			sourceTree = "<group>";
 		};
-		B1E1CC8C31AFCAEAA42E1E04B917595A /* bindings */ = {
+		DC122AD0CE050F836A9A994140B305E7 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				08C8EA1DDF717E60C0D404A8441BF2EE /* bindings.h */,
-			);
-			name = bindings;
-			path = bindings;
-			sourceTree = "<group>";
-		};
-		B3077B82070737B1A5CF29EB35261EA7 /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				61583AC84C2C3C0B6F3DE40A756080F8 /* trs-launcher */,
+				2C4E453E1FF4AB6C57DEEC36DB0C16BF /* trs-launcher */,
 			);
 			name = Sources;
 			path = Sources;
@@ -167,24 +247,43 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		EEE8A3A865CEA699A1D3E796E47AB368 /* trs-launcher_iOS */ = {
+		2D2498D895765B474A6680EE06B7A389 /* trs-launcher_iOS */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 70184642C0F209E1392A765F04B6BF42 /* Build configuration list for PBXNativeTarget "trs-launcher_iOS" */;
+			buildConfigurationList = B49E3D38DD74D88F7B93DBF6E7D85D4A /* Build configuration list for PBXNativeTarget "trs-launcher_iOS" */;
 			buildPhases = (
-				842EB1248DD7CF024DD7A521FB48DBAB /* Build Rust Code */,
-				E95325770C9A48FBDE964AED7A32909A /* Sources */,
-				7D54D2EB0F418E248953E637802B1463 /* Frameworks */,
-				59F31DB6FCA3BD43A074F8289D38D33D /* Resources */,
-				173AC2AFA8F1D6913C68797CFBA5FC06 /* Embed Game Engine */,
+				396762819FCD5B634A029780002E7077 /* Build Rust Code */,
+				A3A3314FF0C9064B640E20B8BA436CE8 /* Sources */,
+				3E3EBA2CFFD607BB3E3FFD7E4634350E /* Frameworks */,
+				B1C911888CE9CCD57A210066C5829733 /* Resources */,
+				A7DE0252AF7BFBA16793B9DFA7A3BE7F /* Embed Game Engine */,
+				23A80404B0C35B41C5A99364338472EE /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8579BDEBCD7DB45F2551CC112018B48B /* PBXTargetDependency */,
+			);
+			name = "trs-launcher_iOS";
+			productName = "TRS Launcher";
+			productReference = BEE94D02CA6DBFBCAECE14213B97D5C4 /* TRS Launcher.app */;
+			productType = "com.apple.product-type.application";
+		};
+		4687B9567CE8D538C8F96C9986D11A59 /* TRSWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 993EDB44F82946CF8E06F2AEA724E588 /* Build configuration list for PBXNativeTarget "TRSWidgets" */;
+			buildPhases = (
+				A08AAE78F76B14E8585EB17FAC101CD4 /* Sources */,
+				AAB689AB3881BBFEB77AB9D7B72C164D /* Frameworks */,
+				15F4BA003216EE2DA93495AF4998A475 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = "trs-launcher_iOS";
-			productName = "TRS Launcher";
-			productReference = 2671622B13B64D97590DB8A4AC7C5DB1 /* TRS Launcher.app */;
-			productType = "com.apple.product-type.application";
+			name = TRSWidgets;
+			productName = TRSWidgets;
+			productReference = ACF709A80F0D8A0CC436F327E71C9A01 /* TRSWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -207,48 +306,37 @@
 			mainGroup = AAEC4B13893FBEC48E366075D238793A;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 100;
-			productRefGroup = 5B9CE0CB97755836BB2705DCF143FE30 /* Products */;
+			productRefGroup = 4BE190579A5387D2854ED7313839F263 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				EEE8A3A865CEA699A1D3E796E47AB368 /* trs-launcher_iOS */,
+				2D2498D895765B474A6680EE06B7A389 /* trs-launcher_iOS */,
+				4687B9567CE8D538C8F96C9986D11A59 /* TRSWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		59F31DB6FCA3BD43A074F8289D38D33D /* Resources */ = {
+		15F4BA003216EE2DA93495AF4998A475 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4DEF202A8BEB4E64E14E3B9FDEA956B8 /* Assets.xcassets in Resources */,
-				F29A56BA95644B3C389B0202616B73E5 /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1C911888CE9CCD57A210066C5829733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C6714B5490ACC233F867342F4116B6AC /* Assets.xcassets in Resources */,
+				A5653855C749571574795C187244E441 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		173AC2AFA8F1D6913C68797CFBA5FC06 /* Embed Game Engine */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Embed Game Engine";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/bash;
-			shellScript = "bash \"${PROJECT_DIR}/scripts/embed-engine.sh\"\n";
-		};
-		842EB1248DD7CF024DD7A521FB48DBAB /* Build Rust Code */ = {
+		396762819FCD5B634A029780002E7077 /* Build Rust Code */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -268,18 +356,57 @@
 			shellPath = /bin/bash;
 			shellScript = "bash \"${PROJECT_DIR}/scripts/build-rust.sh\"\n";
 		};
+		A7DE0252AF7BFBA16793B9DFA7A3BE7F /* Embed Game Engine */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Game Engine";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "bash \"${PROJECT_DIR}/scripts/embed-engine.sh\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		E95325770C9A48FBDE964AED7A32909A /* Sources */ = {
+		A08AAE78F76B14E8585EB17FAC101CD4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3BB304EDFE71BCA2E9A28CC0BD772D50 /* main.mm in Sources */,
+				B1EDA3DC3C801A71C78373510BB48B44 /* TRSWidgets.swift in Sources */,
+				14313FEEE21F0533958FBCFF98FB976B /* TrsShared.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A3A3314FF0C9064B640E20B8BA436CE8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7AC98BAFCE117F45426D863D2477C89D /* main.mm in Sources */,
+				5B7FF6ADF87479B63D2AB23C541769FB /* Shortcuts.swift in Sources */,
+				780C1EADADA7751073CFF1238AD82B07 /* TrsShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8579BDEBCD7DB45F2551CC112018B48B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TRSWidgets;
+			target = 4687B9567CE8D538C8F96C9986D11A59 /* TRSWidgets */;
+			targetProxy = 1E513BFF7AF55DFEB434B5FCF4F29116 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0B39694A899C8DBF18C1B384ED8D7B9A /* release */ = {
@@ -397,7 +524,39 @@
 			};
 			name = debug;
 		};
-		4A9A01BF65B358F5584D6294A0F77BC7 /* release */ = {
+		5841A7769DDCDACB64B95D68D0F9B4C2 /* debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = "$(TRS_WIDGET_ENTITLEMENTS)";
+				CURRENT_PROJECT_VERSION = 0.27.1;
+				ENABLE_BITCODE = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.27.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).widgets";
+				PRODUCT_NAME = TRSWidgets;
+				PROVISIONING_PROFILE_SPECIFIER = "$(TRS_WIDGET_PROFILE)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = debug;
+		};
+		B231E0E67B7E03CA9DA557CAF531E380 /* release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
 			buildSettings = {
@@ -436,19 +595,24 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lapp",
+					"-weak_framework",
+					ActivityKit,
+					"-weak_framework",
+					AppIntents,
 				);
 				PRODUCT_NAME = "TRS Launcher";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 				VALID_ARCHS = arm64;
 			};
 			name = release;
 		};
-		5421854C4BD5233B8108AF0BEEA01E70 /* debug */ = {
+		B27940857B9F795EE190755549546AEC /* debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
 			buildSettings = {
@@ -487,16 +651,54 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lapp",
+					"-weak_framework",
+					ActivityKit,
+					"-weak_framework",
+					AppIntents,
 				);
 				PRODUCT_NAME = "TRS Launcher";
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
 			};
 			name = debug;
+		};
+		F0E98DD76DA71A834E6292E19A8F30A4 /* release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = "$(TRS_WIDGET_ENTITLEMENTS)";
+				CURRENT_PROJECT_VERSION = 0.27.1;
+				ENABLE_BITCODE = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.27.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).widgets";
+				PRODUCT_NAME = TRSWidgets;
+				PROVISIONING_PROFILE_SPECIFIER = "$(TRS_WIDGET_PROFILE)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = release;
 		};
 /* End XCBuildConfiguration section */
 
@@ -510,11 +712,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = release;
 		};
-		70184642C0F209E1392A765F04B6BF42 /* Build configuration list for PBXNativeTarget "trs-launcher_iOS" */ = {
+		993EDB44F82946CF8E06F2AEA724E588 /* Build configuration list for PBXNativeTarget "TRSWidgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				4A9A01BF65B358F5584D6294A0F77BC7 /* release */,
-				5421854C4BD5233B8108AF0BEEA01E70 /* debug */,
+				F0E98DD76DA71A834E6292E19A8F30A4 /* release */,
+				5841A7769DDCDACB64B95D68D0F9B4C2 /* debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = release;
+		};
+		B49E3D38DD74D88F7B93DBF6E7D85D4A /* Build configuration list for PBXNativeTarget "trs-launcher_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B231E0E67B7E03CA9DA557CAF531E380 /* release */,
+				B27940857B9F795EE190755549546AEC /* debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = release;

@@ -5,6 +5,7 @@
   Xcode legt die passenden Capabilities in der App-ID an; get-task-allow (für JIT) setzt Xcode bei
   Development-Signatur selbst. Ohne bezahlten Account: in Signing.xcconfig TRS_ENTITLEMENTS auf
   trs-launcher_iOS-basic.entitlements stellen.
+  App-Gruppe (TRS_APP_GROUP aus Signing.xcconfig): teilt die Instanzliste mit dem Widget (Widgets/).
 -->
 <plist version="1.0">
 <dict>
@@ -12,5 +13,9 @@
 	<true/>
 	<key>com.apple.developer.kernel.extended-virtual-addressing</key>
 	<true/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(TRS_APP_GROUP)</string>
+	</array>
 </dict>
 </plist>
