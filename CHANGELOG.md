@@ -44,8 +44,6 @@ How to write an entry:
 - **Settings that fit your phone.** New Minecraft instances on iPhone, iPad and Android start with view distance, graphics and frame rate matched to the device – and on iPhone the game no longer reserves more memory than iOS allows.
 - **Backups on iPhone and iPad.** Settings → Backup saves your settings, all instances with worlds and mods, skins and touch controls in one file – in iCloud Drive or the Files app, on request automatically every day. Restore it with one tap or by opening the file in the launcher, also on a new device.
 - **Widget, Live Activity and Siri on iPhone and iPad.** A home screen widget starts the instance you played last with one tap. Downloads and installs show their progress on the lock screen and in the Dynamic Island. “Start TRS Launcher” in Siri or the Shortcuts app starts your last instance – or any instance you pick.
-- **Fixed: false "mods don't work together" warning.** Some mods carry an older copy of another mod inside (Distant Horizons, for example, brings its own older Fabric API). The launcher counted that hidden copy even when you have a newer one installed – which is the one the game actually loads – and stopped the launch, e.g. "Sodium doesn't work with Fabric API (inside Distant Horizons)". Now only the copy the game really uses is checked, and the launcher no longer swaps such mods back and forth between versions.
-- **Fixed: "Launch again" stopped with a mod error.** A second copy of a running instance now starts with exactly the same mods as the first one – the launcher no longer checks or swaps mods of an instance that is already running.
 
 ### Deutsch
 - **iPhone und iPad: mit eigenem Profil installieren.** Die iOS-App gibt es jetzt als fertig signierbares Xcode-Projekt und als IPA, die mit deinem eigenen Zertifikat und Provisioning-Profil signiert ist – direkt aus Safari, mit Apple Configurator, Xcode oder Apps wie Feather und ESign installierbar.
@@ -61,6 +59,20 @@ How to write an entry:
 - **Einstellungen passend zum Handy.** Neue Minecraft-Instanzen auf iPhone, iPad und Android starten mit Sichtweite, Grafik und Bildrate passend zum Gerät – und auf dem iPhone reserviert das Spiel nicht mehr mehr Speicher, als iOS erlaubt.
 - **Sicherungen auf iPhone und iPad.** Einstellungen → Sicherung legt deine Einstellungen, alle Instanzen mit Welten und Mods, Skins und die Touch-Steuerung in eine Datei – in iCloud Drive oder die Dateien-App, auf Wunsch jeden Tag automatisch. Wiederhergestellt ist sie mit einem Tipp oder durch Öffnen der Datei im Launcher, auch auf einem neuen Gerät.
 - **Widget, Live-Aktivität und Siri auf iPhone und iPad.** Ein Widget auf dem Home-Bildschirm startet deine zuletzt gespielte Instanz mit einem Tipp. Downloads und Installationen zeigen ihren Fortschritt auf dem Sperrbildschirm und in der Dynamic Island. „Starte TRS Launcher“ in Siri oder der Kurzbefehle-App startet deine letzte Instanz – oder eine, die du auswählst.
+
+## 0.27.3 – 2026-10-23 – Clean Cut Fix | Feinschliff
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.3/banner.png -->
+<!-- shots:
+/news/0.27.3/overlay-on-screen.png | Buffer indicator and clip messages stay out of your clips | Puffer-Anzeige und Clip-Meldungen bleiben aus deinen Clips heraus
+-->
+
+### English
+- **Fixed: TRS Client settings and HUD profiles could get lost with "Launch again".** A second copy of an instance – especially with another account – shares the TRS Client settings with the first one. It could write the other account's old settings into them and even into your sync, so profiles disappeared, modules were off and HUD positions were wrong. The second copy now never saves TRS Client settings or syncs them; only the first game does. Changes you make in the second window apply until you close it.
+- **Fixed: false "mods don't work together" warning.** Some mods carry an older copy of another mod inside (Distant Horizons, for example, brings its own older Fabric API). The launcher counted that hidden copy even when you have a newer one installed – which is the one the game actually loads – and stopped the launch, e.g. "Sodium doesn't work with Fabric API (inside Distant Horizons)". Now only the copy the game really uses is checked, and the launcher no longer swaps such mods back and forth between versions.
+- **Fixed: "Launch again" stopped with a mod error.** A second copy of a running instance now starts with exactly the same mods as the first one – the launcher no longer checks or swaps mods of an instance that is already running.
+
+### Deutsch
+- **Behoben: TRS-Client-Einstellungen und HUD-Profile konnten mit „Erneut starten“ verloren gehen.** Eine zweite Kopie einer Instanz – vor allem mit einem anderen Konto – teilt sich die TRS-Client-Einstellungen mit der ersten. Sie konnte die alten Einstellungen des anderen Kontos hineinschreiben und sogar in deinen Sync, sodass Profile verschwanden, Module aus waren und HUD-Positionen nicht mehr stimmten. Die zweite Kopie speichert und synchronisiert die TRS-Client-Einstellungen jetzt nie; das macht nur das erste Spiel. Änderungen im zweiten Fenster gelten, bis du es schließt.
 - **Behoben: falsche Warnung „Mods passen nicht zusammen“.** Manche Mods bringen eine ältere Kopie einer anderen Mod mit (Distant Horizons z. B. eine eigene ältere Fabric API). Der Launcher hat diese versteckte Kopie mitgezählt, obwohl eine neuere installiert ist – und die lädt das Spiel tatsächlich – und den Start gestoppt, z. B. „Sodium passt nicht zu Fabric API (in Distant Horizons)“. Jetzt zählt nur die Kopie, die das Spiel wirklich benutzt, und der Launcher tauscht solche Mods nicht mehr zwischen Versionen hin und her.
 - **Behoben: „Erneut starten“ brach mit einem Mod-Fehler ab.** Eine zweite Kopie einer laufenden Instanz startet jetzt mit genau denselben Mods wie die erste – der Launcher prüft und tauscht keine Mods einer Instanz mehr, die schon läuft.
 
