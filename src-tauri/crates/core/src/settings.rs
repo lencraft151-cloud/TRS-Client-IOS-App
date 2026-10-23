@@ -89,6 +89,8 @@ pub struct Settings {
     pub shared_folders: Vec<crate::shared_folders::SharedFolder>,
     /// PC-Fernbedienung vom Handy (ab Werk aus).
     pub remote: RemoteSettings,
+    /// Android/iOS: auch den Beta-Kanal nach Updates fragen (ab Werk aus).
+    pub mobile_beta: bool,
 }
 
 /// PC-Fernbedienung (API §33): das Handy desselben TRS-Kontos darf diesen PC steuern.
@@ -441,6 +443,7 @@ impl Default for Settings {
             show_bedrock: true,
             shared_folders: Vec::new(),
             remote: RemoteSettings::default(),
+            mobile_beta: false,
         }
     }
 }

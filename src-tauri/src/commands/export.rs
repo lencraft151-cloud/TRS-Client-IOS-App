@@ -84,7 +84,7 @@ impl PackPickState {
 }
 
 /// Gewählte Pack-Datei: Marke für den Import und was drin ist.
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PickedPack {
     token: u64,
@@ -114,11 +114,15 @@ pub async fn pick_modpack_file(
     .flatten()
     .and_then(|p| p.into_path().ok());
     let Some(file) = picked else { return Ok(None) };
+    Ok(Some(pick_path(&launcher, &picks, file).await?))
+}
 
+/// Pack-Datei lesen und für den Import vormerken (Dateidialog oder „Öffnen in TRS Launcher“).
+pub(crate) async fn pick_path(launcher: &LauncherState, picks: &PackPickState, file: PathBuf) -> trs_core::Result<PickedPack> {
     let preview = launcher.preview_pack_file(&file).await?;
     let file_name = file.file_name().map(|n| n.to_string_lossy().chars().take(200).collect()).unwrap_or_default();
     let token = picks.store(file);
-    Ok(Some(PickedPack { token, file_name, preview }))
+    Ok(PickedPack { token, file_name, preview })
 }
 
 /// Legt aus der zuvor gewählten Pack-Datei eine neue Instanz an (ID der Instanz).

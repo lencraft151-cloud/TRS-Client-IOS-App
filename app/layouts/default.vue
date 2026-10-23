@@ -85,6 +85,8 @@ onMounted(async () => {
   await trs.init()
   // PC-Fernbedienung: tut nichts, solange sie in den Einstellungen aus ist.
   useRemoteStore().start()
+  // Nur im CI-Klicktest (TRS_UI_TOUR=1): selbst durch Einrichtung und Seiten gehen.
+  void runUiTour(router, () => onboarding.open)
 })
 
 // „Im Launcher öffnen“ auf der Website (`trs-launcher://pack/<Code>`): Dialog „Modpack per Code“ mit Vorschau.
@@ -141,6 +143,32 @@ onMounted(async () => {
   open(await backend.takePendingModpackLink().catch(() => null))
 })
 onBeforeUnmount(() => unlistenModpackLink?.())
+
+// „Öffnen in TRS Launcher“ (iOS: Dateien-App, Safari): Modpack → Import-Dialog mit der Datei; Skin → Seite „Skins“,
+// die die Datei übernimmt. Angelegt wird erst nach einem Klick.
+let unlistenOpened: (() => void)[] = []
+onMounted(async () => {
+  if (!isTauri()) return
+  const openPack = async () => {
+    const pack = await backend.takeOpenedPack().catch(() => null)
+    if (!pack) return
+    ui.importPack = pack
+    ui.importing = true
+  }
+  const openSkins = async () => {
+    if ((await backend.openedSkinsPending().catch(() => false)) && route.path !== '/skins') void router.push('/skins')
+  }
+  unlistenOpened = await Promise.all([
+    listen('open-pack-file', () => void openPack()),
+    listen('open-skin-files', () => void openSkins()),
+    listen<{ code?: string | null; params?: Record<string, string> | null; message: string }>('open-file-failed', (e) =>
+      useToasts().error(userErrorText(e.payload)),
+    ),
+  ])
+  await openPack()
+  await openSkins()
+})
+onBeforeUnmount(() => unlistenOpened.forEach((u) => u()))
 
 // Tipp auf eine Push-Benachrichtigung (`trs-launcher://notify/<Route>`, §33.5): passende Seite bzw. Dialog öffnen.
 let unlistenPushTarget: (() => void) | null = null

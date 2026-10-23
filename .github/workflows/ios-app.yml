@@ -16,8 +16,9 @@ name: iOS app
 #   IOS_UPDATE_SIGNING_KEY_PASSWORD Passwort dazu – ohne beide kein mobile.json, die App meldet dann keine Updates
 # Anleitung: IOS.md
 #
-# Auslöser: von Hand (Actions → iOS app → Run workflow), Push auf main und Tag „ios-v*“ (veröffentlichen ein
-# Release – main als „ios-latest“) und PRs, die das Xcode-Projekt oder die iOS-Skripte ändern.
+# Auslöser: von Hand (Actions → iOS app → Run workflow), Push auf main, beta und Tag „ios-v*“ (veröffentlichen ein
+# Release – main als „ios-latest“, beta als „ios-beta“) und PRs, die das Xcode-Projekt oder die iOS-Skripte ändern.
+# Beta-Kanal: Änderungen auf den Branch „beta“ pushen – Apps mit „Beta-Versionen“ bekommen sie vor main.
 on:
   workflow_dispatch:
     inputs:
@@ -26,11 +27,16 @@ on:
         type: boolean
         default: true
       publish:
-        description: Als Release „ios-latest“ veröffentlichen (IPA + OTA-Link)
+        description: Als Release veröffentlichen (IPA + OTA-Link)
         type: boolean
         default: false
+      channel:
+        description: Kanal beim Veröffentlichen
+        type: choice
+        options: [ios-latest, ios-beta]
+        default: ios-latest
   push:
-    branches: [main]
+    branches: [main, beta]
     tags: ['ios-v*']
   pull_request:
     paths:
@@ -184,9 +190,19 @@ jobs:
 
       - name: Release tag
         id: release
-        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        if: ${{ startsWith(github.ref, 'refs/tags/ios-v') || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+        env:
+          CHANNEL: ${{ inputs.channel }}
         run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then tag="$GITHUB_REF_NAME"; else tag=ios-latest; fi
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          elif [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            tag="${CHANNEL:-ios-latest}"
+          elif [ "$GITHUB_REF_NAME" = beta ]; then
+            tag=ios-beta
+          else
+            tag=ios-latest
+          fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: OTA manifest
@@ -377,8 +393,8 @@ jobs:
           $LINK
           \`\`\`"
           fi
-          if [ "$TAG" = ios-latest ]; then
-            gh release delete ios-latest --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+          if [ "$TAG" = ios-latest ] || [ "$TAG" = ios-beta ]; then
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
           fi
           gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "TRS Launcher iOS ($TAG)" --notes "$notes"

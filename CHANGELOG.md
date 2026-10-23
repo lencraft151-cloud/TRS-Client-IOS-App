@@ -39,6 +39,9 @@ How to write an entry:
 - **Crash reports on iPhone and iPad.** If the app crashes, hangs or its screen doesn't load, the next start shows what happened – share it with one tap. The reports are also in the Files app, even when the launcher screen never appears.
 - **Fixed:** Microsoft sign-in on iPhone and iPad now opens in a window above the app and completes – before, switching to Safari paused the app and the sign-in never finished.
 - **Fixed:** the start animation tip no longer covers the language choice in the setup assistant.
+- **“Open in TRS Launcher” on iPhone and iPad.** Modpacks (.mrpack, .zip) and skins (.png) from the Files app or Safari open straight in the launcher – modpacks in the import, skins in Skins.
+- **Beta versions on iPhone, iPad and Android.** Turn on “Beta versions” in Settings → Behavior to get new versions earlier.
+- **Settings that fit your phone.** New Minecraft instances on iPhone, iPad and Android start with view distance, graphics and frame rate matched to the device – and on iPhone the game no longer reserves more memory than iOS allows.
 
 ### Deutsch
 - **iPhone und iPad: mit eigenem Profil installieren.** Die iOS-App gibt es jetzt als fertig signierbares Xcode-Projekt und als IPA, die mit deinem eigenen Zertifikat und Provisioning-Profil signiert ist – direkt aus Safari, mit Apple Configurator, Xcode oder Apps wie Feather und ESign installierbar.
@@ -49,6 +52,9 @@ How to write an entry:
 - **Absturzberichte auf iPhone und iPad.** Stürzt die App ab, hängt sie oder lädt die Oberfläche nicht, zeigt der nächste Start, was passiert ist – mit einem Tipp geteilt. Die Berichte liegen auch in der Dateien-App, selbst wenn die Oberfläche nie erscheint.
 - **Behoben:** Die Microsoft-Anmeldung öffnet sich auf iPhone und iPad jetzt in einem Fenster über der App und kommt durch – vorher hielt der Wechsel zu Safari die App an, und die Anmeldung lief ins Leere.
 - **Behoben:** Der Hinweis zur Start-Animation verdeckt im Einrichtungs-Assistenten nicht mehr die Sprachauswahl.
+- **„Öffnen in TRS Launcher“ auf iPhone und iPad.** Modpacks (.mrpack, .zip) und Skins (.png) aus der Dateien-App oder Safari öffnen direkt im Launcher – Modpacks im Import, Skins unter Skins.
+- **Beta-Versionen auf iPhone, iPad und Android.** Mit „Beta-Versionen“ unter Einstellungen → Verhalten bekommst du neue Versionen früher.
+- **Einstellungen passend zum Handy.** Neue Minecraft-Instanzen auf iPhone, iPad und Android starten mit Sichtweite, Grafik und Bildrate passend zum Gerät – und auf dem iPhone reserviert das Spiel nicht mehr mehr Speicher, als iOS erlaubt.
 
 ## 0.27.1 – 2026-10-21 – Grand Entrance Fix | Feinschliff
 <!-- banner: accent=#ff9a4d motif=/news/0.27.1/banner.png -->

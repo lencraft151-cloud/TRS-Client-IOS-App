@@ -12,6 +12,9 @@
 //! - `trs-launcher://modpack/modrinth/<ID oder Slug>` bzw. `trs-launcher://modpack/curseforge/<Zahl>` (z. B. aus den
 //!   empfohlenen Modpacks) → Projektseite im Launcher. Installiert wird erst nach einem Klick.
 //!
+//! - `file://…/<name>.mrpack|.zip|.png` (iOS „Öffnen in TRS Launcher“ aus der Dateien-App oder Safari) → Modpack: der
+//!   Import-Dialog mit Vorschau; Skin: die Seite „Skins“ mit der Übernahme. Angelegt wird erst nach einem Klick.
+//!
 //! Läuft der Launcher schon, reicht das Single-Instance-Plugin den Link an das offene Fenster weiter.
 //! Android/iOS: Das Schema steht im App-Manifest bzw. in der Info.plist (`plugins.deep-link.mobile`), das System
 //! reicht Links an die laufende App weiter.
@@ -41,6 +44,40 @@ pub struct PendingPushTarget(Mutex<Option<String>>);
 #[derive(Default)]
 pub struct PendingModpackLink(Mutex<Option<String>>);
 
+/// Geöffnete Modpack-Datei (gelesen und vorgemerkt), bis die Oberfläche sie abholt.
+#[derive(Default)]
+pub struct PendingOpenedPack(Mutex<Option<crate::commands::export::PickedPack>>);
+
+/// Geöffnete Skin-Datei (Marke im [`crate::commands::system::DropState`]), bis die Seite „Skins“ sie abholt.
+#[derive(Default)]
+pub struct PendingOpenedSkins(Mutex<Option<u64>>);
+
+/// Was eine geöffnete Datei ist – nach der Endung.
+#[derive(Debug, PartialEq, Eq)]
+enum OpenedKind {
+    Pack,
+    Skin,
+}
+
+fn opened_kind(name: &str) -> Option<OpenedKind> {
+    let ext = name.rsplit_once('.')?.1.to_ascii_lowercase();
+    match ext.as_str() {
+        "mrpack" | "zip" => Some(OpenedKind::Pack),
+        "png" => Some(OpenedKind::Skin),
+        _ => None,
+    }
+}
+
+/// `file://`-Link einer Datei, mit der der Launcher etwas anfangen kann.
+fn opened_file_from_link(url: &str) -> Option<String> {
+    let parsed = tauri::Url::parse(url).ok()?;
+    if parsed.scheme() != "file" {
+        return None;
+    }
+    let name = parsed.path_segments()?.next_back()?;
+    opened_kind(name).map(|_| url.to_owned())
+}
+
 enum Link {
     Pack(String),
     WebLogin(String),
@@ -48,6 +85,8 @@ enum Link {
     PushTarget(String),
     /// `modrinth/<ID>` bzw. `curseforge/<Zahl>`.
     Modpack(String),
+    /// `file://…` (Modpack oder Skin).
+    File(String),
 }
 
 /// `trs-launcher://modpack/modrinth/AANobbMI` → `modrinth/AANobbMI`; `…/curseforge/925200` → `curseforge/925200`.
@@ -81,6 +120,9 @@ fn push_target_from_link(url: &str) -> Option<String> {
 }
 
 fn parse(url: &str) -> Option<Link> {
+    if let Some(file) = opened_file_from_link(url) {
+        return Some(Link::File(file));
+    }
     if let Some(code) = trs_core::pack_share::pack_code_from_link(url) {
         return Some(Link::Pack(code));
     }
@@ -136,6 +178,10 @@ fn handle(app: &AppHandle, urls: impl IntoIterator<Item = String>) {
             }
             let _ = app.emit("open-modpack-link", project);
         }
+        Link::File(url) => {
+            log::info!("Datei geöffnet");
+            tauri::async_runtime::spawn(open_file(app.clone(), url));
+        }
     }
     if let Some(window) = app.get_webview_window("main") {
         #[cfg(desktop)]
@@ -145,6 +191,64 @@ fn handle(app: &AppHandle, urls: impl IntoIterator<Item = String>) {
     }
 }
 
+/// Geöffnete Datei übernehmen: in den eigenen Ordner kopieren (iOS) und je nach Art vormerken.
+async fn open_file(app: AppHandle, url: String) {
+    let path = match local_copy(&app, &url).await {
+        Ok(path) => path,
+        Err(e) => {
+            log::warn!("Geöffnete Datei nicht übernommen: {e}");
+            return;
+        }
+    };
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_owned();
+    match opened_kind(&name) {
+        Some(OpenedKind::Pack) => {
+            let (Some(launcher), Some(picks)) =
+                (app.try_state::<crate::LauncherState>(), app.try_state::<crate::commands::export::PackPickState>())
+            else {
+                return;
+            };
+            match crate::commands::export::pick_path(&launcher, &picks, path).await {
+                Ok(pack) => {
+                    if let Some(state) = app.try_state::<PendingOpenedPack>() {
+                        *state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(pack);
+                    }
+                    let _ = app.emit("open-pack-file", ());
+                }
+                Err(e) => {
+                    log::warn!("Geöffnete Datei ist kein lesbares Modpack: {e}");
+                    let _ = app.emit("open-file-failed", e.to_user());
+                }
+            }
+        }
+        Some(OpenedKind::Skin) => {
+            let Some(drops) = app.try_state::<crate::commands::system::DropState>() else { return };
+            let crate::commands::system::DropEvent::Drop { token, .. } = drops.store(vec![path]) else { return };
+            if let Some(state) = app.try_state::<PendingOpenedSkins>() {
+                *state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(token);
+            }
+            let _ = app.emit("open-skin-files", ());
+        }
+        None => {}
+    }
+}
+
+/// iOS: Die Datei liegt an ihrem Ort (Dateien-App, iCloud Drive) – das Plugin kopiert sie mit Zugriffsrecht.
+#[cfg(target_os = "ios")]
+async fn local_copy(app: &AppHandle, url: &str) -> Result<std::path::PathBuf, String> {
+    use tauri_plugin_trs_ios::TrsIosExt;
+    let (app, url) = (app.clone(), url.to_owned());
+    tauri::async_runtime::spawn_blocking(move || app.trs_ios().import_file(&url))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "ios"))]
+async fn local_copy(_app: &AppHandle, url: &str) -> Result<std::path::PathBuf, String> {
+    tauri::Url::parse(url).ok().and_then(|u| u.to_file_path().ok()).ok_or_else(|| "kein Dateipfad".to_owned())
+}
+
 /// Im `setup`: Protokoll anmelden (wo nötig), Start-Link und spätere Links annehmen.
 pub fn setup(app: &tauri::App) {
     app.manage(PendingPackLink::default());
@@ -152,6 +256,8 @@ pub fn setup(app: &tauri::App) {
     app.manage(PendingRemotePair::default());
     app.manage(PendingPushTarget::default());
     app.manage(PendingModpackLink::default());
+    app.manage(PendingOpenedPack::default());
+    app.manage(PendingOpenedSkins::default());
     // Installer melden das Protokoll an; zusätzlich beim Start (nur für den eigenen Benutzer), damit es auch nach
     // Updates über ältere Installer, im AppImage und in Entwicklungs-Builds zum laufenden Programm zeigt.
     #[cfg(any(target_os = "linux", windows))]
@@ -197,6 +303,24 @@ pub fn take_pending_modpack_link(state: State<'_, PendingModpackLink>) -> Option
     state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
 }
 
+/// Geöffnete Modpack-Datei (einmalig) – für den Import-Dialog.
+#[tauri::command]
+pub fn take_opened_pack(state: State<'_, PendingOpenedPack>) -> Option<crate::commands::export::PickedPack> {
+    state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
+}
+
+/// Liegt eine geöffnete Skin-Datei bereit? (Die Seite „Skins“ holt sie mit [`take_opened_skins`].)
+#[tauri::command]
+pub fn opened_skins_pending(state: State<'_, PendingOpenedSkins>) -> bool {
+    state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some()
+}
+
+/// Marke der geöffneten Skin-Datei (einmalig) – weiter wie beim Hineinziehen (`stage_dropped_skins`).
+#[tauri::command]
+pub fn take_opened_skins(state: State<'_, PendingOpenedSkins>) -> Option<u64> {
+    state.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,6 +335,20 @@ mod tests {
         assert!(push_target_from_link("trs-launcher://notifyx/chat").is_none());
         assert!(push_target_from_link("https://notify/chat").is_none());
         assert!(matches!(parse("trs-launcher://notify/worlds/r1/requests"), Some(Link::PushTarget(t)) if t == "/worlds/r1/requests"));
+    }
+
+    #[test]
+    fn opened_files_by_extension() {
+        assert!(matches!(parse("file:///private/var/mobile/Library/Mobile%20Documents/Pack.mrpack"), Some(Link::File(_))));
+        assert!(matches!(parse("file:///tmp/Skin.PNG"), Some(Link::File(_))));
+        assert!(matches!(parse("file:///tmp/Pack.zip"), Some(Link::File(_))));
+        assert!(parse("file:///tmp/notes.txt").is_none());
+        assert!(parse("file:///tmp/").is_none());
+        assert!(opened_file_from_link("https://example.com/pack.mrpack").is_none());
+        assert_eq!(opened_kind("a.MRPACK"), Some(OpenedKind::Pack));
+        assert_eq!(opened_kind("skin.png"), Some(OpenedKind::Skin));
+        assert_eq!(opened_kind("mod.jar"), None);
+        assert_eq!(opened_kind("ohne-endung"), None);
     }
 
     #[test]

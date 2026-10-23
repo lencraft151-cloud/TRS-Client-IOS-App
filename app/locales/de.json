@@ -2496,7 +2496,9 @@
       "restartOnboardingTitle": "Einrichtung erneut starten",
       "restartOnboardingDescription": "Führt noch einmal durch Anmeldung und erste Instanz.",
       "showBedrockTitle": "Minecraft Bedrock in der Bibliothek zeigen",
-      "showBedrockDescription": "Ist die Version aus dem Microsoft Store installiert, startet eine Karte sie von hier."
+      "showBedrockDescription": "Ist die Version aus dem Microsoft Store installiert, startet eine Karte sie von hier.",
+      "mobileBetaTitle": "Beta-Versionen",
+      "mobileBetaDescription": "Neue Versionen der App früher bekommen – bevor sie für alle erscheinen. Beta-Versionen können Fehler haben."
     },
     "profile": {
       "title": "Minecraft-Accounts",
@@ -3309,6 +3311,7 @@
   },
   "mobileUpdate": {
     "available": "TRS Launcher {version} ist da",
+    "betaBadge": "Beta",
     "installHint": "Tippe auf „Installieren“ – dein Gerät fragt noch einmal nach und aktualisiert dann die App.",
     "sideloadHint": "Aktualisiere so, wie du die App installiert hast: SideStore/AltStore, neue IPA oder Run in Xcode.",
     "install": "Installieren",

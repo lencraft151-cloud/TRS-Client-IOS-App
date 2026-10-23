@@ -4,6 +4,8 @@
 // Leer lassen (TRS_UPDATE_REPO =), um den Kanal des Originals (theredstonee/TRS-Launcher) zu nutzen.
 TRS_UPDATE_REPO = lencraft151-cloud/TRS-Client-IOS-App
 TRS_UPDATE_TAG = ios-latest
+// Beta-Kanal (Release vom Branch „beta“): Mit „Einstellungen → Verhalten → Beta-Versionen“ prüft die App beide.
+TRS_UPDATE_BETA_TAG = ios-beta
 // Release mit der fertigen Spiel-Engine (engine-ios.zip + .sha256) – lädt die Build-Phase „Embed Game Engine“,
 // wenn src-tauri/gen/apple/Engine fehlt. TRS_ENGINE_DOWNLOAD = NO schaltet das ab.
 TRS_ENGINE_TAG = ios-engine

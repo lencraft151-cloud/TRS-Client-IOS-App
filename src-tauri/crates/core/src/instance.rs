@@ -465,8 +465,21 @@ const OPTIONS_FILE: &str = "options.txt";
 /// wendete alle Options-Datafixer an (ab 1.19.4 fiele dadurch z. B. der
 /// Barrierefreiheits-Dialog beim ersten Start weg).
 fn default_options_text(data_version: Option<u32>) -> String {
+    options_text(data_version, platform_game_options())
+}
+
+/// Startwerte: am PC [`DEFAULT_GAME_OPTIONS`], am Handy das Leistungsprofil des Geräts ([`crate::mobile_profile`]).
+fn platform_game_options() -> &'static [(&'static str, &'static str)] {
+    if crate::platform::MOBILE {
+        crate::mobile_profile::game_options(crate::mobile_profile::tier(crate::platform::total_memory_mb()))
+    } else {
+        DEFAULT_GAME_OPTIONS
+    }
+}
+
+fn options_text(data_version: Option<u32>, options: &[(&str, &str)]) -> String {
     let mut text = data_version.map(|v| format!("version:{v}\n")).unwrap_or_default();
-    for (key, value) in DEFAULT_GAME_OPTIONS {
+    for (key, value) in options {
         text.push_str(&format!("{key}:{value}\n"));
     }
     text
@@ -607,6 +620,15 @@ fn is_reserved_windows_name(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn options_text_has_version_first_then_the_given_pairs() {
+        let mobile = crate::mobile_profile::game_options(crate::mobile_profile::Tier::Mid);
+        let text = options_text(Some(3955), mobile);
+        assert!(text.starts_with("version:3955\nrenderDistance:7\n"));
+        assert!(text.contains("\nmaxFps:60\n"));
+        assert_eq!(options_text(None, &[("a", "1")]), "a:1\n");
+    }
 
     async fn store() -> (tempfile::TempDir, InstanceStore) {
         let dir = tempfile::tempdir().unwrap();

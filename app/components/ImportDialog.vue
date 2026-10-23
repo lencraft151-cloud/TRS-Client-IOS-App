@@ -163,19 +163,35 @@ async function importPack() {
   pickingPack.value = true
   try {
     const pack = await backend.pickModpackFile()
-    if (!pack) return
-    if (trsShowsChoice(pack.preview.trsClient)) {
-      picked.value = pack
-      pickedChoice.value = trsPreselect(pack.preview.trsClient)
-    } else {
-      startPackImport(pack, null)
-    }
+    if (pack) offerPack(pack)
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
     pickingPack.value = false
   }
 }
+
+/** Gewählte bzw. geöffnete Pack-Datei: erst fragen „mit oder ohne TRS Client“ – oder gleich importieren. */
+function offerPack(pack: PickedPack) {
+  if (trsShowsChoice(pack.preview.trsClient)) {
+    picked.value = pack
+    pickedChoice.value = trsPreselect(pack.preview.trsClient)
+  } else {
+    startPackImport(pack, null)
+  }
+}
+
+// „Öffnen in TRS Launcher“: die schon gelesene Datei übernehmen.
+const ui = useUiStore()
+watch(
+  () => ui.importPack,
+  (pack) => {
+    if (!pack) return
+    ui.importPack = null
+    offerPack(pack)
+  },
+  { immediate: true },
+)
 
 function confirmPack() {
   const pack = picked.value

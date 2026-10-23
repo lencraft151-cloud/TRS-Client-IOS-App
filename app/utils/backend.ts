@@ -334,6 +334,8 @@ const mobileUpdateStatusSchema = z.object({
   size: z.number().int().nonnegative().nullable(),
   altstoreSource: z.string().max(512).nullable(),
   installUrl: z.string().max(2048).startsWith('itms-services://').nullable(),
+  beta: z.boolean().default(false),
+  betaChannel: z.boolean().default(false),
 })
 
 const mobileInstallOutcomeSchema = z.object({ status: z.enum(['started', 'permissionRequired']) })
@@ -776,6 +778,11 @@ export const backend = {
   },
   /** Öffnet den Dateidialog und liest das Pack (Vorschau); `null` = abgebrochen. */
   pickModpackFile: () => call<PickedPack | null>('pick_modpack_file'),
+  /** „Öffnen in TRS Launcher“: geöffnete Modpack-Datei (einmalig abholen). */
+  takeOpenedPack: () => call<PickedPack | null>('take_opened_pack'),
+  /** „Öffnen in TRS Launcher“: liegt ein Skin bereit, bzw. seine Marke (einmalig, weiter mit `stageDroppedSkins`). */
+  openedSkinsPending: () => call<boolean>('opened_skins_pending'),
+  takeOpenedSkins: () => call<number | null>('take_opened_skins'),
   /** Legt aus der gewählten Pack-Datei eine Instanz an (ID der Instanz). */
   importModpackFile: (
     token: number,
@@ -1112,6 +1119,9 @@ export const backend = {
   },
   /** Oberfläche geladen: iOS-Start-Wächter aus, Startverlauf „ui“. */
   uiReady: () => call<void>('ui_ready'),
+  /** Klick-Test im CI (`TRS_UI_TOUR=1`): läuft er, und welcher Schritt ist zu sehen. */
+  uiTour: () => call<boolean>('ui_tour'),
+  uiTourStep: (name: string, ok: boolean) => call<void>('ui_tour_step', { name, ok }),
 
   /** Sozial: Chat, Bilder, Meldungen, Moderation – alles über den Kern, ohne Token im Webview. */
   social: {

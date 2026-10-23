@@ -234,6 +234,8 @@ export const settingsSchema = z
     remote: z
       .object({ enabled: z.boolean().default(false), allowLaunch: z.boolean().default(false), allowInstall: z.boolean().default(false) })
       .prefault({}),
+    /** Android/iOS: auch den Beta-Kanal fragen – fehlt das Feld (älterer Kern), ist es aus. */
+    mobileBeta: z.boolean().default(false),
   })
   .passthrough()
   .refine((s) => s.minMemoryMb <= s.maxMemoryMb, {

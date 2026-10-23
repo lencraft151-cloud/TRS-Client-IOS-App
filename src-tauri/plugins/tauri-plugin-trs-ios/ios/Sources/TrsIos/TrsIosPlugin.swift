@@ -96,6 +96,39 @@ class TrsIosPlugin: Plugin {
     invoke.resolve()
   }
 
+  /// „Öffnen in TRS Launcher“: Die Datei liegt an ihrem Ort (LSSupportsOpeningDocumentsInPlace, evtl. iCloud Drive) –
+  /// mit Sicherheitsbereich und Datei-Koordination (lädt sie ggf. erst herunter) in `tmp/Opened` kopieren.
+  @objc public func importFile(_ invoke: Invoke) {
+    guard let args = try? invoke.parseArgs(UrlArgs.self), let url = URL(string: args.url), url.isFileURL else {
+      invoke.reject("invalid_args", code: "invalid_args")
+      return
+    }
+    DispatchQueue.global(qos: .userInitiated).async {
+      let scoped = url.startAccessingSecurityScopedResource()
+      defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+      let fm = FileManager.default
+      let dir = fm.temporaryDirectory.appendingPathComponent("Opened", isDirectory: true)
+      try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+      let dest = dir.appendingPathComponent(UUID().uuidString, isDirectory: true).appendingPathComponent(url.lastPathComponent)
+      try? fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+      var coordinated: NSError?
+      var copied: Error?
+      NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinated) { readable in
+        do {
+          try fm.copyItem(at: readable, to: dest)
+        } catch {
+          copied = error
+        }
+      }
+      if let error = (coordinated as Error?) ?? copied {
+        NSLog("TrsIos: Datei nicht übernommen: \(error)")
+        invoke.reject("copy_failed", code: "copy_failed")
+        return
+      }
+      invoke.resolve(["path": dest.path])
+    }
+  }
+
   @objc public func deviceInfo(_ invoke: Invoke) {
     let info = ProcessInfo.processInfo
     invoke.resolve([

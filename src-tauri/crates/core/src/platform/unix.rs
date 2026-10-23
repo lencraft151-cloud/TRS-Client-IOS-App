@@ -208,13 +208,48 @@ pub fn appx_package_installed(_matches: impl Fn(&str) -> bool) -> bool {
 }
 
 /// Eingebauter Arbeitsspeicher in MB (`MemTotal` aus `/proc/meminfo`).
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
 pub fn total_memory_mb() -> Option<u32> {
     std::fs::read_to_string("/proc/meminfo").ok().as_deref().and_then(super::parse_meminfo)
 }
 
+/// Eingebauter Arbeitsspeicher in MB: `sysctl hw.memsize` (macOS/iOS haben kein `/proc`).
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub fn total_memory_mb() -> Option<u32> {
+    let mut bytes: u64 = 0;
+    let mut len = std::mem::size_of::<u64>();
+    // SAFETY: Der Name ist nullterminiert; Puffer und Länge passen zu `hw.memsize` (u64).
+    let rc = unsafe { libc::sysctlbyname(c"hw.memsize".as_ptr(), (&raw mut bytes).cast(), &mut len, std::ptr::null_mut(), 0) };
+    if rc != 0 || bytes == 0 {
+        return None;
+    }
+    u32::try_from(bytes / (1024 * 1024)).ok()
+}
+
 /// Gerade freier Arbeitsspeicher in MB (`MemAvailable` aus `/proc/meminfo`).
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
 pub fn available_memory_mb() -> Option<u32> {
     std::fs::read_to_string("/proc/meminfo").ok().as_deref().and_then(|t| super::parse_meminfo_field(t, "MemAvailable:"))
+}
+
+#[cfg(target_os = "ios")]
+unsafe extern "C" {
+    /// iOS 13+: Wie viel die App noch belegen darf, bis iOS sie wegen Speicher beendet (`<os/proc.h>`).
+    fn os_proc_available_memory() -> usize;
+}
+
+/// iOS: der Rest bis zur Speichergrenze der App (darüber beendet iOS sie sofort).
+#[cfg(target_os = "ios")]
+pub fn available_memory_mb() -> Option<u32> {
+    // SAFETY: Ohne Argumente, liefert nur eine Zahl.
+    let bytes = unsafe { os_proc_available_memory() };
+    u32::try_from(bytes / (1024 * 1024)).ok().filter(|mb| *mb > 0)
+}
+
+/// macOS: unbekannt (kein `/proc`).
+#[cfg(target_os = "macos")]
+pub fn available_memory_mb() -> Option<u32> {
+    None
 }
 
 // --- Download-Ordner -------------------------------------------------------------------------

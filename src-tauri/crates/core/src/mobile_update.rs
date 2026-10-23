@@ -16,6 +16,8 @@
 //! Eigener Kanal (z. B. die iOS-Builds eines Forks): beim Bauen `TRS_UPDATE_REPO`
 //! (`owner/repo`), `TRS_UPDATE_TAG` (Release, Standard `mobile`) und
 //! `TRS_UPDATE_PUBKEY` (Minisign-Schlüssel wie in tauri.conf.json) setzen.
+//! `TRS_UPDATE_BETA_TAG` nennt einen Beta-Kanal (z. B. `ios-beta`): Mit dem Schalter
+//! „Beta-Versionen“ prüft die App beide und nimmt die neuere Version.
 //! `TRS_BUILD_NUMBER` hängt die Buildnummer als vierte Stelle an die Version
 //! (0.27.1 + Build 57 → 0.27.1.57), damit jeder neue Build als Update zählt.
 
@@ -92,6 +94,10 @@ pub struct Manifest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateStatus {
+    /// Die gezeigte Version kommt aus dem Beta-Kanal.
+    pub beta: bool,
+    /// Dieser Build kennt einen Beta-Kanal (sonst kein Schalter in den Einstellungen).
+    pub beta_channel: bool,
     /// Installierte Version.
     pub current: String,
     /// Neueste Version im Kanal (`None`: Kanal leer oder nicht erreichbar).
@@ -111,26 +117,40 @@ pub struct UpdateStatus {
 /// Kanal, aus dem die App liest: eigener (beim Bauen gesetzt) oder der des Originals.
 struct Channel {
     base_url: String,
+    /// Beta-Kanal desselben Repos (nur bei eigenem Kanal mit `TRS_UPDATE_BETA_TAG`).
+    beta_url: Option<String>,
     download_prefix: String,
     public_key: String,
 }
 
 fn channel() -> Channel {
-    custom_channel(option_env!("TRS_UPDATE_REPO"), option_env!("TRS_UPDATE_TAG"), option_env!("TRS_UPDATE_PUBKEY"))
-        .unwrap_or_else(|| Channel {
-            base_url: CHANNEL_URL.to_owned(),
-            download_prefix: DOWNLOAD_PREFIX.to_owned(),
-            public_key: PUBLIC_KEY.to_owned(),
-        })
+    custom_channel(
+        option_env!("TRS_UPDATE_REPO"),
+        option_env!("TRS_UPDATE_TAG"),
+        option_env!("TRS_UPDATE_PUBKEY"),
+        option_env!("TRS_UPDATE_BETA_TAG"),
+    )
+    .unwrap_or_else(|| Channel {
+        base_url: CHANNEL_URL.to_owned(),
+        beta_url: None,
+        download_prefix: DOWNLOAD_PREFIX.to_owned(),
+        public_key: PUBLIC_KEY.to_owned(),
+    })
 }
 
-fn custom_channel(repo: Option<&str>, tag: Option<&str>, key: Option<&str>) -> Option<Channel> {
+fn custom_channel(repo: Option<&str>, tag: Option<&str>, key: Option<&str>, beta_tag: Option<&str>) -> Option<Channel> {
     let name_ok = |s: &str| !s.is_empty() && s.len() <= 100 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b));
     let repo = repo.filter(|r| r.split_once('/').is_some_and(|(o, n)| name_ok(o) && name_ok(n)))?;
     let key = key.map(str::trim).filter(|k| !k.is_empty())?;
     let tag = tag.filter(|t| name_ok(t)).unwrap_or(DEFAULT_TAG);
     let download_prefix = format!("https://github.com/{repo}/releases/download/");
-    Some(Channel { base_url: format!("{download_prefix}{tag}/"), download_prefix, public_key: key.to_owned() })
+    let beta_url = beta_tag.filter(|b| name_ok(b) && *b != tag).map(|b| format!("{download_prefix}{b}/"));
+    Some(Channel { base_url: format!("{download_prefix}{tag}/"), beta_url, download_prefix, public_key: key.to_owned() })
+}
+
+/// Kennt dieser Build einen Beta-Kanal (`TRS_UPDATE_BETA_TAG`)? Nur dann gibt es den Schalter „Beta-Versionen“.
+pub fn has_beta_channel() -> bool {
+    channel().beta_url.is_some()
 }
 
 /// Installierte Version für den Kanal: mit Buildnummer als vierter Stelle, wenn beim Bauen gesetzt.
@@ -170,6 +190,7 @@ impl Target {
 pub struct MobileUpdater {
     http: reqwest::Client,
     base_url: String,
+    beta_url: Option<String>,
     download_prefix: String,
     public_key: String,
     current: String,
@@ -184,14 +205,16 @@ impl MobileUpdater {
     /// Offizieller Kanal, Downloads unter `<daten>/mobile-update/`.
     pub fn new(paths: &Paths) -> Result<Self> {
         let channel = channel();
-        Self::build(
+        let mut updater = Self::build(
             paths.root().join(UPDATE_DIR),
             &channel.base_url,
             &channel.download_prefix,
             &channel.public_key,
             &installed_version(),
             true,
-        )
+        )?;
+        updater.beta_url = channel.beta_url;
+        Ok(updater)
     }
 
     fn build(dir: PathBuf, base_url: &str, prefix: &str, public_key: &str, current: &str, https_only: bool) -> Result<Self> {
@@ -209,10 +232,11 @@ impl MobileUpdater {
             }))
             .connect_timeout(Duration::from_secs(10))
             .build()?;
-        let base_url = if base_url.ends_with('/') { base_url.to_owned() } else { format!("{base_url}/") };
+        let base_url = with_slash(base_url);
         Ok(Self {
             http,
             base_url,
+            beta_url: None,
             download_prefix: prefix.to_owned(),
             public_key: public_key.to_owned(),
             current: current.to_owned(),
@@ -227,15 +251,35 @@ impl MobileUpdater {
         Self::build(dir, base_url, base_url, public_key, current, false).expect("HTTP-Client")
     }
 
+    /// Zwei Testserver (normal + Beta) – Downloads von beiden erlaubt.
+    #[cfg(test)]
+    fn for_tests_with_beta(dir: PathBuf, base_url: &str, beta_url: &str, public_key: &str, current: &str) -> Self {
+        let mut updater = Self::build(dir, base_url, "http://127.0.0.1:", public_key, current, false).expect("HTTP-Client");
+        updater.beta_url = Some(beta_url.to_owned());
+        updater
+    }
+
     /// Lädt Manifest + Signatur und prüft beides. Fehler (offline, ungültig)
     /// gehen an den Aufrufer – die Oberfläche fragt bewusst nach.
-    pub async fn check(&self, target: Target) -> Result<UpdateStatus> {
-        let bytes = self.get(MANIFEST_FILE, MAX_MANIFEST_BYTES).await?;
-        let signature = self.get(SIGNATURE_FILE, MAX_SIGNATURE_BYTES).await?;
-        let manifest = verify_manifest(&self.public_key, &self.download_prefix, &bytes, &signature)?;
-        let status = self.status(&manifest, target);
+    /// `beta`: zusätzlich den Beta-Kanal prüfen und die neuere Version nehmen (ist er leer
+    /// oder nicht erreichbar, gilt der normale Kanal – und umgekehrt).
+    pub async fn check(&self, target: Target, beta: bool) -> Result<UpdateStatus> {
+        let stable = self.fetch(&self.base_url).await;
+        let beta_manifest = match (&self.beta_url, beta) {
+            (Some(url), true) => Some(self.fetch(url).await),
+            _ => None,
+        };
+        let (manifest, from_beta) = pick(stable, beta_manifest, target)?;
+        let mut status = self.status(&manifest, target);
+        status.beta = from_beta;
         *self.latest.lock().await = Some(manifest);
         Ok(status)
+    }
+
+    async fn fetch(&self, base_url: &str) -> Result<Manifest> {
+        let bytes = self.get(base_url, MANIFEST_FILE, MAX_MANIFEST_BYTES).await?;
+        let signature = self.get(base_url, SIGNATURE_FILE, MAX_SIGNATURE_BYTES).await?;
+        verify_manifest(&self.public_key, &self.download_prefix, &bytes, &signature)
     }
 
     fn status(&self, manifest: &Manifest, target: Target) -> UpdateStatus {
@@ -248,6 +292,8 @@ impl MobileUpdater {
         };
         let available = has_asset && is_newer(&manifest.version, &self.current);
         UpdateStatus {
+            beta: false,
+            beta_channel: self.beta_url.is_some(),
             current: self.current.clone(),
             latest: Some(manifest.version.clone()),
             available,
@@ -266,8 +312,8 @@ impl MobileUpdater {
         self.status(manifest, Target::Ios).install_url
     }
 
-    async fn get(&self, file: &str, limit: u64) -> Result<Vec<u8>> {
-        let url = format!("{}{file}", self.base_url);
+    async fn get(&self, base_url: &str, file: &str, limit: u64) -> Result<Vec<u8>> {
+        let url = format!("{}{file}", with_slash(base_url));
         let response = self.http.get(&url).timeout(MANIFEST_TIMEOUT).send().await?.error_for_status()?;
         if response.content_length().is_some_and(|len| len > limit) {
             return Err(Error::download(url, "Datei zu groß"));
@@ -368,6 +414,25 @@ impl MobileUpdater {
     }
 }
 
+fn with_slash(url: &str) -> String {
+    if url.ends_with('/') { url.to_owned() } else { format!("{url}/") }
+}
+
+/// Normaler Kanal oder Beta: die neuere Version mit einer Datei für dieses Gerät (`true` = Beta). Fehlt eine Seite
+/// (offline, leer, falsch signiert), gilt die andere; scheitern beide, zählt der Fehler des normalen Kanals.
+fn pick(stable: Result<Manifest>, beta: Option<Result<Manifest>>, target: Target) -> Result<(Manifest, bool)> {
+    let has_asset = |m: &Manifest| match target {
+        Target::Android => m.android.is_some(),
+        Target::Ios => m.ios.is_some(),
+    };
+    match (stable, beta) {
+        (Ok(s), Some(Ok(b))) if has_asset(&b) && (!has_asset(&s) || is_newer(&b.version, &s.version)) => Ok((b, true)),
+        (Ok(s), _) => Ok((s, false)),
+        (Err(_), Some(Ok(b))) => Ok((b, true)),
+        (Err(e), _) => Err(e),
+    }
+}
+
 /// Prüft Signatur (`file:mobile.json` im signierten Kommentar) und Inhalt:
 /// gültige Version, Notizen begrenzt, Dateien nur per HTTPS aus den eigenen
 /// Releases mit SHA-256 und plausibler Größe.
@@ -463,11 +528,11 @@ mod tests {
         assert!(updater.download_apk().await.is_err());
 
         publish(&server, &url, &key, "0.18.0", b"apk-0.18");
-        let status = updater.check(Target::Android).await.unwrap();
+        let status = updater.check(Target::Android, false).await.unwrap();
         assert!(status.available);
         assert_eq!(status.latest.as_deref(), Some("0.18.0"));
         assert_eq!(status.size, Some(8));
-        let ios = updater.check(Target::Ios).await.unwrap();
+        let ios = updater.check(Target::Ios, false).await.unwrap();
         assert!(ios.available && ios.altstore_source.is_some());
 
         let path = updater.download_apk().await.unwrap();
@@ -486,12 +551,12 @@ mod tests {
 
         // Gleiche oder ältere Version: nichts zu tun.
         let same = MobileUpdater::for_tests(dir.path().join("x"), &url, &key.public, "0.18.0");
-        assert!(!same.check(Target::Android).await.unwrap().available);
+        assert!(!same.check(Target::Android, false).await.unwrap().available);
         assert!(same.download_apk().await.is_err());
 
         // Falsch signiert: Fehler.
         publish(&server, &url, &TestKey::generate(), "0.19.0", b"x");
-        assert!(updater.check(Target::Android).await.is_err());
+        assert!(updater.check(Target::Android, false).await.is_err());
     }
 
     #[test]
@@ -514,17 +579,21 @@ mod tests {
 
     #[test]
     fn custom_channel_only_with_valid_repo_and_key() {
-        let c = custom_channel(Some("lencraft151-cloud/TRS-Client-IOS-App"), Some("ios-latest"), Some(" key ")).unwrap();
+        let c = custom_channel(Some("lencraft151-cloud/TRS-Client-IOS-App"), Some("ios-latest"), Some(" key "), Some("ios-beta")).unwrap();
         assert_eq!(c.base_url, "https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/");
+        assert_eq!(c.beta_url.as_deref(), Some("https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-beta/"));
         assert_eq!(c.download_prefix, "https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/");
         assert_eq!(c.public_key, "key");
-        assert_eq!(custom_channel(Some("o/r"), None, Some("k")).unwrap().base_url, "https://github.com/o/r/releases/download/mobile/");
-        assert!(custom_channel(Some("o/r"), Some("../x"), Some("k")).unwrap().base_url.ends_with("/mobile/"));
-        assert!(custom_channel(None, None, Some("k")).is_none());
-        assert!(custom_channel(Some("o/r"), None, None).is_none());
-        assert!(custom_channel(Some("o/r"), None, Some("")).is_none());
+        assert_eq!(custom_channel(Some("o/r"), None, Some("k"), None).unwrap().base_url, "https://github.com/o/r/releases/download/mobile/");
+        assert!(custom_channel(Some("o/r"), Some("../x"), Some("k"), None).unwrap().base_url.ends_with("/mobile/"));
+        // Beta nur mit gültigem, eigenem Namen.
+        assert!(custom_channel(Some("o/r"), Some("ios-latest"), Some("k"), Some("../x")).unwrap().beta_url.is_none());
+        assert!(custom_channel(Some("o/r"), Some("ios-latest"), Some("k"), Some("ios-latest")).unwrap().beta_url.is_none());
+        assert!(custom_channel(None, None, Some("k"), None).is_none());
+        assert!(custom_channel(Some("o/r"), None, None, None).is_none());
+        assert!(custom_channel(Some("o/r"), None, Some(""), None).is_none());
         for bad in ["o", "o/", "/r", "o/r/x", "o/r?x", "evil.example/r#"] {
-            assert!(custom_channel(Some(bad), None, Some("k")).is_none(), "{bad}");
+            assert!(custom_channel(Some(bad), None, Some("k"), None).is_none(), "{bad}");
         }
     }
 
@@ -556,7 +625,7 @@ mod tests {
         };
 
         put(manifest("0.27.1.7", &format!("{url}manifest.plist")));
-        let status = updater.check(Target::Ios).await.unwrap();
+        let status = updater.check(Target::Ios, false).await.unwrap();
         assert!(status.available);
         let link = status.install_url.unwrap();
         assert!(link.starts_with("itms-services://?action=download-manifest&url=http"), "{link}");
@@ -564,11 +633,45 @@ mod tests {
 
         // Gleicher Build: kein Update, kein Link. Fremder Host im OTA-Manifest: fällt weg.
         put(manifest("0.27.1.5", &format!("{url}manifest.plist")));
-        let status = updater.check(Target::Ios).await.unwrap();
+        let status = updater.check(Target::Ios, false).await.unwrap();
         assert!(!status.available && status.install_url.is_none());
         assert_eq!(updater.ios_install_url().await, None);
         put(manifest("0.27.1.9", "https://evil.example/manifest.plist"));
-        let status = updater.check(Target::Ios).await.unwrap();
+        let status = updater.check(Target::Ios, false).await.unwrap();
         assert!(status.available && status.install_url.is_none());
+    }
+
+    #[tokio::test]
+    async fn beta_channel_wins_only_when_newer() {
+        let key = TestKey::generate();
+        let (stable, stable_url) = TestServer::start().await;
+        let (beta, beta_url) = TestServer::start().await;
+        let dir = tempfile::tempdir().unwrap();
+        let updater = MobileUpdater::for_tests_with_beta(dir.path().join(UPDATE_DIR), &stable_url, &beta_url, &key.public, "0.27.1");
+
+        publish(&stable, &stable_url, &key, "0.27.1.5", b"stable");
+        publish(&beta, &beta_url, &key, "0.27.1.9", b"beta");
+        // Ohne Schalter: nur der normale Kanal.
+        let status = updater.check(Target::Android, false).await.unwrap();
+        assert_eq!((status.latest.as_deref(), status.beta, status.beta_channel), (Some("0.27.1.5"), false, true));
+        assert_eq!(beta.hits(MANIFEST_FILE), 0);
+        // Mit Schalter: die neuere Beta.
+        let status = updater.check(Target::Android, true).await.unwrap();
+        assert_eq!((status.latest.as_deref(), status.beta), (Some("0.27.1.9"), true));
+        assert_eq!(std::fs::read(updater.download_apk().await.unwrap()).unwrap(), b"beta");
+
+        // Normale Version inzwischen neuer: die gilt.
+        publish(&stable, &stable_url, &key, "0.27.2", b"stable-neu");
+        let status = updater.check(Target::Android, true).await.unwrap();
+        assert_eq!((status.latest.as_deref(), status.beta), (Some("0.27.2"), false));
+
+        // Beta falsch signiert: normaler Kanal; normaler Kanal kaputt: Beta.
+        publish(&beta, &beta_url, &TestKey::generate(), "0.28.0", b"x");
+        assert_eq!(updater.check(Target::Android, true).await.unwrap().latest.as_deref(), Some("0.27.2"));
+        publish(&beta, &beta_url, &key, "0.28.0.1", b"beta-2");
+        publish(&stable, &stable_url, &TestKey::generate(), "0.29.0", b"x");
+        let status = updater.check(Target::Android, true).await.unwrap();
+        assert_eq!((status.latest.as_deref(), status.beta), (Some("0.28.0.1"), true));
+        assert!(updater.check(Target::Android, false).await.is_err());
     }
 }
