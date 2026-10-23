@@ -10,6 +10,7 @@ mod mobile;
 mod mobile_game;
 mod open;
 mod push;
+mod shortcuts;
 mod ui_tour;
 
 use std::sync::Arc;
@@ -289,6 +290,9 @@ pub fn run() {
                 tauri::async_runtime::spawn(Arc::clone(&launcher).run_discord());
             }
             app.manage::<LauncherState>(launcher);
+            // iOS: Schlüssel für Kurzbefehle/Widget laden, bevor ein Start-Link geprüft wird.
+            #[cfg(target_os = "ios")]
+            shortcuts::key(location.root.as_path());
             app.manage(location);
             app.manage(commands::system::DropState::default());
             app.manage(commands::export::PackPickState::default());
@@ -652,6 +656,8 @@ pub fn run() {
             deeplink::take_pending_push_target,
             deeplink::take_pending_modpack_link,
             deeplink::take_opened_pack,
+            deeplink::take_pending_play,
+            shortcuts::live_activity,
             deeplink::opened_skins_pending,
             deeplink::take_opened_skins,
             commands::remote::remote_pair_start,

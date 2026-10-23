@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "EEE8A3A865CEA699A1D3E796E47AB368"
+               BlueprintIdentifier = "2D2498D895765B474A6680EE06B7A389"
                BuildableName = "TRS Launcher.app"
                BlueprintName = "trs-launcher_iOS"
                ReferencedContainer = "container:trs-launcher.xcodeproj">
@@ -30,7 +30,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EEE8A3A865CEA699A1D3E796E47AB368"
+            BlueprintIdentifier = "2D2498D895765B474A6680EE06B7A389"
             BuildableName = "TRS Launcher.app"
             BlueprintName = "trs-launcher_iOS"
             ReferencedContainer = "container:trs-launcher.xcodeproj">
@@ -54,7 +54,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EEE8A3A865CEA699A1D3E796E47AB368"
+            BlueprintIdentifier = "2D2498D895765B474A6680EE06B7A389"
             BuildableName = "TRS Launcher.app"
             BlueprintName = "trs-launcher_iOS"
             ReferencedContainer = "container:trs-launcher.xcodeproj">
@@ -88,7 +88,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EEE8A3A865CEA699A1D3E796E47AB368"
+            BlueprintIdentifier = "2D2498D895765B474A6680EE06B7A389"
             BuildableName = "TRS Launcher.app"
             BlueprintName = "trs-launcher_iOS"
             ReferencedContainer = "container:trs-launcher.xcodeproj">

@@ -20,6 +20,15 @@ CODE_SIGN_STYLE = Automatic
 TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS.entitlements
 // TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS-basic.entitlements
 
+// App-Gruppe für das Widget (Instanzliste „Zuletzt gespielt“). Aus der Team-ID gebildet – passt zu jedem Konto
+// und jeder Bundle-ID; Xcode legt sie bei automatischer Signatur selbst an.
+TRS_APP_GROUP = group.$(DEVELOPMENT_TEAM).trslauncher
+// Widget-Erweiterung (Bundle-ID = die der App + „.widgets“). Bei der basic-Zeile oben auch hier die basic-Zeile nehmen.
+TRS_WIDGET_ENTITLEMENTS = Widgets/TRSWidgets.entitlements
+// TRS_WIDGET_ENTITLEMENTS = Widgets/TRSWidgets-basic.entitlements
+// Nur bei CODE_SIGN_STYLE = Manual: Profil für die Widget-Erweiterung (bei einem Wildcard-Profil dessen Name).
+// TRS_WIDGET_PROFILE = Name des Widget-Profils
+
 // Ordner mit der gebauten Spiel-Engine (scripts/ios/build-engine.sh oder CI-Artefakt „engine-ios“).
 // Fehlt er, läuft der Launcher trotzdem – nur der Spielstart meldet „Engine fehlt“.
 TRS_ENGINE_DIR = $(PROJECT_DIR)/Engine

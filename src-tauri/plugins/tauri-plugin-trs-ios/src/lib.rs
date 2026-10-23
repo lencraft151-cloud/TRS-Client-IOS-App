@@ -8,6 +8,8 @@
 //!   (`ASWebAuthenticationSession`). Die App bleibt dabei vorn – der Loopback-Server bekommt die Weiterleitung.
 //!   In Safari würde iOS die App anhalten, und die Anmeldung liefe ins Leere.
 //! - **Teilen:** [`TrsIos::share`] öffnet das Teilen-Menü für Dateien (Berichte).
+//! - **Kurzbefehle, Widget, Live-Aktivität:** [`TrsIos::shared_dirs`], [`TrsIos::shared_changed`] und
+//!   [`TrsIos::live_activity`] (Widget-Erweiterung in `gen/apple/Widgets`).
 //! - **Öffnen in …:** [`TrsIos::import_file`] kopiert eine aus der Dateien-App oder Safari geöffnete Datei (an ihrem
 //!   Ort, mit Sicherheitsbereich) in den eigenen temporären Ordner.
 //!
@@ -80,6 +82,27 @@ struct ImportedFile {
     path: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct SharedDirs {
+    dirs: Vec<String>,
+}
+
+/// Stand einer Aufgabe für die Live-Aktivität.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityUpdate<'a> {
+    /// Aufgaben-ID (eine Aktivität je Aufgabe).
+    pub id: &'a str,
+    /// `download`, `install`, `modpack` … (Symbol).
+    pub kind: &'a str,
+    pub title: &'a str,
+    pub detail: &'a str,
+    /// 0…1, negativ = unbestimmt.
+    pub progress: f64,
+    /// Fertig (oder abgebrochen): die Aktivität endet kurz danach.
+    pub done: bool,
+}
+
 /// Zugriff auf den nativen Teil.
 pub struct TrsIos<R: Runtime> {
     #[cfg(target_os = "ios")]
@@ -126,6 +149,21 @@ impl<R: Runtime> TrsIos<R> {
     /// Kopiert eine geöffnete Datei (`file://…`, evtl. in iCloud Drive) in den temporären Ordner der App.
     pub fn import_file(&self, url: &str) -> Result<std::path::PathBuf> {
         self.call::<ImportedFile, _>("importFile", UrlArgs { url }).map(|f| std::path::PathBuf::from(f.path))
+    }
+
+    /// Ordner für `shared.json` (App-Gruppe zuerst, dann Application Support der App).
+    pub fn shared_dirs(&self) -> Result<Vec<std::path::PathBuf>> {
+        self.call::<SharedDirs, _>("sharedDirs", ()).map(|d| d.dirs.into_iter().map(std::path::PathBuf::from).collect())
+    }
+
+    /// `shared.json` geändert: Widget neu laden, Kurzbefehle aktualisieren.
+    pub fn shared_changed(&self) -> Result<()> {
+        self.call::<serde_json::Value, _>("sharedChanged", ()).map(|_| ())
+    }
+
+    /// Live-Aktivität starten, aktualisieren oder beenden.
+    pub fn live_activity(&self, update: &ActivityUpdate<'_>) -> Result<()> {
+        self.call::<serde_json::Value, _>("liveActivity", update).map(|_| ())
     }
 
     /// Modell, iOS-Version, Arbeitsspeicher.

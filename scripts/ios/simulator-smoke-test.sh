@@ -31,6 +31,13 @@ APP="$(find "$DD/Build/Products" -maxdepth 2 -name '*.app' -type d | head -n 1)"
 BUNDLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
 EXE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")"
 echo "App: $APP ($BUNDLE)"
+[ -d "$APP/PlugIns/TRSWidgets.appex" ] || die "Widget-Erweiterung fehlt (PlugIns/TRSWidgets.appex)"
+# Kurzbefehle/Siri: Xcode legt die App-Intents-Metadaten in die App, wenn es Shortcuts.swift erkannt hat.
+if [ -d "$APP/Metadata.appintents" ]; then
+  echo "App Intents: $(find "$APP/Metadata.appintents" -type f | wc -l | tr -d ' ') Datei(en)"
+else
+  echo "::warning::Keine App-Intents-Metadaten in der App – Kurzbefehle und Siri fehlen."
+fi
 
 # Neuestes iPhone auf der neuesten Simulator-Laufzeit.
 UDID="$(xcrun simctl list devices available -j | python3 -c '

@@ -76,6 +76,11 @@
 	<array>
 		<string>dev.theredstonee.trslauncher.push-poll</string>
 	</array>
+	<!-- Widget und Kurzbefehle (src-tauri/src/shortcuts.rs): App-Gruppe aus Signing.xcconfig, Live-Aktivitäten. -->
+	<key>TRSAppGroup</key>
+	<string>$(TRS_APP_GROUP)</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

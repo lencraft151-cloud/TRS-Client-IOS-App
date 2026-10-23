@@ -96,7 +96,10 @@ Rust-Kern werden neu gebaut, wenn sich etwas geändert hat; die Spiel-Engine lä
    - **Manual** (eigene .p12 + .mobileprovision): .p12 per Doppelklick in den Schlüsselbund, Profil per Doppelklick
      installieren, dann `CODE_SIGN_STYLE = Manual`, `CODE_SIGN_IDENTITY` und `PROVISIONING_PROFILE_SPECIFIER` setzen.
    - **Kostenloses Apple-Konto** (Personal Team): `TRS_ENTITLEMENTS` auf
-     `trs-launcher_iOS/trs-launcher_iOS-basic.entitlements` stellen (ohne Increased-Memory-Limit).
+     `trs-launcher_iOS/trs-launcher_iOS-basic.entitlements` stellen (ohne Increased-Memory-Limit) und
+     `TRS_WIDGET_ENTITLEMENTS` auf `Widgets/TRSWidgets-basic.entitlements` (ohne App-Gruppe).
+   - Team und Bundle-ID gelten über die xcconfig auch für die **Widget-Erweiterung** (Target `TRSWidgets`, Bundle-ID
+     der App + `.widgets`). Stellst du sie stattdessen in Xcode ein, dann bei beiden Targets.
 2. iPhone anschließen, Ziel wählen, **▶ Run** – oder **Product → Archive → Distribute App**
    (Development / Ad Hoc / Enterprise; passende `ExportOptions-*.plist` liegen für `xcodebuild -exportArchive` bei).
 
@@ -166,6 +169,21 @@ legst du als Secret an – **Settings → Secrets and variables → Actions**:
 Ohne diese Secrets baut alles weiter, nur meldet die App keine Updates. Eigenen Schlüssel statt des mitgelieferten:
 `pnpm tauri signer generate -w ios-update.key`, dann den öffentlichen Schlüssel in `update-public-key.txt` **und**
 `TRS_UPDATE_PUBKEY` (UpdateChannel.xcconfig) eintragen.
+
+## Widget, Live-Aktivität, Kurzbefehle und Siri
+
+- **Widget „Zuletzt gespielt“** (ab iOS 17; Home-Bildschirm lange drücken → **+** → TRS Launcher): zeigt die zuletzt
+  gespielte Instanz, ein Tipp startet sie. Die Liste teilt die App über die App-Gruppe `group.<Team-ID>.trslauncher`
+  (`TRS_APP_GROUP` in `Signing.xcconfig`); ohne App-Gruppe öffnet das Widget nur den Launcher.
+- **Live-Aktivität** (ab iOS 16.2): Downloads, Installationen und Spielstarts, die länger als drei Sekunden dauern,
+  zeigen ihren Fortschritt auf dem Sperrbildschirm und in der Dynamic Island. Abschalten: Einstellungen → TRS Launcher →
+  Live-Aktivitäten.
+- **Kurzbefehle und Siri** (ab iOS 17): „Starte TRS Launcher“ bzw. „Spiele Minecraft mit TRS Launcher“ startet die
+  zuletzt gespielte Instanz, „Instanz starten“ (Kurzbefehle-App) eine gewählte. Kurzbefehle und Widget öffnen dafür
+  `trs-launcher://play/<Instanz>` mit einem Schlüssel dieser Installation – Links von Websites zeigen nur die Instanz.
+
+Signiert mit eigenem Profil (`sign-ipa.sh`, OTA-Updates): Ein **Wildcard-Profil** signiert das Widget mit; ein Profil
+nur für die App-ID lässt die Erweiterung weg (die App läuft dann ohne Widget und Live-Aktivität).
 
 ## Minecraft starten: JIT
 
