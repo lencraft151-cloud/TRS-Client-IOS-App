@@ -1010,7 +1010,15 @@
       "invalidWindow": "Das Ende muss nach dem Beginn liegen.",
       "invalidOrder": "Die Reihenfolge passt nicht – bitte die Liste neu laden."
     },
-    "messeBlocked": "Am Messe-PC nicht verfügbar."
+    "messeBlocked": "Am Messe-PC nicht verfügbar.",
+    "backup": {
+      "invalid": "Das ist keine Sicherung des TRS Launchers.",
+      "tooNew": "Diese Sicherung stammt aus einer neueren Version ({version}) – bitte erst den Launcher aktualisieren.",
+      "notFound": "Diese Sicherung gibt es nicht mehr.",
+      "noPlace": "Kein Ort für Sicherungen gefunden.",
+      "downloadFailed": "Die Sicherung ließ sich nicht aus iCloud laden.",
+      "gameRunning": "Minecraft läuft gerade – bitte erst beenden, dann wiederherstellen."
+    }
   },
   "browse": {
     "title": "Entdecken",
@@ -2314,6 +2322,43 @@
       "unknown": "Absturzbericht"
     }
   },
+  "backup": {
+    "title": "Sicherung",
+    "placeIcloud": "Sicherungen landen in iCloud Drive › TRS Launcher › Backups – auf jedem Gerät mit deiner Apple-ID.",
+    "placeLocal": "Sicherungen landen in der Dateien-App unter Auf meinem iPhone › TRS Launcher › Backups – und damit auch im iCloud-Backup deines Geräts.",
+    "icloudHint": "Lieber in iCloud Drive? Bei einer Sicherung auf „Teilen“ tippen und „In Dateien sichern“ wählen. Builds mit der iCloud-Option speichern direkt dort.",
+    "createTitle": "Jetzt sichern",
+    "createDescription": "Einstellungen, alle Instanzen mit Welten, Mods und Spieleinstellungen, Skins und Touch-Steuerung – vor dem Packen etwa {size}. Anmeldungen bleiben auf diesem Gerät.",
+    "createDescriptionEmpty": "Einstellungen, alle Instanzen mit Welten, Mods und Spieleinstellungen, Skins und Touch-Steuerung.",
+    "create": "Sichern",
+    "creating": "Sichere …",
+    "created": "Sicherung gespeichert",
+    "taskTitle": "Sicherung des Launchers",
+    "autoTitle": "Täglich automatisch sichern",
+    "autoDescription": "Einmal am Tag, wenn die App startet oder wieder nach vorn kommt – nicht, während Minecraft läuft. Die letzten drei automatischen Sicherungen bleiben.",
+    "lastAutomatic": "Zuletzt: {time}.",
+    "listTitle": "Sicherungen",
+    "empty": "Noch keine Sicherungen.",
+    "icloud": "iCloud",
+    "local": "Auf diesem Gerät",
+    "automatic": "Automatisch",
+    "more": "+ {n} weitere",
+    "noInstances": "Keine Instanzen",
+    "notDownloaded": "Bisher nur in iCloud – sie wird beim Wiederherstellen oder Teilen geladen.",
+    "unreadable": "Diese Datei ist nicht lesbar.",
+    "restore": "Wiederherstellen",
+    "share": "Teilen",
+    "deleteTitle": "Sicherung löschen?",
+    "deleteText": "Die Sicherung vom {time} wird gelöscht – auch in iCloud, falls sie dort liegt.",
+    "deleted": "Sicherung gelöscht",
+    "restoreTitle": "Sicherung wiederherstellen?",
+    "restoreText": "Instanzen aus der Sicherung ersetzen die gleichnamigen auf diesem Gerät – Welten, Mods und Einstellungen kommen auf den Stand der Sicherung. Andere Instanzen und deine Anmeldungen bleiben, wie sie sind. Danach lädt der Launcher neu.",
+    "fromVersion": "TRS Launcher {version}",
+    "restoreTaskTitle": "Sicherung wiederherstellen",
+    "restoring": "Stelle wieder her …",
+    "downloading": "Lade aus iCloud …",
+    "restored": "Sicherung wiederhergestellt"
+  },
   "exportPack": {
     "title": "Als Modpack exportieren",
     "summary": "Kurzbeschreibung (optional)",
@@ -3448,6 +3493,7 @@
       "defaults": "Standard-Einstellungen",
       "java": "Java-Installationen",
       "storage": "Speicherverwaltung",
+      "backup": "Sicherung",
       "network": "Netzwerk",
       "clips": "Clips & Aufnahme",
       "notifications": "Benachrichtigungen",

@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 # TRS Launcher – einmal auf dem Mac ausführen; danach reichen `git pull` und ▶ Run in Xcode.
 #
-#   bash scripts/ios/mac-setup.sh
+#   bash scripts/ios/mac-setup.sh             # Grundeinrichtung
+#   bash scripts/ios/mac-setup.sh --icloud    # dazu Sicherungen in iCloud Drive (bezahlter Account)
+#   bash scripts/ios/mac-setup.sh --no-icloud # iCloud wieder aus
 #
 # - legt Änderungen, die Xcode an eingecheckten Projektdateien gemacht hat (Team, Bundle-ID …), per git stash beiseite
 # - trägt Team und Bundle-ID in src-tauri/gen/apple/Signing.local.xcconfig ein (von git ignoriert): aus diesen
 #   Änderungen, sonst aus Xcodes Konten, sonst aus dem „Apple Development“-Zertifikat im Schlüsselbund
 # - stellt git so ein, dass `git pull` Xcode-Änderungen künftig selbst beiseitelegt und wieder anwendet
 # - installiert die Rust-Teile für iOS (Ziel aarch64-apple-ios, llvm-tools)
+# - mit --icloud: Entitlements mit iCloud Drive (Sicherungen in „iCloud Drive › TRS Launcher“)
 set -euo pipefail
+
+icloud=""
+for arg in "$@"; do
+  case "$arg" in
+    --icloud) icloud=on ;;
+    --no-icloud) icloud=off ;;
+    *) printf 'Unbekannte Option: %s\n' "$arg" >&2; exit 2 ;;
+  esac
+done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
@@ -63,6 +75,20 @@ fi
 if [ -n "$bundle" ] && [ "$bundle" != dev.theredstonee.trslauncher ] && ! grep -qs '^PRODUCT_BUNDLE_IDENTIFIER' "$LOCAL"; then
   echo "PRODUCT_BUNDLE_IDENTIFIER = $bundle" >> "$LOCAL"
   say "Bundle-ID: $bundle (in $LOCAL)"
+fi
+
+# --- iCloud Drive für Sicherungen (nur bezahlter Apple-Developer-Account) ---
+if [ -n "$icloud" ]; then
+  touch "$LOCAL"
+  # Vorhandene TRS_ENTITLEMENTS-Zeile ersetzen (sed -i ohne Endung geht auf macOS nicht – über eine Kopie).
+  grep -v '^TRS_ENTITLEMENTS' "$LOCAL" > "$LOCAL.tmp" || true
+  mv "$LOCAL.tmp" "$LOCAL"
+  if [ "$icloud" = on ]; then
+    echo "TRS_ENTITLEMENTS = trs-launcher_iOS/trs-launcher_iOS-icloud.entitlements" >> "$LOCAL"
+    say "iCloud Drive für Sicherungen an (in $LOCAL) – Xcode legt den iCloud-Container beim nächsten Build an"
+  else
+    say "iCloud Drive für Sicherungen aus – Sicherungen landen in der Dateien-App"
+  fi
 fi
 
 # --- 3. git pull legt Xcode-Änderungen künftig selbst beiseite ---

@@ -236,6 +236,8 @@ export const settingsSchema = z
       .prefault({}),
     /** Android/iOS: auch den Beta-Kanal fragen – fehlt das Feld (älterer Kern), ist es aus. */
     mobileBeta: z.boolean().default(false),
+    /** iOS: täglich automatisch sichern – fehlt das Feld (älterer Kern), ist es aus. */
+    autoBackup: z.boolean().default(false),
   })
   .passthrough()
   .refine((s) => s.minMemoryMb <= s.maxMemoryMb, {

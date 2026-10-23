@@ -95,6 +95,8 @@ Rust-Kern werden neu gebaut, wenn sich etwas geändert hat; die Spiel-Engine lä
    - **Automatic**: Xcode legt Zertifikat und Profil selbst an.
    - **Manual** (eigene .p12 + .mobileprovision): .p12 per Doppelklick in den Schlüsselbund, Profil per Doppelklick
      installieren, dann `CODE_SIGN_STYLE = Manual`, `CODE_SIGN_IDENTITY` und `PROVISIONING_PROFILE_SPECIFIER` setzen.
+   - **iCloud Drive für Sicherungen** (bezahlter Account): `bash scripts/ios/mac-setup.sh --icloud`, siehe
+     [Sicherung und iCloud Drive](#sicherung-und-icloud-drive).
    - **Kostenloses Apple-Konto** (Personal Team): `TRS_ENTITLEMENTS` auf
      `trs-launcher_iOS/trs-launcher_iOS-basic.entitlements` stellen (ohne Increased-Memory-Limit) und
      `TRS_WIDGET_ENTITLEMENTS` auf `Widgets/TRSWidgets-basic.entitlements` (ohne App-Gruppe).
@@ -184,6 +186,24 @@ Ohne diese Secrets baut alles weiter, nur meldet die App keine Updates. Eigenen 
 
 Signiert mit eigenem Profil (`sign-ipa.sh`, OTA-Updates): Ein **Wildcard-Profil** signiert das Widget mit; ein Profil
 nur für die App-ID lässt die Erweiterung weg (die App läuft dann ohne Widget und Live-Aktivität).
+
+## Sicherung und iCloud Drive
+
+**Einstellungen → Sicherung** packt Einstellungen, alle Instanzen (Welten, Mods, Spieleinstellungen, Ressourcen- und
+Shaderpakete, Screenshots), Skins, Presets und die Touch-Steuerung in eine Datei `TRS-Launcher_<Datum>.trsbackup`.
+Anmeldungen bleiben draußen, sie sind an dieses Gerät gebunden. Spielversionen, Bibliotheken und Java fehlen ebenfalls,
+die lädt der Launcher selbst neu. Mit **Täglich automatisch sichern** entsteht einmal am Tag eine Sicherung (beim Start
+bzw. wenn die App wieder nach vorn kommt, nie während Minecraft läuft); die letzten drei bleiben.
+
+- **Ohne weitere Einrichtung** liegen Sicherungen in der Dateien-App unter *Auf meinem iPhone › TRS Launcher ›
+  Backups* und damit auch im iCloud-Backup des Geräts. **Teilen → In Dateien sichern** legt eine Sicherung zusätzlich
+  in iCloud Drive ab.
+- **Direkt in iCloud Drive** (*iCloud Drive › TRS Launcher › Backups*, auf jedem Gerät mit derselben Apple-ID) geht
+  das nur mit bezahltem Apple-Developer-Account. Einmal `bash scripts/ios/mac-setup.sh --icloud` ausführen, dann
+  ▶ Run. Xcode legt den iCloud-Container selbst an. Zurück geht es mit `--no-icloud`.
+- **Wiederherstellen:** in der Liste auf **Wiederherstellen** tippen oder eine `.trsbackup`-Datei in der Dateien-App
+  öffnen (**Öffnen in TRS Launcher**). Instanzen aus der Sicherung ersetzen die mit derselben ID, andere bleiben
+  unberührt. Danach lädt der Launcher neu.
 
 ## Minecraft starten: JIT
 

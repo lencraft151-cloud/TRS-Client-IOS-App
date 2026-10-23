@@ -1010,7 +1010,15 @@
       "invalidWindow": "El final debe ser posterior al inicio.",
       "invalidOrder": "El orden no coincide: vuelve a cargar la lista."
     },
-    "messeBlocked": "No disponible en el PC de la feria."
+    "messeBlocked": "No disponible en el PC de la feria.",
+    "backup": {
+      "invalid": "Esto no es una copia de TRS Launcher.",
+      "tooNew": "Esta copia es de una versión más nueva ({version}) – actualiza primero el launcher.",
+      "notFound": "Esta copia ya no existe.",
+      "noPlace": "No se encontró ningún lugar para las copias.",
+      "downloadFailed": "No se pudo descargar la copia de iCloud.",
+      "gameRunning": "Minecraft está en marcha – ciérralo primero y luego restaura."
+    }
   },
   "browse": {
     "title": "Explorar",
@@ -2314,6 +2322,43 @@
       "unknown": "Informe de errores"
     }
   },
+  "backup": {
+    "title": "Copia de seguridad",
+    "placeIcloud": "Las copias se guardan en iCloud Drive › TRS Launcher › Backups – están en todos los dispositivos con tu Apple ID.",
+    "placeLocal": "Las copias se guardan en la app Archivos, en En mi iPhone › TRS Launcher › Backups – y así también en la copia de iCloud de tu dispositivo.",
+    "icloudHint": "¿Prefieres iCloud Drive? Toca «Compartir» en una copia y elige «Guardar en Archivos». Las versiones con la opción iCloud las guardan allí directamente.",
+    "createTitle": "Hacer copia ahora",
+    "createDescription": "Ajustes, todas las instancias con mundos, mods y ajustes del juego, skins y controles táctiles – unos {size} antes de comprimir. Los inicios de sesión se quedan en este dispositivo.",
+    "createDescriptionEmpty": "Ajustes, todas las instancias con mundos, mods y ajustes del juego, skins y controles táctiles.",
+    "create": "Hacer copia",
+    "creating": "Haciendo copia …",
+    "created": "Copia guardada",
+    "taskTitle": "Copia del launcher",
+    "autoTitle": "Copia automática diaria",
+    "autoDescription": "Una vez al día, al abrir la app o al volver a ella – nunca mientras Minecraft está en marcha. Se guardan las tres últimas copias automáticas.",
+    "lastAutomatic": "Última: {time}.",
+    "listTitle": "Copias",
+    "empty": "Aún no hay copias.",
+    "icloud": "iCloud",
+    "local": "En este dispositivo",
+    "automatic": "Automática",
+    "more": "+ {n} más",
+    "noInstances": "Sin instancias",
+    "notDownloaded": "De momento solo en iCloud – se descarga al restaurarla o compartirla.",
+    "unreadable": "No se puede leer este archivo.",
+    "restore": "Restaurar",
+    "share": "Compartir",
+    "deleteTitle": "¿Eliminar la copia?",
+    "deleteText": "Se eliminará la copia del {time} – también en iCloud, si está allí.",
+    "deleted": "Copia eliminada",
+    "restoreTitle": "¿Restaurar la copia?",
+    "restoreText": "Las instancias de la copia sustituyen a las del mismo nombre en este dispositivo – mundos, mods y ajustes vuelven al estado de la copia. Las demás instancias y tus inicios de sesión no cambian. Después el launcher se recarga.",
+    "fromVersion": "TRS Launcher {version}",
+    "restoreTaskTitle": "Restaurar copia",
+    "restoring": "Restaurando …",
+    "downloading": "Descargando de iCloud …",
+    "restored": "Copia restaurada"
+  },
   "exportPack": {
     "title": "Exportar como modpack",
     "summary": "Descripción breve (opcional)",
@@ -3448,6 +3493,7 @@
       "defaults": "Ajustes predeterminados",
       "java": "Instalaciones de Java",
       "storage": "Almacenamiento",
+      "backup": "Copia de seguridad",
       "network": "Red",
       "clips": "Clips y grabación",
       "notifications": "Notificaciones",

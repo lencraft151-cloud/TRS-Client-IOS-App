@@ -757,6 +757,11 @@ async function allowFirewall() {
       <ClipsSettings v-model="form.clips" />
     </div>
 
+    <!-- Sicherung (iOS): iCloud Drive bzw. Dateien-App ------------------------------- -->
+    <div v-else-if="active === 'backup'">
+      <BackupPanel v-model:auto="form.autoBackup" />
+    </div>
+
     <!-- Speicherverwaltung --------------------------------------------------------------- -->
     <div v-else-if="active === 'storage'">
       <h3 class="section-heading">{{ t('settings.storage.title') }}</h3>

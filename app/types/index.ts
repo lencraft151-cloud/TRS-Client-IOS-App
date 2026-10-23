@@ -247,6 +247,8 @@ export interface Settings {
   remote: RemoteSettings
   /** Android/iOS: auch den Beta-Kanal nach Updates fragen (ab Werk aus). */
   mobileBeta: boolean
+  /** iOS: einmal am Tag automatisch sichern (siehe Einstellungen → Sicherung). */
+  autoBackup: boolean
 }
 
 /** PC-Fernbedienung (Rust: `RemoteSettings`): an/aus und je Befehlsart erlaubt. */

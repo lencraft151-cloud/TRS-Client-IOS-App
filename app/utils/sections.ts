@@ -37,13 +37,15 @@ const allAppSettingsSections: ShellSection[] = [
   section('java', 'settingsSections.app.java', 'java', 'settingsSections.groups.instances'),
   section('clips', 'settingsSections.app.clips', 'clips', 'settingsSections.groups.instances'),
   section('storage', 'settingsSections.app.storage', 'storage', 'settingsSections.groups.instances'),
+  section('backup', 'settingsSections.app.backup', 'cloud', 'settingsSections.groups.instances'),
   section('network', 'settingsSections.app.network', 'network', 'settingsSections.groups.instances'),
 ]
 
 /**
  * Bereiche, die es auf diesem System gibt: Clips (Spielaufnahme) vorerst nur unter Windows,
  * Java und die Spiel-Standards (Speicher, JVM, Fenster, Hooks) nur, wo das Spiel startet –
- * am Handy also (noch) nicht. Die Fernbedienung stellt man am PC ein (nicht am Handy).
+ * am Handy also (noch) nicht. Die Fernbedienung stellt man am PC ein (nicht am Handy). Sicherungen (iCloud Drive,
+ * Dateien-App) gibt es bisher nur auf iPhone und iPad.
  */
 export function appSettingsSectionsFor(caps: Pick<PlatformCapabilities, 'clips' | 'java' | 'gameLaunch' | 'platform'>): ShellSection[] {
   const desktop = caps.platform !== 'android' && caps.platform !== 'ios'
@@ -53,7 +55,8 @@ export function appSettingsSectionsFor(caps: Pick<PlatformCapabilities, 'clips' 
       (s.key !== 'java' || caps.java) &&
       // Fenster, JVM, Hooks: nur mit eigenem Java (mobil setzt die Engine das selbst).
       (s.key !== 'defaults' || (caps.gameLaunch && caps.java)) &&
-      (s.key !== 'remote' || desktop),
+      (s.key !== 'remote' || desktop) &&
+      (s.key !== 'backup' || caps.platform === 'ios'),
   )
 }
 

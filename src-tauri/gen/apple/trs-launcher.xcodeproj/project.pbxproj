@@ -7,32 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		14313FEEE21F0533958FBCFF98FB976B /* TrsShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */; };
+		1CD520C759811CC9A272AFFB9D80FE66 /* TRSWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E37EAA50A562150A15A2D57CE192D2 /* TRSWidgets.swift */; };
 		262C72CCFD68396E126215A2BF26F5D8 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A984DEF92B6E7EAA1E49690FFB957B08 /* CoreGraphics.framework */; };
 		2F66C6454A546F9D64B0C6EE6DD80813 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A791BC293CF363F2AD57EA09C420A2AB /* WebKit.framework */; };
-		4129C410A41B561C08C64FD69ED560DE /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF22F0A4B2A52FA41C09362E6EAAFB62 /* SwiftUI.framework */; };
 		50D5E041E077BF754E28A5D5830F7905 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93466DBDBA728BE947821B3855AF8EF2 /* UIKit.framework */; };
+		5194D20E01E4353A709480C3C6B1A1D2 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08FA78A494B319AB3D067862D1432388 /* WidgetKit.framework */; };
+		58E8B2E67DD101CC72219EB29DB6C64A /* TrsShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */; };
 		59265EEADC4C78077792B4EB00F3D72B /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E28CCCF481879521DF4B097E8663508 /* QuartzCore.framework */; };
 		5B7FF6ADF87479B63D2AB23C541769FB /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6432A0E65855671CDB7B8014F15BF63F /* Shortcuts.swift */; };
 		780C1EADADA7751073CFF1238AD82B07 /* TrsShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */; };
 		7AC98BAFCE117F45426D863D2477C89D /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = E7D49F66059797459928047886EE8DEF /* main.mm */; };
 		7E8697287FB05464485FA3B238A48B11 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C008F6ACB686EA6C5BCBD1AFFA01C0E /* Metal.framework */; };
+		92179566AC3B651B326367DDF5F6A4C8 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF22F0A4B2A52FA41C09362E6EAAFB62 /* SwiftUI.framework */; };
+		943DD5AF656E633D5A907FC0337A4BFB /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F691D726D3A6AD1DB49748E8C14796CD /* ActivityKit.framework */; };
 		A5653855C749571574795C187244E441 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */; };
 		AACBAC6DB630A17648D2D4CC85F4F7EE /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA10167A743586B41C4E4B0D40B54C6B /* MetalKit.framework */; };
-		B1EDA3DC3C801A71C78373510BB48B44 /* TRSWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E37EAA50A562150A15A2D57CE192D2 /* TRSWidgets.swift */; };
-		BEBE937649B9481B530B3E1DDC88459F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08FA78A494B319AB3D067862D1432388 /* WidgetKit.framework */; };
 		C6714B5490ACC233F867342F4116B6AC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1207921198E4D912332437064C25D903 /* Assets.xcassets */; };
 		E2C9CF880494E473F87DBFE69DB1980E /* TRSWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ACF709A80F0D8A0CC436F327E71C9A01 /* TRSWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		EA888FB2A1ABF988B95D5F927C987502 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F691D726D3A6AD1DB49748E8C14796CD /* ActivityKit.framework */; };
 		F92A5395D41A9BB6ED1F910338F1DD2E /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DE152AAD5AE8B9D12B7753AC37CBB990 /* Security.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		1E513BFF7AF55DFEB434B5FCF4F29116 /* PBXContainerItemProxy */ = {
+		629C6624588F0C8F87C4D1B5C8DC3BB2 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 719EC1A2CD9EA72C09E3A9C2264871AE /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 4687B9567CE8D538C8F96C9986D11A59;
+			remoteGlobalIDString = 88931AE93C2CCE0B52EF58F37C68C6C9;
 			remoteInfo = TRSWidgets;
 		};
 /* End PBXContainerItemProxy section */
@@ -55,7 +55,10 @@
 		08FA78A494B319AB3D067862D1432388 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		1207921198E4D912332437064C25D903 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		168B35CD060A2A695D27F9D05746527C /* trs-launcher_iOS-icloud.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS-icloud.entitlements"; sourceTree = "<group>"; };
 		17E37EAA50A562150A15A2D57CE192D2 /* TRSWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TRSWidgets.swift; sourceTree = "<group>"; };
+		1AF6EBCECA232FCBF7795689DC980870 /* trs-launcher_iOS-basic.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS-basic.entitlements"; sourceTree = "<group>"; };
+		380B1CB001640EE5FB6F7075930A8A4A /* trs-launcher_iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS.entitlements"; sourceTree = "<group>"; };
 		384EEB8DE98F43E78FDE3301FAF79CE4 /* bindings.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		3C008F6ACB686EA6C5BCBD1AFFA01C0E /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		406F0B37821B753E9698B6F78DF91E04 /* UpdateChannel.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = UpdateChannel.xcconfig; sourceTree = "<group>"; };
@@ -64,9 +67,9 @@
 		4E28CCCF481879521DF4B097E8663508 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		4FE994C4E27C416E015A81A417995F08 /* TRSWidgets-basic.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "TRSWidgets-basic.entitlements"; sourceTree = "<group>"; };
 		5A62B06061AED4C9C549C0B9BB05E5D9 /* ExportOptions-ad-hoc.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-ad-hoc.plist"; sourceTree = "<group>"; };
-		5E461E63D8727FD93E55B054B565B672 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		6432A0E65855671CDB7B8014F15BF63F /* Shortcuts.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
 		7234674C2098F6258A00FDA328F5D6D8 /* TrsShared.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrsShared.swift; sourceTree = "<group>"; };
+		83D461F5AAAD556D9E7AC7B371F77A33 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		92E772C5D2D1BE8122F60CF5C057B6BD /* ExportOptions-enterprise.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-enterprise.plist"; sourceTree = "<group>"; };
 		93466DBDBA728BE947821B3855AF8EF2 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		A791BC293CF363F2AD57EA09C420A2AB /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
@@ -75,7 +78,6 @@
 		ACF709A80F0D8A0CC436F327E71C9A01 /* TRSWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TRSWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF22F0A4B2A52FA41C09362E6EAAFB62 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
-		BA704E0E2501102FF20CBE5FE06D1A2D /* trs-launcher_iOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS.entitlements"; sourceTree = "<group>"; };
 		BB11233413CB7A3BA3079B8A99E7B9AA /* embed-engine.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "embed-engine.sh"; sourceTree = "<group>"; };
 		BEE94D02CA6DBFBCAECE14213B97D5C4 /* TRS Launcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TRS Launcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFB42F85E1C642ABB515C2CC8095B1F6 /* trs_jit.py */ = {isa = PBXFileReference; includeInIndex = 1; path = trs_jit.py; sourceTree = "<group>"; };
@@ -84,7 +86,6 @@
 		DE152AAD5AE8B9D12B7753AC37CBB990 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		E7D49F66059797459928047886EE8DEF /* main.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = main.mm; sourceTree = "<group>"; };
 		E96AA7A847284B3BC85CBE51D1E690D2 /* ExportOptions-development.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ExportOptions-development.plist"; sourceTree = "<group>"; };
-		F369D2F302D61A70177310A4FE333558 /* trs-launcher_iOS-basic.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = "trs-launcher_iOS-basic.entitlements"; sourceTree = "<group>"; };
 		F691D726D3A6AD1DB49748E8C14796CD /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -103,13 +104,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AAB689AB3881BBFEB77AB9D7B72C164D /* Frameworks */ = {
+		D7AD500268EDB9296DB601E01EA746AA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EA888FB2A1ABF988B95D5F927C987502 /* ActivityKit.framework in Frameworks */,
-				4129C410A41B561C08C64FD69ED560DE /* SwiftUI.framework in Frameworks */,
-				BEBE937649B9481B530B3E1DDC88459F /* WidgetKit.framework in Frameworks */,
+				943DD5AF656E633D5A907FC0337A4BFB /* ActivityKit.framework in Frameworks */,
+				92179566AC3B651B326367DDF5F6A4C8 /* SwiftUI.framework in Frameworks */,
+				5194D20E01E4353A709480C3C6B1A1D2 /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,17 +192,6 @@
 			path = scripts;
 			sourceTree = "<group>";
 		};
-		9D17912958FB9749807143D391223546 /* trs-launcher_iOS */ = {
-			isa = PBXGroup;
-			children = (
-				5E461E63D8727FD93E55B054B565B672 /* Info.plist */,
-				BA704E0E2501102FF20CBE5FE06D1A2D /* trs-launcher_iOS.entitlements */,
-				F369D2F302D61A70177310A4FE333558 /* trs-launcher_iOS-basic.entitlements */,
-			);
-			name = "trs-launcher_iOS";
-			path = "trs-launcher_iOS";
-			sourceTree = "<group>";
-		};
 		A7AE56E4C5589BE8E256C7610B3505B1 /* Widgets */ = {
 			isa = PBXGroup;
 			children = (
@@ -222,7 +212,7 @@
 				DC122AD0CE050F836A9A994140B305E7 /* Sources */,
 				1207921198E4D912332437064C25D903 /* Assets.xcassets */,
 				B63127D3D93C2EEF4735C197CEB865E9 /* LaunchScreen.storyboard */,
-				9D17912958FB9749807143D391223546 /* trs-launcher_iOS */,
+				D4E629BF41BAC1DA7B7D86FD0A393731 /* trs-launcher_iOS */,
 				030665A93F7491B2619BFC58451CF2E4 /* Shared */,
 				A7AE56E4C5589BE8E256C7610B3505B1 /* Widgets */,
 				09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */,
@@ -233,6 +223,18 @@
 				5A62B06061AED4C9C549C0B9BB05E5D9 /* ExportOptions-ad-hoc.plist */,
 				92E772C5D2D1BE8122F60CF5C057B6BD /* ExportOptions-enterprise.plist */,
 			);
+			sourceTree = "<group>";
+		};
+		D4E629BF41BAC1DA7B7D86FD0A393731 /* trs-launcher_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				83D461F5AAAD556D9E7AC7B371F77A33 /* Info.plist */,
+				380B1CB001640EE5FB6F7075930A8A4A /* trs-launcher_iOS.entitlements */,
+				1AF6EBCECA232FCBF7795689DC980870 /* trs-launcher_iOS-basic.entitlements */,
+				168B35CD060A2A695D27F9D05746527C /* trs-launcher_iOS-icloud.entitlements */,
+			);
+			name = "trs-launcher_iOS";
+			path = "trs-launcher_iOS";
 			sourceTree = "<group>";
 		};
 		DC122AD0CE050F836A9A994140B305E7 /* Sources */ = {
@@ -261,20 +263,20 @@
 			buildRules = (
 			);
 			dependencies = (
-				8579BDEBCD7DB45F2551CC112018B48B /* PBXTargetDependency */,
+				7372980F21AA2C456BB1EC65A1830E27 /* PBXTargetDependency */,
 			);
 			name = "trs-launcher_iOS";
 			productName = "TRS Launcher";
 			productReference = BEE94D02CA6DBFBCAECE14213B97D5C4 /* TRS Launcher.app */;
 			productType = "com.apple.product-type.application";
 		};
-		4687B9567CE8D538C8F96C9986D11A59 /* TRSWidgets */ = {
+		88931AE93C2CCE0B52EF58F37C68C6C9 /* TRSWidgets */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 993EDB44F82946CF8E06F2AEA724E588 /* Build configuration list for PBXNativeTarget "TRSWidgets" */;
+			buildConfigurationList = 9BF79CE1E43873E8CD048A8CAE44D272 /* Build configuration list for PBXNativeTarget "TRSWidgets" */;
 			buildPhases = (
-				A08AAE78F76B14E8585EB17FAC101CD4 /* Sources */,
-				AAB689AB3881BBFEB77AB9D7B72C164D /* Frameworks */,
-				15F4BA003216EE2DA93495AF4998A475 /* Resources */,
+				75EB477048C241CB532E984172F1F204 /* Sources */,
+				D7AD500268EDB9296DB601E01EA746AA /* Frameworks */,
+				027DCB323378B43CD60207A8E40557E6 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -311,13 +313,13 @@
 			projectRoot = "";
 			targets = (
 				2D2498D895765B474A6680EE06B7A389 /* trs-launcher_iOS */,
-				4687B9567CE8D538C8F96C9986D11A59 /* TRSWidgets */,
+				88931AE93C2CCE0B52EF58F37C68C6C9 /* TRSWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		15F4BA003216EE2DA93495AF4998A475 /* Resources */ = {
+		027DCB323378B43CD60207A8E40557E6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -378,12 +380,12 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A08AAE78F76B14E8585EB17FAC101CD4 /* Sources */ = {
+		75EB477048C241CB532E984172F1F204 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B1EDA3DC3C801A71C78373510BB48B44 /* TRSWidgets.swift in Sources */,
-				14313FEEE21F0533958FBCFF98FB976B /* TrsShared.swift in Sources */,
+				1CD520C759811CC9A272AFFB9D80FE66 /* TRSWidgets.swift in Sources */,
+				58E8B2E67DD101CC72219EB29DB6C64A /* TrsShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -400,11 +402,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		8579BDEBCD7DB45F2551CC112018B48B /* PBXTargetDependency */ = {
+		7372980F21AA2C456BB1EC65A1830E27 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = TRSWidgets;
-			target = 4687B9567CE8D538C8F96C9986D11A59 /* TRSWidgets */;
-			targetProxy = 1E513BFF7AF55DFEB434B5FCF4F29116 /* PBXContainerItemProxy */;
+			target = 88931AE93C2CCE0B52EF58F37C68C6C9 /* TRSWidgets */;
+			targetProxy = 629C6624588F0C8F87C4D1B5C8DC3BB2 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -524,7 +526,40 @@
 			};
 			name = debug;
 		};
-		5841A7769DDCDACB64B95D68D0F9B4C2 /* debug */ = {
+		523C1D3D0EF989F3D2A02D1F22119736 /* release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = "$(TRS_WIDGET_ENTITLEMENTS)";
+				CURRENT_PROJECT_VERSION = 0.27.1;
+				ENABLE_BITCODE = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.27.1;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).widgets";
+				PRODUCT_NAME = TRSWidgets;
+				PROVISIONING_PROFILE_SPECIFIER = "$(TRS_WIDGET_PROFILE)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = release;
+		};
+		9043CF718B1A38E8BDB7BC9E8FB9DFCB /* debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
 			buildSettings = {
@@ -667,39 +702,6 @@
 			};
 			name = debug;
 		};
-		F0E98DD76DA71A834E6292E19A8F30A4 /* release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = "$(TRS_WIDGET_ENTITLEMENTS)";
-				CURRENT_PROJECT_VERSION = 0.27.1;
-				ENABLE_BITCODE = NO;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Widgets/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 0.27.1;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).widgets";
-				PRODUCT_NAME = TRSWidgets;
-				PROVISIONING_PROFILE_SPECIFIER = "$(TRS_WIDGET_PROFILE)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -712,11 +714,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = release;
 		};
-		993EDB44F82946CF8E06F2AEA724E588 /* Build configuration list for PBXNativeTarget "TRSWidgets" */ = {
+		9BF79CE1E43873E8CD048A8CAE44D272 /* Build configuration list for PBXNativeTarget "TRSWidgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F0E98DD76DA71A834E6292E19A8F30A4 /* release */,
-				5841A7769DDCDACB64B95D68D0F9B4C2 /* debug */,
+				523C1D3D0EF989F3D2A02D1F22119736 /* release */,
+				9043CF718B1A38E8BDB7BC9E8FB9DFCB /* debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = release;

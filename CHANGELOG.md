@@ -42,6 +42,7 @@ How to write an entry:
 - **“Open in TRS Launcher” on iPhone and iPad.** Modpacks (.mrpack, .zip) and skins (.png) from the Files app or Safari open straight in the launcher – modpacks in the import, skins in Skins.
 - **Beta versions on iPhone, iPad and Android.** Turn on “Beta versions” in Settings → Behavior to get new versions earlier.
 - **Settings that fit your phone.** New Minecraft instances on iPhone, iPad and Android start with view distance, graphics and frame rate matched to the device – and on iPhone the game no longer reserves more memory than iOS allows.
+- **Backups on iPhone and iPad.** Settings → Backup saves your settings, all instances with worlds and mods, skins and touch controls in one file – in iCloud Drive or the Files app, on request automatically every day. Restore it with one tap or by opening the file in the launcher, also on a new device.
 - **Widget, Live Activity and Siri on iPhone and iPad.** A home screen widget starts the instance you played last with one tap. Downloads and installs show their progress on the lock screen and in the Dynamic Island. “Start TRS Launcher” in Siri or the Shortcuts app starts your last instance – or any instance you pick.
 
 ### Deutsch
@@ -56,6 +57,7 @@ How to write an entry:
 - **„Öffnen in TRS Launcher“ auf iPhone und iPad.** Modpacks (.mrpack, .zip) und Skins (.png) aus der Dateien-App oder Safari öffnen direkt im Launcher – Modpacks im Import, Skins unter Skins.
 - **Beta-Versionen auf iPhone, iPad und Android.** Mit „Beta-Versionen“ unter Einstellungen → Verhalten bekommst du neue Versionen früher.
 - **Einstellungen passend zum Handy.** Neue Minecraft-Instanzen auf iPhone, iPad und Android starten mit Sichtweite, Grafik und Bildrate passend zum Gerät – und auf dem iPhone reserviert das Spiel nicht mehr mehr Speicher, als iOS erlaubt.
+- **Sicherungen auf iPhone und iPad.** Einstellungen → Sicherung legt deine Einstellungen, alle Instanzen mit Welten und Mods, Skins und die Touch-Steuerung in eine Datei – in iCloud Drive oder die Dateien-App, auf Wunsch jeden Tag automatisch. Wiederhergestellt ist sie mit einem Tipp oder durch Öffnen der Datei im Launcher, auch auf einem neuen Gerät.
 - **Widget, Live-Aktivität und Siri auf iPhone und iPad.** Ein Widget auf dem Home-Bildschirm startet deine zuletzt gespielte Instanz mit einem Tipp. Downloads und Installationen zeigen ihren Fortschritt auf dem Sperrbildschirm und in der Dynamic Island. „Starte TRS Launcher“ in Siri oder der Kurzbefehle-App startet deine letzte Instanz – oder eine, die du auswählst.
 
 ## 0.27.1 – 2026-10-21 – Grand Entrance Fix | Feinschliff
