@@ -30,6 +30,13 @@ How to write an entry:
 
 ## Unreleased
 
+## 0.28.0 – 2026-10-23 – Your Look | Dein Look
+<!-- banner: accent=#f07a22 motif=/news/0.28.0/banner.png -->
+<!-- shots:
+/news/0.28.0/website-look-on.png | Halloween with the event design | Halloween mit Event-Design
+/news/0.28.0/website-look-off.png | Event design turned off – the pumpkin hunt card stays | Event-Design ausgeschaltet – die Karte zur Kürbis-Suche bleibt
+-->
+
 ### English
 - **iPhone and iPad: install with your own profile.** The iOS app now comes as a ready-to-sign Xcode project and as an IPA signed with your own certificate and provisioning profile – install it straight from Safari, with Apple Configurator, Xcode or apps like Feather and ESign.
 - **Fixed:** the iPhone/iPad app no longer closes right after starting when it was built with Xcode 27.
