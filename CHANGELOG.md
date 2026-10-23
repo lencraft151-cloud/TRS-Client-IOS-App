@@ -30,6 +30,13 @@ How to write an entry:
 
 ## Unreleased
 
+## 0.27.2 – 2026-10-23 – Clean Cut | Sauberer Schnitt
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.2/banner.png -->
+<!-- shots:
+/news/0.27.2/overlay-on-screen.png | On screen you still see the buffer indicator and “Clip saved” – exactly where you placed the Clips element | Am Bildschirm siehst du Puffer-Anzeige und „Clip gespeichert“ weiter – genau dort, wo du das Clips-Element hingelegt hast
+/news/0.27.2/clip-clean.png | The same moment in the saved clip: no indicator, no message | Derselbe Moment im gespeicherten Clip: keine Anzeige, keine Meldung
+-->
+
 ### English
 - **iPhone and iPad: install with your own profile.** The iOS app now comes as a ready-to-sign Xcode project and as an IPA signed with your own certificate and provisioning profile – install it straight from Safari, with Apple Configurator, Xcode or apps like Feather and ESign.
 - **Fixed:** the iPhone/iPad app no longer closes right after starting when it was built with Xcode 27.
