@@ -63,7 +63,17 @@ async fn v2_login_with(
     assert_eq!(challenge["proof"].as_str().unwrap(), proto::hex(&proto::launcher_proof(&key, &sid, &nc, &nl)), "echter Launcher");
     assert_eq!(
         challenge["features"],
-        json!(["clips", "accounts", "clips.enable", "clips.preview", "clips.open", "hosting.join", "hosting.mods", "hosting.open"])
+        json!([
+            "clips",
+            "accounts",
+            "clips.enable",
+            "clips.preview",
+            "clips.open",
+            "hosting.join",
+            "hosting.mods",
+            "hosting.open",
+            "clips.overlay"
+        ])
     );
     let mut proof = proto::game_proof(&key, &sid, &nc, &nl);
     if tamper {
@@ -863,4 +873,190 @@ async fn launcher_meldet_spiele_mit_sozial_hinweisen_im_spiel() {
     let seen = seen.lock().unwrap().clone();
     assert_eq!(seen.first(), Some(&vec!["neu".to_owned()]));
     assert_eq!(seen.last(), Some(&Vec::new()), "Link weg → Launcher meldet wieder");
+}
+
+// --- Clip-Overlay (`clips.overlay`, `clips.hud`) ------------------------------------
+
+/// Sammelt die Instanzen, für die der Link „Overlay-Stand geändert“ meldet.
+fn hud_events(link: &TrsLink) -> Arc<Mutex<Vec<String>>> {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let sink = seen.clone();
+    link.set_hud_sink(Arc::new(move |id: &str| sink.lock().unwrap().push(id.to_owned())));
+    seen
+}
+
+/// Wartet, bis `hud()` der Instanz `expected` ist (der Abbau einer Verbindung läuft asynchron).
+async fn hud_becomes(link: &TrsLink, instance_id: &str, expected: LinkHud) {
+    for _ in 0..200 {
+        if link.hud(instance_id) == expected {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("Overlay-Stand {:?} statt {expected:?}", link.hud(instance_id));
+}
+
+#[tokio::test]
+async fn overlay_nur_fuer_mods_mit_merkmal_und_solange_verbunden() {
+    let link = TrsLink::new(None);
+    let seen = hud_events(&link);
+    let handoff = link.open_session("survival", false).await.unwrap();
+    assert_eq!(link.hud("survival"), LinkHud { overlay: false, buffer: true, place: None }, "Standard: Puffer an, Mod zeichnet selbst");
+    assert_eq!(link.hud("unbekannt"), LinkHud::default());
+
+    // Ältere Mod ohne das Merkmal: sie zeichnet Puffer + Meldungen selbst → kein Overlay.
+    let alt = v2_login_with(&handoff, false, Some(&["hosting.join"])).await.expect("Anmeldung");
+    assert!(!link.hud("survival").overlay);
+    drop(alt);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(seen.lock().unwrap().is_empty(), "nichts geändert, nichts gemeldet");
+
+    // Neue Mod: Overlay übernimmt, die Oberfläche wird benachrichtigt.
+    let c = v2_login_with(&handoff, false, Some(&["hosting.join", "clips.overlay"])).await.expect("Anmeldung");
+    assert_eq!(link.hud("survival"), LinkHud { overlay: true, buffer: true, place: None });
+    assert_eq!(*seen.lock().unwrap(), vec!["survival".to_owned()]);
+    // Zweite Verbindung (Wiederverbinden) ohne Merkmal ändert nichts; ohne die erste bleibt nur sie.
+    let ohne = v2_login(&handoff, false).await.expect("Anmeldung");
+    assert_eq!(seen.lock().unwrap().len(), 1);
+    drop(c);
+    hud_becomes(&link, "survival", LinkHud { overlay: false, buffer: true, place: None }).await;
+    assert_eq!(seen.lock().unwrap().len(), 2, "Verbindung weg → Mod zeichnet wieder selbst");
+    drop(ohne);
+
+    // Spielende: Sitzung weg → Standard.
+    let _c = v2_login_with(&handoff, false, Some(&["clips.overlay"])).await.expect("Anmeldung");
+    assert!(link.hud("survival").overlay);
+    link.close_session("survival");
+    assert_eq!(link.hud("survival"), LinkHud::default());
+}
+
+#[tokio::test]
+async fn puffer_anzeige_per_anfrage_mit_bremse() {
+    let link = TrsLink::new(None);
+    let seen = hud_events(&link);
+    let handoff = link.open_session("survival", false).await.unwrap();
+    link.set_pid("survival", std::process::id());
+    let mut c = v2_login_with(&handoff, false, Some(&["clips.overlay"])).await.expect("Anmeldung");
+    seen.lock().unwrap().clear();
+
+    // Ungültiger bzw. fehlender Wert → Fehler (zählt nicht gegen die Bremse).
+    send(&mut c.w, json!({ "type": "req", "id": 1, "op": "clips.hud", "buffer": "vielleicht" })).await;
+    assert_eq!(response(&mut c.r, 1).await["error"], "error");
+    send(&mut c.w, json!({ "type": "req", "id": 2, "op": "clips.hud" })).await;
+    assert_eq!(response(&mut c.r, 2).await["error"], "error");
+
+    // Die Mod schickt Werte als Text ("false"); JSON-Wahrheitswerte gehen auch.
+    send(&mut c.w, json!({ "type": "req", "id": 3, "op": "clips.hud", "buffer": "false" })).await;
+    assert_eq!(response(&mut c.r, 3).await["ok"], true);
+    assert_eq!(link.hud("survival"), LinkHud { overlay: true, buffer: false, place: None });
+    assert_eq!(*seen.lock().unwrap(), vec!["survival".to_owned()]);
+
+    // Sofort noch einmal: gebremst, nichts geändert.
+    send(&mut c.w, json!({ "type": "req", "id": 4, "op": "clips.hud", "buffer": true })).await;
+    assert_eq!(response(&mut c.r, 4).await["error"], "rate_limited");
+    assert!(!link.hud("survival").buffer);
+
+    tokio::time::sleep(Duration::from_millis(1050)).await;
+    send(&mut c.w, json!({ "type": "req", "id": 5, "op": "clips.hud", "buffer": true })).await;
+    assert_eq!(response(&mut c.r, 5).await["ok"], true);
+    assert!(link.hud("survival").buffer);
+    assert_eq!(seen.lock().unwrap().len(), 2);
+
+    // Gleicher Wert erneut: ok, aber keine Meldung an die Oberfläche.
+    tokio::time::sleep(Duration::from_millis(1050)).await;
+    send(&mut c.w, json!({ "type": "req", "id": 6, "op": "clips.hud", "buffer": "1" })).await;
+    assert_eq!(response(&mut c.r, 6).await["ok"], true);
+    assert_eq!(seen.lock().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn puffer_anzeige_nur_vom_spielprozess() {
+    let link = TrsLink::new(None);
+    let seen = hud_events(&link);
+    // PID unbekannt → Gegenstelle nicht geprüft → abgelehnt.
+    let handoff = link.open_session("survival", false).await.unwrap();
+    let mut c = v2_login_with(&handoff, false, Some(&["clips.overlay"])).await.expect("Anmeldung");
+    seen.lock().unwrap().clear();
+    send(&mut c.w, json!({ "type": "req", "id": 1, "op": "clips.hud", "buffer": false })).await;
+    assert_eq!(response(&mut c.r, 1).await["error"], "not_allowed");
+    assert!(link.hud("survival").buffer);
+    assert!(seen.lock().unwrap().is_empty());
+
+    // Alte Mod (Protokoll v1): keine Anfragen, kein Overlay.
+    let _handoff = link.open_session("legacy", true).await.unwrap();
+    link.set_pid("legacy", std::process::id());
+    let token = link.clips_config("legacy", true).token.unwrap();
+    let (mut r, mut w) = connect(link.port().unwrap()).await;
+    send(&mut w, json!({ "type": "hello", "v": 1, "token": token })).await;
+    assert_eq!(line(&mut r).await["type"], "state");
+    send(&mut w, json!({ "type": "req", "id": 2, "op": "clips.hud", "buffer": false })).await;
+    assert_eq!(response(&mut r, 2).await["error"], "not_allowed");
+    assert_eq!(link.hud("legacy"), LinkHud::default());
+}
+
+#[test]
+fn lage_des_clips_elements_wird_streng_gelesen() {
+    let v = |s: &str| serde_json::Value::String(s.into());
+    let place = |ax, ay, ox, oy| Some(HudPlace { anchor_x: ax, anchor_y: ay, offset_x: ox, offset_y: oy });
+    // Nichts angegeben → keine Lage (Overlay oben links).
+    assert_eq!(HudPlace::parse(None, None, None, None), Ok(None));
+    // Text wie von der Mod, Zahlen gehen auch; in Promille.
+    let (ax, ay, ox, oy) = (v("1.0"), v("0.5"), v("0.0"), v("-0.2"));
+    assert_eq!(HudPlace::parse(Some(&ax), Some(&ay), Some(&ox), Some(&oy)), Ok(place(1000, 500, 0, -200)));
+    let (ax, ay, ox, oy) = (json!(0), json!(1), json!(0.0123), json!(-0.0456));
+    assert_eq!(HudPlace::parse(Some(&ax), Some(&ay), Some(&ox), Some(&oy)), Ok(place(0, 1000, 12, -46)));
+    // Außerhalb → begrenzt (Anker 0..1, Versatz −1..1).
+    let (ax, ay, ox, oy) = (v("7"), v("-3"), v("9"), v("-9"));
+    assert_eq!(HudPlace::parse(Some(&ax), Some(&ay), Some(&ox), Some(&oy)), Ok(place(1000, 0, 1000, -1000)));
+    // Unvollständig, keine Zahl, unendlich oder zu lang → Fehler.
+    assert_eq!(HudPlace::parse(Some(&ax), None, None, None), Err("error"));
+    let (bad, inf, long) = (v("links"), v("inf"), v(&"1".repeat(40)));
+    assert_eq!(HudPlace::parse(Some(&bad), Some(&ay), Some(&ox), Some(&oy)), Err("error"));
+    assert_eq!(HudPlace::parse(Some(&inf), Some(&ay), Some(&ox), Some(&oy)), Err("error"));
+    assert_eq!(HudPlace::parse(Some(&long), Some(&ay), Some(&ox), Some(&oy)), Err("error"));
+    assert_eq!(HudPlace::parse(Some(&json!(true)), Some(&ay), Some(&ox), Some(&oy)), Err("error"));
+}
+
+#[tokio::test]
+async fn lage_des_clips_elements_kommt_mit_clips_hud() {
+    let link = TrsLink::new(None);
+    let seen = hud_events(&link);
+    let handoff = link.open_session("survival", false).await.unwrap();
+    link.set_pid("survival", std::process::id());
+    let mut c = v2_login_with(&handoff, false, Some(&["clips.overlay"])).await.expect("Anmeldung");
+    seen.lock().unwrap().clear();
+    // Kaputte Lage → Fehler, nichts übernommen.
+    send(&mut c.w, json!({ "type": "req", "id": 1, "op": "clips.hud", "buffer": "true", "anchorX": "rechts" })).await;
+    assert_eq!(response(&mut c.r, 1).await["error"], "error");
+    assert_eq!(link.hud("survival").place, None);
+    send(
+        &mut c.w,
+        json!({ "type": "req", "id": 2, "op": "clips.hud", "buffer": "true",
+                "anchorX": "1.0000", "anchorY": "0.5000", "offsetX": "0.0000", "offsetY": "-0.2000" }),
+    )
+    .await;
+    assert_eq!(response(&mut c.r, 2).await["ok"], true);
+    let place = Some(HudPlace { anchor_x: 1000, anchor_y: 500, offset_x: 0, offset_y: -200 });
+    assert_eq!(link.hud("survival"), LinkHud { overlay: true, buffer: true, place });
+    assert_eq!(seen.lock().unwrap().len(), 1, "nur die Lage geändert → Oberfläche benachrichtigt");
+    // Ohne Lage (z. B. ein Client, der sie nicht kennt) → zurück auf oben links.
+    tokio::time::sleep(Duration::from_millis(1050)).await;
+    send(&mut c.w, json!({ "type": "req", "id": 3, "op": "clips.hud", "buffer": "true" })).await;
+    assert_eq!(response(&mut c.r, 3).await["ok"], true);
+    assert_eq!(link.hud("survival").place, None);
+    assert_eq!(seen.lock().unwrap().len(), 2);
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn fremder_prozess_bekommt_kein_overlay() {
+    let link = TrsLink::new(None);
+    let seen = hud_events(&link);
+    let handoff = link.open_session("survival", false).await.unwrap();
+    // Gegenstelle gehört nicht zum Spiel (System-Leerlaufprozess als „Spiel“): schon die Anmeldung scheitert.
+    link.set_pid("survival", 0);
+    let denied = v2_login_with(&handoff, false, Some(&["clips.overlay"])).await.err().expect("fremde Gegenstelle");
+    assert_eq!(denied["type"], "denied");
+    assert_eq!(link.hud("survival"), LinkHud::default());
+    assert!(seen.lock().unwrap().is_empty());
 }

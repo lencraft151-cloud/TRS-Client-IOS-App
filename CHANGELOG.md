@@ -44,6 +44,8 @@ How to write an entry:
 - **Settings that fit your phone.** New Minecraft instances on iPhone, iPad and Android start with view distance, graphics and frame rate matched to the device – and on iPhone the game no longer reserves more memory than iOS allows.
 - **Backups on iPhone and iPad.** Settings → Backup saves your settings, all instances with worlds and mods, skins and touch controls in one file – in iCloud Drive or the Files app, on request automatically every day. Restore it with one tap or by opening the file in the launcher, also on a new device.
 - **Widget, Live Activity and Siri on iPhone and iPad.** A home screen widget starts the instance you played last with one tap. Downloads and installs show their progress on the lock screen and in the Dynamic Island. “Start TRS Launcher” in Siri or the Shortcuts app starts your last instance – or any instance you pick.
+- **Fixed: false "mods don't work together" warning.** Some mods carry an older copy of another mod inside (Distant Horizons, for example, brings its own older Fabric API). The launcher counted that hidden copy even when you have a newer one installed – which is the one the game actually loads – and stopped the launch, e.g. "Sodium doesn't work with Fabric API (inside Distant Horizons)". Now only the copy the game really uses is checked, and the launcher no longer swaps such mods back and forth between versions.
+- **Fixed: "Launch again" stopped with a mod error.** A second copy of a running instance now starts with exactly the same mods as the first one – the launcher no longer checks or swaps mods of an instance that is already running.
 
 ### Deutsch
 - **iPhone und iPad: mit eigenem Profil installieren.** Die iOS-App gibt es jetzt als fertig signierbares Xcode-Projekt und als IPA, die mit deinem eigenen Zertifikat und Provisioning-Profil signiert ist – direkt aus Safari, mit Apple Configurator, Xcode oder Apps wie Feather und ESign installierbar.
@@ -59,6 +61,25 @@ How to write an entry:
 - **Einstellungen passend zum Handy.** Neue Minecraft-Instanzen auf iPhone, iPad und Android starten mit Sichtweite, Grafik und Bildrate passend zum Gerät – und auf dem iPhone reserviert das Spiel nicht mehr mehr Speicher, als iOS erlaubt.
 - **Sicherungen auf iPhone und iPad.** Einstellungen → Sicherung legt deine Einstellungen, alle Instanzen mit Welten und Mods, Skins und die Touch-Steuerung in eine Datei – in iCloud Drive oder die Dateien-App, auf Wunsch jeden Tag automatisch. Wiederhergestellt ist sie mit einem Tipp oder durch Öffnen der Datei im Launcher, auch auf einem neuen Gerät.
 - **Widget, Live-Aktivität und Siri auf iPhone und iPad.** Ein Widget auf dem Home-Bildschirm startet deine zuletzt gespielte Instanz mit einem Tipp. Downloads und Installationen zeigen ihren Fortschritt auf dem Sperrbildschirm und in der Dynamic Island. „Starte TRS Launcher“ in Siri oder der Kurzbefehle-App startet deine letzte Instanz – oder eine, die du auswählst.
+- **Behoben: falsche Warnung „Mods passen nicht zusammen“.** Manche Mods bringen eine ältere Kopie einer anderen Mod mit (Distant Horizons z. B. eine eigene ältere Fabric API). Der Launcher hat diese versteckte Kopie mitgezählt, obwohl eine neuere installiert ist – und die lädt das Spiel tatsächlich – und den Start gestoppt, z. B. „Sodium passt nicht zu Fabric API (in Distant Horizons)“. Jetzt zählt nur die Kopie, die das Spiel wirklich benutzt, und der Launcher tauscht solche Mods nicht mehr zwischen Versionen hin und her.
+- **Behoben: „Erneut starten“ brach mit einem Mod-Fehler ab.** Eine zweite Kopie einer laufenden Instanz startet jetzt mit genau denselben Mods wie die erste – der Launcher prüft und tauscht keine Mods einer Instanz mehr, die schon läuft.
+
+## 0.27.2 – 2026-10-23 – Clean Cut | Sauberer Schnitt
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.2/banner.png -->
+<!-- shots:
+/news/0.27.2/overlay-on-screen.png | On screen you still see the buffer indicator and “Clip saved” – exactly where you placed the Clips element | Am Bildschirm siehst du Puffer-Anzeige und „Clip gespeichert“ weiter – genau dort, wo du das Clips-Element hingelegt hast
+/news/0.27.2/clip-clean.png | The same moment in the saved clip: no indicator, no message | Derselbe Moment im gespeicherten Clip: keine Anzeige, keine Meldung
+-->
+
+### English
+- **Clips: no more buffer indicator or clip messages in your recordings.** Like the REC timer, the "○ Buffer 30 s" indicator and short messages such as "Clip saved (30 s)", "Recording started" or errors now appear in the small launcher overlay above the game instead of inside it – you still see them, but they never show up in a saved clip. The overlay sits exactly where you placed the "Clips" element in the HUD editor (by default on the right, above the middle), so it never covers your other HUD elements, and a new message no longer hides "Clip saved" when you start a recording right after it. Needs the new TRS Client; older TRS Client versions keep showing them in the game.
+- **Fixed:** when the clip overlay appeared for the first time (e.g. when a recording started), the launcher window could freeze completely and the REC timer never showed up.
+- **TRS Client: buffer indicator and clip messages in the launcher overlay.** With a launcher that has the overlay, the TRS Client no longer draws the buffer indicator and clip messages itself. "Show buffer indicator" in the TRS menu still decides whether the buffer indicator appears; hints such as "Clips are off – press again to turn them on" stay in the game.
+
+### Deutsch
+- **Clips: keine Puffer-Anzeige und keine Clip-Meldungen mehr in deinen Aufnahmen.** Wie schon der REC-Zähler erscheinen jetzt auch die Anzeige „○ Puffer 30 s“ und kurze Meldungen wie „Clip gespeichert (30 s)“, „Aufnahme läuft“ oder Fehler im kleinen Launcher-Overlay über dem Spiel statt im Spiel selbst – du siehst sie weiter, aber in einem gespeicherten Clip tauchen sie nie auf. Das Overlay sitzt genau dort, wo du das Element „Clips“ im HUD-Editor hingelegt hast (ab Werk rechts, etwas über der Mitte), verdeckt also keine anderen HUD-Elemente, und startest du direkt nach einem Clip eine Aufnahme, bleibt „Clip gespeichert“ trotzdem stehen. Braucht den neuen TRS Client; ältere TRS-Client-Versionen zeigen sie weiter im Spiel.
+- **Behoben:** Erschien das Clip-Overlay zum ersten Mal (z. B. beim Start einer Aufnahme), konnte das Launcher-Fenster komplett einfrieren, und der REC-Zähler tauchte nie auf.
+- **TRS Client: Puffer-Anzeige und Clip-Meldungen im Launcher-Overlay.** Mit einem Launcher, der das Overlay hat, zeichnet der TRS Client Puffer-Anzeige und Clip-Meldungen nicht mehr selbst. „Puffer-Anzeige zeigen“ im TRS-Menü bestimmt weiter, ob die Puffer-Anzeige erscheint; Hinweise wie „Clips sind aus – noch einmal drücken zum Einschalten“ bleiben im Spiel.
 
 ## 0.27.1 – 2026-10-21 – Grand Entrance Fix | Feinschliff
 <!-- banner: accent=#ff9a4d motif=/news/0.27.1/banner.png -->

@@ -51,6 +51,10 @@ public final class FakeLauncher implements AutoCloseable {
 	public final java.util.concurrent.atomic.AtomicInteger previews = new java.util.concurrent.atomic.AtomicInteger();
 	/** Clips, die per {@code clips.open} geöffnet wurden. */
 	public final BlockingQueue<String> opened = new LinkedBlockingQueue<String>();
+	/** Gemeldete Wünsche zur Puffer-Anzeige ({@code clips.hud}, Wert von {@code buffer}). */
+	public final BlockingQueue<String> huds = new LinkedBlockingQueue<String>();
+	/** Dieselben Anfragen vollständig (JSON), z. B. für die Lage des HUD-Elements. */
+	public final BlockingQueue<JsonObject> hudRequests = new LinkedBlockingQueue<JsonObject>();
 	private final Thread thread;
 	private volatile OutputStream out;
 
@@ -167,6 +171,10 @@ public final class FakeLauncher implements AutoCloseable {
 						} else {
 							write(o, "{\"type\":\"res\",\"id\":" + id + ",\"ok\":false,\"error\":\"unknown_clip\"}");
 						}
+					} else if ("clips.hud".equals(op)) {
+						hudRequests.add(req);
+						huds.add(req.has("buffer") ? req.get("buffer").getAsString() : "");
+						write(o, "{\"type\":\"res\",\"id\":" + id + ",\"ok\":true}");
 					} else if ("accounts.add".equals(op)) {
 						write(o, "{\"type\":\"res\",\"id\":" + id + ",\"ok\":false,\"error\":\"busy\"}");
 					} else {
