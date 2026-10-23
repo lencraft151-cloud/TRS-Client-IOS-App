@@ -60,6 +60,18 @@ How to write an entry:
 - **Sicherungen auf iPhone und iPad.** Einstellungen → Sicherung legt deine Einstellungen, alle Instanzen mit Welten und Mods, Skins und die Touch-Steuerung in eine Datei – in iCloud Drive oder die Dateien-App, auf Wunsch jeden Tag automatisch. Wiederhergestellt ist sie mit einem Tipp oder durch Öffnen der Datei im Launcher, auch auf einem neuen Gerät.
 - **Widget, Live-Aktivität und Siri auf iPhone und iPad.** Ein Widget auf dem Home-Bildschirm startet deine zuletzt gespielte Instanz mit einem Tipp. Downloads und Installationen zeigen ihren Fortschritt auf dem Sperrbildschirm und in der Dynamic Island. „Starte TRS Launcher“ in Siri oder der Kurzbefehle-App startet deine letzte Instanz – oder eine, die du auswählst.
 
+## 0.27.5 – 2026-10-23 – Clean Cut Fix | Feinschliff
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.5/banner.png -->
+<!-- shots:
+/news/0.27.5/overlay-on-screen.png | The clip overlay now only shows while the game is in front | Das Clip-Overlay erscheint jetzt nur, solange das Spiel vorne ist
+-->
+
+### English
+- **Fixed: the buffer indicator showed up over other apps.** The small clip overlay ("○ Buffer 30 s", REC, clip messages) stayed on top when you switched to another window, e.g. the browser or Discord. It now only appears while the game is the active window and disappears as soon as you switch away.
+
+### Deutsch
+- **Behoben: Die Puffer-Anzeige war auch über anderen Apps zu sehen.** Das kleine Clip-Overlay („○ Puffer 30 s“, REC, Clip-Meldungen) blieb obenauf, wenn du in ein anderes Fenster gewechselt bist, z. B. Browser oder Discord. Es erscheint jetzt nur, solange das Spiel das aktive Fenster ist, und verschwindet, sobald du wegwechselst.
+
 ## 0.27.4 – 2026-10-23 – Clean Cut Fix | Feinschliff
 <!-- banner: accent=#3ee6c8 motif=/news/0.27.4/banner.png -->
 <!-- shots:
