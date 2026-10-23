@@ -9,8 +9,8 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-private let background = Color(red: 0.043, green: 0.047, blue: 0.059)
-private let accent = Color(red: 0.87, green: 0.2, blue: 0.16)
+private let trsBackground = Color(red: 0.043, green: 0.047, blue: 0.059)
+private let trsAccent = Color(red: 0.87, green: 0.2, blue: 0.16)
 
 // MARK: Zuletzt gespielt
 
@@ -50,7 +50,7 @@ struct LastPlayedView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       HStack(spacing: 6) {
-        Image(systemName: "cube.fill").foregroundStyle(accent)
+        Image(systemName: "cube.fill").foregroundStyle(trsAccent)
         Text("TRS Launcher").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
       }
       Spacer(minLength: 0)
@@ -65,7 +65,7 @@ struct LastPlayedView: View {
           .font(.caption.weight(.bold))
           .padding(.horizontal, 10)
           .padding(.vertical, 5)
-          .background(accent, in: Capsule())
+          .background(trsAccent, in: Capsule())
           .foregroundStyle(.white)
       } else {
         Text(TrsText.pick("Öffne den Launcher, um loszulegen.", "Open the launcher to get started."))
@@ -74,7 +74,7 @@ struct LastPlayedView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .containerBackground(for: .widget) { background }
+    .containerBackground(for: .widget) { trsBackground }
     .widgetURL(entry.url)
   }
 }
@@ -122,9 +122,9 @@ struct TaskProgressView: View {
     if state.done {
       ProgressView(value: 1.0).tint(.green)
     } else if state.progress >= 0 {
-      ProgressView(value: min(max(state.progress, 0), 1)).tint(accent)
+      ProgressView(value: min(max(state.progress, 0), 1)).tint(trsAccent)
     } else {
-      ProgressView().tint(accent)
+      ProgressView().tint(trsAccent)
     }
   }
 }
@@ -134,7 +134,7 @@ struct TaskLiveActivity: Widget {
     ActivityConfiguration(for: TrsTaskAttributes.self) { context in
       VStack(alignment: .leading, spacing: 8) {
         HStack(spacing: 8) {
-          Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(accent)
+          Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(trsAccent)
           Text(context.state.title).font(.headline).lineLimit(1)
           Spacer()
           if context.state.progress >= 0 && !context.state.done {
@@ -147,12 +147,12 @@ struct TaskLiveActivity: Widget {
         }
       }
       .padding(16)
-      .activityBackgroundTint(background)
+      .activityBackgroundTint(trsBackground)
       .activitySystemActionForegroundColor(.white)
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
-          Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(accent)
+          Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(trsAccent)
         }
         DynamicIslandExpandedRegion(.trailing) {
           if context.state.progress >= 0 && !context.state.done {
@@ -166,7 +166,7 @@ struct TaskLiveActivity: Widget {
           }
         }
       } compactLeading: {
-        Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(accent)
+        Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(trsAccent)
       } compactTrailing: {
         if context.state.done {
           Image(systemName: "checkmark").foregroundStyle(.green)
@@ -174,7 +174,7 @@ struct TaskLiveActivity: Widget {
           Text("\(Int(context.state.progress * 100))%").monospacedDigit()
         }
       } minimal: {
-        Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(accent)
+        Image(systemName: symbol(context.attributes.kind, done: context.state.done)).foregroundStyle(trsAccent)
       }
       .widgetURL(URL(string: "trs-launcher://open"))
     }

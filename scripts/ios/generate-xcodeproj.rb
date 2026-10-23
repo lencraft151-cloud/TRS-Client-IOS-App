@@ -27,6 +27,17 @@ version = conf.fetch('version')
 product_name = conf.fetch('productName')
 alternate_icons = Dir[File.join(APPLE, 'Assets.xcassets/AppIcon-*.appiconset')].map { |p| File.basename(p, '.appiconset') }.sort
 
+# Vorläufige IDs fortlaufend statt zufällig: `predictabilize_uuids` (unten) bildet die endgültigen IDs aus dem Pfad
+# jedes Objekts, und darin stehen auch IDs als Text (Zielabhängigkeit App → Widget). Mit zufälligen vorläufigen IDs
+# käme bei jedem Lauf ein anderes Projekt heraus – und die CI-Prüfung „Projekt aktuell“ schlüge fehl.
+module SequentialUUIDs
+  def generate_uuid
+    @sequential_uuid = (@sequential_uuid || 0) + 1
+    format('%024X', @sequential_uuid)
+  end
+end
+Xcodeproj::Project.prepend(SequentialUUIDs)
+
 FileUtils.rm_rf(PROJECT_PATH)
 project = Xcodeproj::Project.new(PROJECT_PATH, false, 56)
 # Stand Xcode 27: sonst bietet Xcode „Update to recommended settings“ an – das würde u. a. die Skript-Sandbox
