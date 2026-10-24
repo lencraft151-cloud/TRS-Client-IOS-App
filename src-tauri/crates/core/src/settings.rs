@@ -93,6 +93,9 @@ pub struct Settings {
     pub mobile_beta: bool,
     /// iOS: einmal am Tag automatisch sichern (iCloud Drive, sonst Dateien-App; die letzten drei bleiben).
     pub auto_backup: bool,
+    /// iOS: Akku beim Spielen – Auflösung und FPS-Grenze (ab Werk ausgewogen).
+    #[serde(deserialize_with = "crate::mobile_profile::lenient_power")]
+    pub game_power: crate::mobile_profile::GamePower,
 }
 
 /// PC-Fernbedienung (API §33): das Handy desselben TRS-Kontos darf diesen PC steuern.
@@ -452,6 +455,7 @@ impl Default for Settings {
             remote: RemoteSettings::default(),
             mobile_beta: false,
             auto_backup: false,
+            game_power: crate::mobile_profile::GamePower::Balanced,
         }
     }
 }

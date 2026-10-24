@@ -24,6 +24,9 @@ struct LaunchRequest: Decodable {
   /// Touch-Layout und sein Ordner (`<Launcher-Daten>/controls`), fehlt bei älteren Kernen.
   let touchProfile: String?
   let controlsDir: String?
+  /// Akku-Plan: Anteil der Bildschirmpixel, normal und im Stromsparmodus (fehlen bei älteren Kernen).
+  let renderScale: Double?
+  let lowPowerRenderScale: Double?
 }
 
 /// Ereignis an Rust (src/ios/session.rs, `EngineEvent`).
@@ -191,6 +194,10 @@ public final class GameViewController: UIViewController, GameInput {
     observers.append(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
       self?.jitHelp?.checkNow()
     })
+    // Stromsparmodus an/aus: Auflösung sofort anpassen (Akku-Plan).
+    observers.append(center.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
+      self?.updateWindowSize()
+    })
     if #available(iOS 14.0, *) {
       observers.append(center.addObserver(forName: .GCMouseDidConnect, object: nil, queue: .main) { [weak self] note in
         if let mouse = note.object as? GCMouse { self?.attach(mouse: mouse) }
@@ -214,18 +221,36 @@ public final class GameViewController: UIViewController, GameInput {
     }
   }
 
+  /// Spielpixel pro Punkt (Mauszeiger in Menüs).
   private var scale: CGFloat {
     surface.layer.contentsScale
   }
 
+  /// Bildschirmpixel pro Punkt: Die Kamera dreht sich so gleich schnell, egal wie hoch das Spiel rendert.
+  private var screenScale: CGFloat {
+    view.window?.screen.scale ?? UIScreen.main.scale
+  }
+
+  /// Anteil der Bildschirmpixel, in dem das Spiel rendert (Akku-Plan, im Stromsparmodus weniger).
+  private var renderScale: CGFloat {
+    let request = session.request
+    let normal = request.renderScale ?? 1
+    let scale = ProcessInfo.processInfo.isLowPowerModeEnabled ? min(normal, request.lowPowerRenderScale ?? normal) : normal
+    return CGFloat(min(1, max(0.25, scale)))
+  }
+
   private func updateWindowSize() {
-    let screenScale = view.window?.screen.scale ?? UIScreen.main.scale
-    surface.layer.contentsScale = screenScale
-    let width = Int((view.bounds.width * screenScale).rounded())
-    let height = Int((view.bounds.height * screenScale).rounded())
+    // Wie Amethysts Auflösungs-Regler: Die Ebene hat weniger Pixel, iOS skaliert sie auf den Bildschirm.
+    // Mauskoordinaten folgen über `scale` (= contentsScale) von selbst.
+    let pixelScale = screenScale * renderScale
+    surface.layer.contentsScale = pixelScale
+    let physicalWidth = Int((view.bounds.width * screenScale).rounded())
+    let physicalHeight = Int((view.bounds.height * screenScale).rounded())
+    let width = Int((view.bounds.width * pixelScale).rounded())
+    let height = Int((view.bounds.height * pixelScale).rounded())
     guard width > 0, height > 0 else { return }
-    // Querformat, gerade Zahlen (wie Amethyst bei 100 %).
-    engine.setWindowSize(physicalWidth: width, physicalHeight: height, width: width - width % 2, height: height - height % 2)
+    // Querformat, gerade Zahlen (wie Amethyst).
+    engine.setWindowSize(physicalWidth: physicalWidth, physicalHeight: physicalHeight, width: width - width % 2, height: height - height % 2)
   }
 
   // MARK: JIT
@@ -353,7 +378,7 @@ public final class GameViewController: UIViewController, GameInput {
 
   public func moveMouseRelative(dx: Float, dy: Float) {
     guard started else { return }
-    engine.moveRelative(dx: dx * Float(scale), dy: dy * Float(scale))
+    engine.moveRelative(dx: dx * Float(screenScale), dy: dy * Float(screenScale))
   }
 
   public func moveMouseAbsolute(x: Float, y: Float) {

@@ -80,6 +80,27 @@ mod futures_like {
     pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 }
 
+/// iOS: Stromsparmodus an? (Akku-Plan beim Start; bei Fehlern: aus.)
+#[cfg(target_os = "ios")]
+async fn low_power<R: Runtime>(app: &AppHandle<R>) -> bool {
+    use tauri_plugin_trs_ios::TrsIosExt;
+    let handle = app.clone();
+    match tauri::async_runtime::spawn_blocking(move || handle.trs_ios().device_info()).await {
+        Ok(Ok(info)) => info.low_power,
+        Ok(Err(e)) => {
+            log::debug!("Stromsparmodus unbekannt: {e}");
+            false
+        }
+        Err(_) => false,
+    }
+}
+
+/// Android: Der Akku-Plan gilt nur auf iOS.
+#[cfg(not(target_os = "ios"))]
+async fn low_power<R: Runtime>(_app: &AppHandle<R>) -> bool {
+    false
+}
+
 /// Vorbereiten + Runtime + Start. Rückgabe 0 (es gibt keine PID im Launcher); das
 /// Spiel erscheint über `game-event` als laufend.
 pub async fn launch<R: Runtime>(
@@ -91,9 +112,9 @@ pub async fn launch<R: Runtime>(
     on_progress: &ProgressFn,
 ) -> trs_core::Result<u32> {
     let runner = EngineRunner { app: app.clone() };
+    let options = trs_core::LaunchOptions { low_power: low_power(app).await, ..options };
     // Am Handy läuft immer nur ein Spiel – „noch einmal starten“ gibt es nicht.
-    let MobileLaunch { spec, secrets } =
-        launcher.prepare_mobile_launch(id, join, options.account_id.as_deref(), options.skip_mod_check, Some(&runner), on_progress).await?;
+    let MobileLaunch { spec, secrets } = launcher.prepare_mobile_launch(id, join, &options, Some(&runner), on_progress).await?;
     let engine = app.trs_game();
     engine.prepare_runtime(spec.java_major).await.map_err(engine_error)?;
     // Gleiche JSON-Form auf beiden Seiten (Vertrag GameLaunchSpec).

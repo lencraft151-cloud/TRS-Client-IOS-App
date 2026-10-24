@@ -44,8 +44,12 @@ pub async fn launch_instance(
     let report = move |progress| {
         let _ = on_progress.send(progress);
     };
-    let options =
-        trs_core::LaunchOptions { extra: extra.unwrap_or(false), account_id, skip_mod_check: skip_mod_check.unwrap_or(false) };
+    let options = trs_core::LaunchOptions {
+        extra: extra.unwrap_or(false),
+        account_id,
+        skip_mod_check: skip_mod_check.unwrap_or(false),
+        ..Default::default()
+    };
     // Android/iOS: eingebettete JVM statt eigenem Java-Prozess.
     #[cfg(mobile)]
     let work = crate::mobile_game::launch(&app, &launcher, &id, join, options, &report);

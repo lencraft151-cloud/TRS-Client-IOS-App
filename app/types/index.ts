@@ -252,7 +252,12 @@ export interface Settings {
   mobileBeta: boolean
   /** iOS: einmal am Tag automatisch sichern (siehe Einstellungen → Sicherung). */
   autoBackup: boolean
+  /** iOS: Akku beim Spielen – Auflösung und FPS-Grenze (ab Werk ausgewogen). */
+  gamePower: GamePower
 }
+
+/** Rust: `mobile_profile::GamePower`. */
+export type GamePower = 'performance' | 'balanced' | 'saver'
 
 /** PC-Fernbedienung (Rust: `RemoteSettings`): an/aus und je Befehlsart erlaubt. */
 export interface RemoteSettings {
