@@ -826,6 +826,7 @@
       "storageFull": "De TRS-server heeft nu geen ruimte – probeer het later opnieuw.",
       "unchanged": "Er is niets veranderd sinds de vorige versie.",
       "invalidPack": "De server heeft het modpack geweigerd – het is geen geldig Modrinth-pack.",
+      "invalidPackReason": "De server heeft het modpack geweigerd: {reason}",
       "noRecipients": "Je kunt modpacks alleen naar je vrienden sturen.",
       "invalidDuration": "Ongeldige duur."
     },
@@ -887,6 +888,11 @@
       "noServerJar": "Er is geen officiële server voor Minecraft {version}.",
       "loaderUnavailable": "Deze modloader bestaat niet als server voor Minecraft {version}.",
       "installerFailed": "De installer van de modloader is mislukt. Controleer je internetverbinding en probeer het opnieuw."
+    },
+    "serverRules": {
+      "manifestUnreadable": "Het manifest van TRS Server Rules is onleesbaar.",
+      "unavailable": "TRS Server Rules is niet beschikbaar voor deze server (Minecraft {version}) – vink de optie uit.",
+      "channelUnavailable": "TRS Server Rules kon nu niet worden geladen – probeer het later opnieuw of vink de optie uit."
     },
     "localServer": {
       "notFound": "Deze server bestaat niet (meer).",
@@ -2390,6 +2396,8 @@
       "animatedBackgroundDescription": "Een rustige, geanimeerde scène achter elke pagina – een redstonecircuit of een winterlandschap, afhankelijk van het ontwerp. Als dit uit staat, wordt alleen het achtergrondpatroon getoond.",
       "eventIconsTitle": "Evenementpictogrammen",
       "eventIconsDescription": "Tijdens evenementen zoals Halloween verandert ook het app-pictogram – venster, taakbalk, snelkoppelingen op het bureaublad en in het startmenu en het startscherm van je telefoon. Na het evenement komt het gewone pictogram vanzelf terug.",
+      "eventLookTitle": "Evenementontwerp tonen (bijv. Halloween)",
+      "eventLookDescription": "Kleuren, achtergronden, voortgangsbalken, sfeer en het evenementpictogram tijdens een evenement. Uit = normaal uiterlijk. De pompoenjacht, trick or treat en beloningen blijven.",
       "motionTitle": "Animaties",
       "motionDescription": "Geanimeerde achtergrond, looplichten, overgangen van pagina’s en vensters, en lijsten die naar hun plek glijden. „Animaties beperken” zet alles uit; „Zoals Windows/systeem” volgt de animatie-instelling van Windows of het bureaublad – die staat op geoptimaliseerde of externe pc’s vaak uit.",
       "motionModes": {
@@ -4044,7 +4052,12 @@
         "halloween": "Halloween"
       },
       "removeTitle": "Van de lijst halen?",
-      "removeText": "{name} van dit evenement halen?"
+      "removeText": "{name} van dit evenement halen?",
+      "lookTitle": "Uiterlijk uit voor …",
+      "lookHint": "Deze spelers krijgen het evenement zonder ontwerp en effecten (kleuren, scènes, spookeffecten). De pompoenjacht, trick or treat en beloningen blijven.",
+      "noLookBlocks": "Niemand – iedereen met het evenement ziet ook het uiterlijk.",
+      "lookRemoveTitle": "Uiterlijk weer aanzetten?",
+      "lookRemoveText": "{name} ziet het uiterlijk van dit evenement dan weer."
     },
     "tabs": {
       "capes": "Capes beoordelen"
@@ -5995,7 +6008,8 @@
       "blog_write": "Blogberichten schrijven (concepten, afbeeldingen)",
       "blog_publish": "Blogberichten publiceren, inplannen en terugtrekken",
       "events_manage": "Evenementen beheren",
-      "featured_manage": "Uitgelichte modpacks beheren"
+      "featured_manage": "Uitgelichte modpacks beheren",
+      "serverrules_bypass": "Door de server geblokkeerde TRS Client-functies toch gebruiken (na bevestiging in het spel)"
     }
   },
   "trsChoice": {
@@ -6692,7 +6706,22 @@
     "doneZip": "Server opgeslagen: {file} ({size})",
     "doneLocal": "Server \"{name}\" is aangemaakt",
     "localCreated": "Server \"{name}\" is aangemaakt.",
-    "openConsole": "Console openen"
+    "openConsole": "Console openen",
+    "serverRules": {
+      "label": "TRS Server Rules (TRS Client-modules op de server vergrendelen)",
+      "info": "Zet de serverplugin van TRS op de server. Daarmee bepaal je welke TRS Client-functies (bijv. minimap, zoom, fullbright) spelers op je server mogen gebruiken – voor iedereen of per wereld. De config wordt bij de eerste start aangemaakt in config/trs-server-rules.yml.",
+      "link": "Meer informatie",
+      "version": "Versie {version}",
+      "teamNote": "Openlijk gedocumenteerd: leden van het TRS-team kunnen een vergrendeling in hun eigen client na een bevestiging opheffen.",
+      "unavailable": {
+        "vanilla": "Alleen beschikbaar voor servers met Fabric, Quilt, Forge of NeoForge – een vanilla-server laadt geen mods.",
+        "version": "TRS Server Rules is (nog) niet beschikbaar voor Minecraft {version} met {loader}.",
+        "offline": "De download van TRS Server Rules was niet bereikbaar – open het venster later opnieuw."
+      },
+      "fabricApiIncluded": "Heeft Fabric API op de server nodig – is geselecteerd.",
+      "fabricApiMissing": "Heeft Fabric API op de server nodig – deze instantie heeft het niet. Zet Fabric API na het exporteren in de mods-map van de server.",
+      "fabricApiDeselected": "Heeft Fabric API op de server nodig – selecteer Fabric API weer in de modlijst."
+    }
   },
   "localServers": {
     "title": "Mijn servers",

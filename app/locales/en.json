@@ -858,6 +858,7 @@
       "storageFull": "The TRS server is out of space right now – please try again later.",
       "unchanged": "Nothing changed since the last version.",
       "invalidPack": "The server rejected the modpack – it isn’t a valid Modrinth pack.",
+      "invalidPackReason": "The server rejected the modpack: {reason}",
       "noRecipients": "You can only send modpacks to your friends.",
       "invalidDuration": "Invalid duration."
     },
@@ -919,6 +920,11 @@
       "noServerJar": "There is no official server for Minecraft {version}.",
       "loaderUnavailable": "This mod loader isn't available as a server for Minecraft {version}.",
       "installerFailed": "The mod loader installer failed. Please check your internet connection and try again."
+    },
+    "serverRules": {
+      "manifestUnreadable": "The TRS Server Rules manifest is unreadable.",
+      "unavailable": "TRS Server Rules is not available for this server (Minecraft {version}) – please untick the option.",
+      "channelUnavailable": "TRS Server Rules could not be loaded right now – please try again later or untick the option."
     },
     "localServer": {
       "notFound": "This server doesn't exist (anymore).",
@@ -2497,6 +2503,8 @@
       "animatedBackgroundDescription": "A calm animated scene behind every page – a redstone circuit or a winter landscape, depending on the design. When off, only the background pattern is shown.",
       "eventIconsTitle": "Event icons",
       "eventIconsDescription": "During events like Halloween, the app icon changes too – window, taskbar, desktop and Start menu shortcuts, and the home screen on phones. The normal icon comes back by itself when the event ends.",
+      "eventLookTitle": "Show event design (e.g. Halloween)",
+      "eventLookDescription": "Colours, backgrounds, progress bars, atmosphere and the event icon during an event. Off = normal look. The pumpkin hunt, trick or treat and rewards stay.",
       "motionTitle": "Animations",
       "motionDescription": "Animated background, running lights, page and dialog transitions, and lists that glide into place. “Reduce animations” turns them all off; “Follow Windows/system” uses the animation setting of Windows or your desktop – it is often off on tuned or remote PCs.",
       "motionModes": {
@@ -4183,7 +4191,12 @@
         "halloween": "Halloween"
       },
       "removeTitle": "Remove from the allowlist?",
-      "removeText": "Remove {name} from this event?"
+      "removeText": "Remove {name} from this event?",
+      "lookTitle": "Look off for …",
+      "lookHint": "These players get the event without its design & effects (colours, scenes, spooks). The pumpkin hunt, trick or treat and rewards stay.",
+      "noLookBlocks": "Nobody – everyone with the event also sees its look.",
+      "lookRemoveTitle": "Turn the look back on?",
+      "lookRemoveText": "{name} will see this event's look again."
     },
     "tabs": {
       "capes": "Review capes"
@@ -6137,7 +6150,8 @@
       "events_manage": "Manage events",
       "creators_review": "Review creator symbols and fan capes",
       "creators_manage": "Manage creators",
-      "featured_manage": "Manage featured modpacks"
+      "featured_manage": "Manage featured modpacks",
+      "serverrules_bypass": "Use server-locked TRS Client features anyway (after an in-game prompt)"
     },
     "creators": {
       "intro": "Review fan symbols and fan capes, manage creators and answer their requests. Applications are handled on the website.",
@@ -6912,7 +6926,22 @@
     "doneZip": "Server saved: {file} ({size})",
     "doneLocal": "Server \"{name}\" is set up",
     "localCreated": "Server \"{name}\" is set up.",
-    "openConsole": "Open console"
+    "openConsole": "Open console",
+    "serverRules": {
+      "label": "TRS Server Rules (lock TRS Client modules on the server)",
+      "info": "Adds the TRS server plugin to the server. With it you decide which TRS Client features (e.g. minimap, zoom, fullbright) players may use on your server – for everyone or per world. The config is created on the first start at config/trs-server-rules.yml.",
+      "link": "Learn more",
+      "version": "Version {version}",
+      "teamNote": "Openly documented: members of the TRS team can lift a lock in their own client after a confirmation.",
+      "unavailable": {
+        "vanilla": "Only available for servers with Fabric, Quilt, Forge or NeoForge – a vanilla server cannot load mods.",
+        "version": "TRS Server Rules is not available (yet) for Minecraft {version} with {loader}.",
+        "offline": "The TRS Server Rules download could not be reached – open the dialog again later."
+      },
+      "fabricApiIncluded": "Needs Fabric API on the server – it is selected.",
+      "fabricApiMissing": "Needs Fabric API on the server – this instance has none. Put Fabric API into the server's mods folder after the export.",
+      "fabricApiDeselected": "Needs Fabric API on the server – please select Fabric API in the mod list again."
+    }
   },
   "localServers": {
     "title": "My servers",

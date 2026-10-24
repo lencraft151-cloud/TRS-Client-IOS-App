@@ -826,6 +826,7 @@
       "storageFull": "Le serveur TRS n’a plus de place pour le moment – réessaie plus tard.",
       "unchanged": "Rien n’a changé depuis la dernière version.",
       "invalidPack": "Le serveur a refusé le modpack – ce n’est pas un pack Modrinth valide.",
+      "invalidPackReason": "Le serveur a refusé le modpack : {reason}",
       "noRecipients": "Tu ne peux envoyer des modpacks qu’à tes amis.",
       "invalidDuration": "Durée invalide."
     },
@@ -887,6 +888,11 @@
       "noServerJar": "Il n'existe pas de serveur officiel pour Minecraft {version}.",
       "loaderUnavailable": "Ce mod loader n'existe pas en version serveur pour Minecraft {version}.",
       "installerFailed": "L'installateur du mod loader a échoué. Vérifie ta connexion internet et réessaie."
+    },
+    "serverRules": {
+      "manifestUnreadable": "Le manifeste de TRS Server Rules est illisible.",
+      "unavailable": "TRS Server Rules n’est pas disponible pour ce serveur (Minecraft {version}) – décoche l’option.",
+      "channelUnavailable": "Impossible de charger TRS Server Rules pour le moment – réessaie plus tard ou décoche l’option."
     },
     "localServer": {
       "notFound": "Ce serveur n'existe pas (ou plus).",
@@ -2390,6 +2396,8 @@
       "animatedBackgroundDescription": "Une scène animée et paisible derrière chaque page – un circuit de redstone ou un paysage d'hiver, selon le design. Désactivé, seul le motif d'arrière-plan s'affiche.",
       "eventIconsTitle": "Icônes d'événement",
       "eventIconsDescription": "Pendant des événements comme Halloween, l'icône de l'application change aussi : fenêtre, barre des tâches, raccourcis du bureau et du menu Démarrer, et l'écran d'accueil du téléphone. L'icône habituelle revient d'elle-même à la fin de l'événement.",
+      "eventLookTitle": "Afficher le design de l'événement (p. ex. Halloween)",
+      "eventLookDescription": "Couleurs, arrière-plans, barres de progression, ambiance et icône de l'événement pendant un événement. Désactivé = apparence normale. La chasse aux citrouilles, « des bonbons ou un sort » et les récompenses restent.",
       "motionTitle": "Animations",
       "motionDescription": "Arrière-plan animé, lumières défilantes, transitions des pages et des fenêtres, et listes qui glissent à leur place. « Réduire les animations » désactive tout ; « Comme Windows/système » suit le réglage des animations de Windows ou du bureau, souvent désactivé sur les PC optimisés ou à distance.",
       "motionModes": {
@@ -4044,7 +4052,12 @@
         "halloween": "Halloween"
       },
       "removeTitle": "Retirer de la liste ?",
-      "removeText": "Retirer {name} de cet événement ?"
+      "removeText": "Retirer {name} de cet événement ?",
+      "lookTitle": "Apparence désactivée pour …",
+      "lookHint": "Ces joueurs ont l'événement sans son design ni ses effets (couleurs, scènes, frayeurs). La chasse aux citrouilles, « des bonbons ou un sort » et les récompenses restent.",
+      "noLookBlocks": "Personne – tous ceux qui ont l'événement voient aussi son apparence.",
+      "lookRemoveTitle": "Réactiver l'apparence ?",
+      "lookRemoveText": "{name} verra de nouveau l'apparence de cet événement."
     },
     "tabs": {
       "capes": "Vérifier les capes"
@@ -5995,7 +6008,8 @@
       "blog_write": "Écrire des articles de blog (brouillons, images)",
       "blog_publish": "Publier, planifier et retirer des articles de blog",
       "events_manage": "Gérer les événements",
-      "featured_manage": "Gérer les modpacks à la une"
+      "featured_manage": "Gérer les modpacks à la une",
+      "serverrules_bypass": "Utiliser quand même les fonctions du TRS Client bloquées par le serveur (après confirmation en jeu)"
     }
   },
   "trsChoice": {
@@ -6692,7 +6706,22 @@
     "doneZip": "Serveur enregistré : {file} ({size})",
     "doneLocal": "Le serveur « {name} » est installé",
     "localCreated": "Le serveur « {name} » est installé.",
-    "openConsole": "Ouvrir la console"
+    "openConsole": "Ouvrir la console",
+    "serverRules": {
+      "label": "TRS Server Rules (verrouiller des modules du TRS Client sur le serveur)",
+      "info": "Ajoute le plugin serveur de TRS. Tu décides ainsi quelles fonctions du TRS Client (p. ex. minicarte, zoom, fullbright) les joueurs peuvent utiliser sur ton serveur – pour tous ou par monde. La config est créée au premier démarrage dans config/trs-server-rules.yml.",
+      "link": "En savoir plus",
+      "version": "Version {version}",
+      "teamNote": "Documenté ouvertement : les membres de l’équipe TRS peuvent lever un verrou dans leur propre client après confirmation.",
+      "unavailable": {
+        "vanilla": "Disponible uniquement pour les serveurs Fabric, Quilt, Forge ou NeoForge – un serveur vanilla ne charge pas de mods.",
+        "version": "TRS Server Rules n’est pas (encore) disponible pour Minecraft {version} avec {loader}.",
+        "offline": "Le téléchargement de TRS Server Rules est injoignable – rouvre la fenêtre plus tard."
+      },
+      "fabricApiIncluded": "Nécessite Fabric API sur le serveur – il est sélectionné.",
+      "fabricApiMissing": "Nécessite Fabric API sur le serveur – cette instance n’en a pas. Mets Fabric API dans le dossier mods du serveur après l’export.",
+      "fabricApiDeselected": "Nécessite Fabric API sur le serveur – resélectionne Fabric API dans la liste des mods."
+    }
   },
   "localServers": {
     "title": "Mes serveurs",

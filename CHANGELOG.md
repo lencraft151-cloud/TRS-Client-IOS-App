@@ -44,8 +44,9 @@ How to write an entry:
 - **Settings that fit your phone.** New Minecraft instances on iPhone, iPad and Android start with view distance, graphics and frame rate matched to the device – and on iPhone the game no longer reserves more memory than iOS allows.
 - **Backups on iPhone and iPad.** Settings → Backup saves your settings, all instances with worlds and mods, skins and touch controls in one file – in iCloud Drive or the Files app, on request automatically every day. Restore it with one tap or by opening the file in the launcher, also on a new device.
 - **Widget, Live Activity and Siri on iPhone and iPad.** A home screen widget starts the instance you played last with one tap. Downloads and installs show their progress on the lock screen and in the Dynamic Island. “Start TRS Launcher” in Siri or the Shortcuts app starts your last instance – or any instance you pick.
-- **Fixed: false "mods don't work together" warning.** Some mods carry an older copy of another mod inside (Distant Horizons, for example, brings its own older Fabric API). The launcher counted that hidden copy even when you have a newer one installed – which is the one the game actually loads – and stopped the launch, e.g. "Sodium doesn't work with Fabric API (inside Distant Horizons)". Now only the copy the game really uses is checked, and the launcher no longer swaps such mods back and forth between versions.
-- **Fixed: "Launch again" stopped with a mod error.** A second copy of a running instance now starts with exactly the same mods as the first one – the launcher no longer checks or swaps mods of an instance that is already running.
+- **TRS Client: pixel-art capes are sharp again.** Since TRS Client 0.19.5 many capes – all TRS capes like Tester, Dragon, Ender, Nether and the Halloween capes, plus capes made in HD pixel style – were drawn smoothed and looked blurry. Only real HD images (photos, painted pictures) are smoothed now; everything with a pixel palette stays crisp. The cape preview in the launcher uses the same rule.
+- **TRS Client: server rules.** Servers with the new "TRS Server Rules" plugin can turn single TRS Client features off or on for everyone (for example the minimap, gamma or freecam) and fix or limit settings (for example the highest zoom). Locked features are marked "Set by server" in the TRS menu, and the server can show a short note once. Your own settings stay saved and come back as soon as you leave the server. Openly documented: members of the TRS team with the matching permission are asked in game whether they want to use a locked feature anyway – only for themselves and only until they disconnect.
+- **New: TRS Server Rules when creating a server.** "Export as server" has a new option "TRS Server Rules (lock TRS Client modules on the server)". It puts the matching server plugin for your server (Fabric, Quilt, Forge or NeoForge and its Minecraft version) into the server – downloaded from the official channel and checked before it is used. With it you decide which TRS Client features players may use on your server. For Fabric it also selects Fabric API, which the plugin needs. If there is no plugin for the server's version yet, the option is greyed out with a short note; "Learn more" opens the page about it on the TRS website.
 
 ### Deutsch
 - **iPhone und iPad: mit eigenem Profil installieren.** Die iOS-App gibt es jetzt als fertig signierbares Xcode-Projekt und als IPA, die mit deinem eigenen Zertifikat und Provisioning-Profil signiert ist – direkt aus Safari, mit Apple Configurator, Xcode oder Apps wie Feather und ESign installierbar.
@@ -61,6 +62,66 @@ How to write an entry:
 - **Einstellungen passend zum Handy.** Neue Minecraft-Instanzen auf iPhone, iPad und Android starten mit Sichtweite, Grafik und Bildrate passend zum Gerät – und auf dem iPhone reserviert das Spiel nicht mehr mehr Speicher, als iOS erlaubt.
 - **Sicherungen auf iPhone und iPad.** Einstellungen → Sicherung legt deine Einstellungen, alle Instanzen mit Welten und Mods, Skins und die Touch-Steuerung in eine Datei – in iCloud Drive oder die Dateien-App, auf Wunsch jeden Tag automatisch. Wiederhergestellt ist sie mit einem Tipp oder durch Öffnen der Datei im Launcher, auch auf einem neuen Gerät.
 - **Widget, Live-Aktivität und Siri auf iPhone und iPad.** Ein Widget auf dem Home-Bildschirm startet deine zuletzt gespielte Instanz mit einem Tipp. Downloads und Installationen zeigen ihren Fortschritt auf dem Sperrbildschirm und in der Dynamic Island. „Starte TRS Launcher“ in Siri oder der Kurzbefehle-App startet deine letzte Instanz – oder eine, die du auswählst.
+- **TRS Client: Pixel-Art-Umhänge sind wieder scharf.** Seit TRS Client 0.19.5 wurden viele Umhänge – alle TRS-Umhänge wie Tester, Drache, Ender, Nether und die Halloween-Umhänge sowie Umhänge im HD-Pixel-Stil – weichgezeichnet und sahen verwaschen aus. Weich gefiltert werden jetzt nur noch echte HD-Bilder (Fotos, gemalte Bilder); alles mit Pixel-Palette bleibt scharf. Die Umhang-Vorschau im Launcher nutzt dieselbe Regel.
+- **TRS Client: Server-Regeln.** Server mit dem neuen Plugin „TRS Server Rules“ können einzelne Funktionen des TRS Clients für alle aus- oder einschalten (zum Beispiel Minimap, Gamma oder Freecam) und Einstellungen festlegen oder begrenzen (zum Beispiel den höchsten Zoom). Gesperrtes ist im TRS-Menü mit „Vom Server“ markiert, und der Server kann einmal einen kurzen Hinweis zeigen. Deine eigenen Einstellungen bleiben gespeichert und gelten wieder, sobald du den Server verlässt. Offen dokumentiert: Mitglieder des TRS-Teams mit dem passenden Recht werden im Spiel gefragt, ob sie eine gesperrte Funktion trotzdem benutzen wollen – nur für sich und nur bis zum Trennen.
+- **Neu: TRS Server Rules beim Server-Anlegen.** „Als Server exportieren“ hat die neue Option „TRS Server Rules (TRS-Client-Module auf dem Server sperren)“. Sie legt das passende Server-Plugin für deinen Server (Fabric, Quilt, Forge oder NeoForge und die Minecraft-Version) mit auf den Server – geladen aus dem offiziellen Kanal und vor der Nutzung geprüft. Damit bestimmst du, welche TRS-Client-Funktionen Spieler bei dir nutzen dürfen. Bei Fabric wird Fabric API gleich mit ausgewählt, die das Plugin braucht. Gibt es für die Version des Servers noch kein Plugin, ist die Option ausgegraut und ein kurzer Hinweis sagt warum; „Mehr erfahren“ öffnet die Seite dazu auf der TRS-Website.
+
+## 0.28.0 – 2026-10-23 – Your Look | Dein Look
+<!-- banner: accent=#f07a22 motif=/news/0.28.0/banner.png -->
+<!-- shots:
+/news/0.28.0/website-look-on.png | Halloween with the event design | Halloween mit Event-Design
+/news/0.28.0/website-look-off.png | Event design turned off – the pumpkin hunt card stays | Event-Design ausgeschaltet – die Karte zur Kürbis-Suche bleibt
+-->
+
+### English
+- **New: turn off the event design.** Settings → Appearance → "Show event design (e.g. Halloween)". Switched off, the launcher keeps its normal look during an event – no night colours, scenes, moon progress bars, atmosphere or event icon. The pumpkin hunt, trick or treat, stickers and rewards stay available, and every pumpkin can still be found. The TRS Client follows the setting in game.
+- **Team area:** each event has a new "Look off for …" list. Players on it get the event without its design and effects; the event content stays for them.
+- **Clearer message when sharing a modpack fails.** If the TRS server rejects a modpack, the launcher now shows the server's reason instead of a general "not a valid Modrinth pack". (Large packs saved in the ZIP64 format are accepted again on the server side.)
+- **TRS Client: turn the event design off.** The Halloween page in the TRS menu has a new switch "Event design" (on by default). Turned off, the TRS Client looks like it does outside the event – no Halloween theme, title screen or loading bar, no grain, spooky effects, jumpscares or spooky sounds. The pumpkin hunt (all pumpkins stay findable), trick or treat, stickers and rewards keep working. The TRS Client also follows the matching launcher setting and the TRS team's choice for your account.
+
+### Deutsch
+- **Neu: Event-Design abschalten.** Einstellungen → Darstellung → „Event-Design anzeigen (z. B. Halloween)“. Ausgeschaltet behält der Launcher während eines Events sein normales Aussehen – keine Nachtfarben, Szenen, Mond-Ladebalken, Atmosphäre und kein Event-Symbol. Kürbis-Suche, Süßes oder Saures, Sticker und Belohnungen bleiben, und alle Kürbisse sind weiter auffindbar. Der TRS Client übernimmt die Einstellung im Spiel.
+- **Team-Bereich:** Jedes Event hat eine neue Liste „Look aus für …“. Spieler darauf bekommen das Event ohne Design und Effekte; die Event-Inhalte bleiben für sie.
+- **Klarere Meldung, wenn das Teilen eines Modpacks scheitert.** Lehnt der TRS-Server ein Modpack ab, zeigt der Launcher jetzt den Grund des Servers statt eines allgemeinen „kein gültiges Modrinth-Pack“. (Große Packs im ZIP64-Format nimmt der Server wieder an.)
+- **TRS Client: Event-Design abschalten.** Die Halloween-Seite im TRS-Menü hat einen neuen Schalter „Event-Design“ (ab Werk an). Ist er aus, sieht der TRS Client aus wie außerhalb des Events – kein Halloween-Thema, kein Halloween-Titelbildschirm oder -Ladebalken, kein Filmkorn, keine Spuk-Effekte, Jumpscares oder Grusel-Töne. Kürbis-Suche (alle Kürbisse bleiben auffindbar), Süßes oder Saures, Sticker und Belohnungen funktionieren weiter. Der TRS Client folgt außerdem der passenden Einstellung im Launcher und der Entscheidung des TRS-Teams für dein Konto.
+
+## 0.27.5 – 2026-10-23 – Clean Cut Fix | Feinschliff
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.5/banner.png -->
+<!-- shots:
+/news/0.27.5/overlay-on-screen.png | The clip overlay now only shows while the game is in front | Das Clip-Overlay erscheint jetzt nur, solange das Spiel vorne ist
+-->
+
+### English
+- **Fixed: the buffer indicator showed up over other apps.** The small clip overlay ("○ Buffer 30 s", REC, clip messages) stayed on top when you switched to another window, e.g. the browser or Discord. It now only appears while the game is the active window and disappears as soon as you switch away.
+
+### Deutsch
+- **Behoben: Die Puffer-Anzeige war auch über anderen Apps zu sehen.** Das kleine Clip-Overlay („○ Puffer 30 s“, REC, Clip-Meldungen) blieb obenauf, wenn du in ein anderes Fenster gewechselt bist, z. B. Browser oder Discord. Es erscheint jetzt nur, solange das Spiel das aktive Fenster ist, und verschwindet, sobald du wegwechselst.
+
+## 0.27.4 – 2026-10-23 – Clean Cut Fix | Feinschliff
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.4/banner.png -->
+<!-- shots:
+/news/0.27.4/overlay-on-screen.png | The clip overlay above the game – it no longer keeps the launcher running after you close it | Das Clip-Overlay über dem Spiel – es hält den Launcher nach dem Schließen nicht mehr am Laufen
+-->
+
+### English
+- **Fixed: the launcher sometimes didn't open any more.** After playing with clips turned on, closing the launcher could leave it running invisibly in the background – starting it again then did nothing, and updates couldn't install. Closing the launcher window now always quits it completely.
+
+### Deutsch
+- **Behoben: Der Launcher ging manchmal nicht mehr auf.** Nach dem Spielen mit eingeschalteten Clips konnte der Launcher nach dem Schließen unsichtbar im Hintergrund weiterlaufen – ein neuer Start tat dann nichts, und Updates ließen sich nicht installieren. Schließt du das Launcher-Fenster, beendet er sich jetzt immer vollständig.
+
+## 0.27.3 – 2026-10-23 – Clean Cut Fix | Feinschliff
+<!-- banner: accent=#3ee6c8 motif=/news/0.27.3/banner.png -->
+<!-- shots:
+/news/0.27.3/overlay-on-screen.png | Buffer indicator and clip messages stay out of your clips | Puffer-Anzeige und Clip-Meldungen bleiben aus deinen Clips heraus
+-->
+
+### English
+- **Fixed: TRS Client settings and HUD profiles could get lost with "Launch again".** A second copy of an instance – especially with another account – shares the TRS Client settings with the first one. It could write the other account's old settings into them and even into your sync, so profiles disappeared, modules were off and HUD positions were wrong. The second copy now never saves TRS Client settings or syncs them; only the first game does. Changes you make in the second window apply until you close it.
+- **Fixed: false "mods don't work together" warning.** Some mods carry an older copy of another mod inside (Distant Horizons, for example, brings its own older Fabric API). The launcher counted that hidden copy even when you have a newer one installed – which is the one the game actually loads – and stopped the launch, e.g. "Sodium doesn't work with Fabric API (inside Distant Horizons)". Now only the copy the game really uses is checked, and the launcher no longer swaps such mods back and forth between versions.
+- **Fixed: "Launch again" stopped with a mod error.** A second copy of a running instance now starts with exactly the same mods as the first one – the launcher no longer checks or swaps mods of an instance that is already running.
+
+### Deutsch
+- **Behoben: TRS-Client-Einstellungen und HUD-Profile konnten mit „Erneut starten“ verloren gehen.** Eine zweite Kopie einer Instanz – vor allem mit einem anderen Konto – teilt sich die TRS-Client-Einstellungen mit der ersten. Sie konnte die alten Einstellungen des anderen Kontos hineinschreiben und sogar in deinen Sync, sodass Profile verschwanden, Module aus waren und HUD-Positionen nicht mehr stimmten. Die zweite Kopie speichert und synchronisiert die TRS-Client-Einstellungen jetzt nie; das macht nur das erste Spiel. Änderungen im zweiten Fenster gelten, bis du es schließt.
 - **Behoben: falsche Warnung „Mods passen nicht zusammen“.** Manche Mods bringen eine ältere Kopie einer anderen Mod mit (Distant Horizons z. B. eine eigene ältere Fabric API). Der Launcher hat diese versteckte Kopie mitgezählt, obwohl eine neuere installiert ist – und die lädt das Spiel tatsächlich – und den Start gestoppt, z. B. „Sodium passt nicht zu Fabric API (in Distant Horizons)“. Jetzt zählt nur die Kopie, die das Spiel wirklich benutzt, und der Launcher tauscht solche Mods nicht mehr zwischen Versionen hin und her.
 - **Behoben: „Erneut starten“ brach mit einem Mod-Fehler ab.** Eine zweite Kopie einer laufenden Instanz startet jetzt mit genau denselben Mods wie die erste – der Launcher prüft und tauscht keine Mods einer Instanz mehr, die schon läuft.
 

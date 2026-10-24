@@ -826,6 +826,7 @@
       "storageFull": "Serwer TRS nie ma teraz miejsca – spróbuj później.",
       "unchanged": "Od ostatniej wersji nic się nie zmieniło.",
       "invalidPack": "Serwer odrzucił modpack – to nie jest prawidłowy pack Modrinth.",
+      "invalidPackReason": "Serwer odrzucił modpack: {reason}",
       "noRecipients": "Modpacki możesz wysyłać tylko znajomym.",
       "invalidDuration": "Nieprawidłowy czas ważności."
     },
@@ -887,6 +888,11 @@
       "noServerJar": "Dla Minecrafta {version} nie ma oficjalnego serwera.",
       "loaderUnavailable": "Ten mod loader nie jest dostępny jako serwer dla Minecrafta {version}.",
       "installerFailed": "Instalator mod loadera nie powiódł się. Sprawdź połączenie z internetem i spróbuj ponownie."
+    },
+    "serverRules": {
+      "manifestUnreadable": "Manifest TRS Server Rules jest nieczytelny.",
+      "unavailable": "TRS Server Rules nie jest dostępne dla tego serwera (Minecraft {version}) – odznacz tę opcję.",
+      "channelUnavailable": "Nie udało się teraz wczytać TRS Server Rules – spróbuj później lub odznacz tę opcję."
     },
     "localServer": {
       "notFound": "Ten serwer (już) nie istnieje.",
@@ -2390,6 +2396,8 @@
       "animatedBackgroundDescription": "Spokojna, animowana scena za każdą stroną – obwód z redstone albo zimowy krajobraz, zależnie od wyglądu. Po wyłączeniu widoczny jest tylko wzór tła.",
       "eventIconsTitle": "Ikony wydarzeń",
       "eventIconsDescription": "Podczas wydarzeń takich jak Halloween zmienia się też ikona aplikacji – okno, pasek zadań, skróty na pulpicie i w menu Start oraz ekran główny telefonu. Po zakończeniu wydarzenia zwykła ikona wraca sama.",
+      "eventLookTitle": "Pokazuj wygląd wydarzenia (np. Halloween)",
+      "eventLookDescription": "Kolory, tła, paski postępu, klimat i ikona wydarzenia w trakcie wydarzenia. Wyłączone = zwykły wygląd. Polowanie na dynie, cukierek albo psikus i nagrody zostają.",
       "motionTitle": "Animacje",
       "motionDescription": "Animowane tło, biegnące światła, przejścia stron i okien oraz listy, które płynnie wskakują na swoje miejsce. „Ogranicz animacje” wyłącza wszystko; „Jak Windows/system” stosuje ustawienie animacji z Windows lub pulpitu – na zoptymalizowanych lub zdalnych komputerach jest ono często wyłączone.",
       "motionModes": {
@@ -4044,7 +4052,12 @@
         "halloween": "Halloween"
       },
       "removeTitle": "Usunąć z listy?",
-      "removeText": "Usunąć {name} z tego wydarzenia?"
+      "removeText": "Usunąć {name} z tego wydarzenia?",
+      "lookTitle": "Wygląd wyłączony dla …",
+      "lookHint": "Ci gracze mają wydarzenie bez jego wyglądu i efektów (kolory, sceny, straszenie). Polowanie na dynie, cukierek albo psikus i nagrody zostają.",
+      "noLookBlocks": "Nikt – każdy z wydarzeniem widzi też jego wygląd.",
+      "lookRemoveTitle": "Włączyć wygląd z powrotem?",
+      "lookRemoveText": "{name} znów zobaczy wygląd tego wydarzenia."
     },
     "tabs": {
       "capes": "Weryfikacja peleryn"
@@ -5995,7 +6008,8 @@
       "blog_write": "Pisanie wpisów na blogu (szkice, obrazy)",
       "blog_publish": "Publikowanie, planowanie i wycofywanie wpisów na blogu",
       "events_manage": "Zarządzanie wydarzeniami",
-      "featured_manage": "Zarządzanie polecanymi modpackami"
+      "featured_manage": "Zarządzanie polecanymi modpackami",
+      "serverrules_bypass": "Używać funkcji TRS Client zablokowanych przez serwer mimo to (po potwierdzeniu w grze)"
     }
   },
   "trsChoice": {
@@ -6692,7 +6706,22 @@
     "doneZip": "Serwer zapisany: {file} ({size})",
     "doneLocal": "Serwer „{name}” został utworzony",
     "localCreated": "Serwer „{name}” został utworzony.",
-    "openConsole": "Otwórz konsolę"
+    "openConsole": "Otwórz konsolę",
+    "serverRules": {
+      "label": "TRS Server Rules (blokuj moduły TRS Client na serwerze)",
+      "info": "Dodaje na serwer plugin serwerowy TRS. Dzięki niemu decydujesz, z których funkcji TRS Client (np. minimapa, zoom, fullbright) gracze mogą korzystać na twoim serwerze – dla wszystkich lub dla każdego świata. Konfiguracja powstaje przy pierwszym uruchomieniu w config/trs-server-rules.yml.",
+      "link": "Dowiedz się więcej",
+      "version": "Wersja {version}",
+      "teamNote": "Otwarcie udokumentowane: członkowie zespołu TRS mogą po potwierdzeniu znieść blokadę we własnym kliencie.",
+      "unavailable": {
+        "vanilla": "Dostępne tylko dla serwerów z Fabric, Quilt, Forge lub NeoForge – serwer vanilla nie ładuje modów.",
+        "version": "TRS Server Rules nie jest (jeszcze) dostępne dla Minecraft {version} z {loader}.",
+        "offline": "Pobieranie TRS Server Rules było niedostępne – otwórz okno ponownie później."
+      },
+      "fabricApiIncluded": "Wymaga Fabric API na serwerze – jest wybrane.",
+      "fabricApiMissing": "Wymaga Fabric API na serwerze – ta instancja go nie ma. Po eksporcie umieść Fabric API w folderze mods serwera.",
+      "fabricApiDeselected": "Wymaga Fabric API na serwerze – wybierz ponownie Fabric API na liście modów."
+    }
   },
   "localServers": {
     "title": "Moje serwery",

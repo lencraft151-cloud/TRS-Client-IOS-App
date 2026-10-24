@@ -64,6 +64,17 @@ public final class TrsApi {
 		public Settings settings;
 		/** Aktive Events ({@code "halloween"} …). {@code null} = alte API ohne das Feld. */
 		public List<String> events;
+		/** Events, deren Look dieser Spieler sehen soll (ohne Team-Sperre). {@code null} = alte API (= events). */
+		public List<String> eventLook;
+		/** Team-Zugehörigkeit ({@code MyTeamView}); null = kein Team bzw. alte API. */
+		public Team team;
+	}
+
+	/** Ausschnitt von {@code MeView.team}: nur, was der Client braucht. */
+	public static final class Team {
+		public Boolean owner;
+		/** Team-Rechte (z. B. {@code "serverrules.bypass"}). */
+		public List<String> permissions;
 	}
 
 	public static final class Settings {

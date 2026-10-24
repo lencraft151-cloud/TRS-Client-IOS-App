@@ -826,6 +826,7 @@
       "storageFull": "TRS sunucusunda şu an yer yok – lütfen daha sonra tekrar dene.",
       "unchanged": "Son sürümden bu yana hiçbir şey değişmedi.",
       "invalidPack": "Sunucu modpack’i reddetti – geçerli bir Modrinth paketi değil.",
+      "invalidPackReason": "Sunucu mod paketini reddetti: {reason}",
       "noRecipients": "Modpack’leri yalnızca arkadaşlarına gönderebilirsin.",
       "invalidDuration": "Geçersiz süre."
     },
@@ -887,6 +888,11 @@
       "noServerJar": "Minecraft {version} için resmi bir sunucu yok.",
       "loaderUnavailable": "Bu mod loader, Minecraft {version} için sunucu olarak mevcut değil.",
       "installerFailed": "Mod loader yükleyicisi başarısız oldu. İnternet bağlantını kontrol edip tekrar dene."
+    },
+    "serverRules": {
+      "manifestUnreadable": "TRS Server Rules manifestosu okunamıyor.",
+      "unavailable": "TRS Server Rules bu sunucu (Minecraft {version}) için mevcut değil – lütfen seçeneğin işaretini kaldır.",
+      "channelUnavailable": "TRS Server Rules şu an yüklenemedi – daha sonra tekrar dene veya seçeneğin işaretini kaldır."
     },
     "localServer": {
       "notFound": "Bu sunucu (artık) yok.",
@@ -2390,6 +2396,8 @@
       "animatedBackgroundDescription": "Her sayfanın arkasında sakin, animasyonlu bir sahne – tasarıma göre bir redstone devresi ya da bir kış manzarası. Kapalıyken yalnızca arka plan deseni gösterilir.",
       "eventIconsTitle": "Etkinlik simgeleri",
       "eventIconsDescription": "Cadılar Bayramı gibi etkinliklerde uygulama simgesi de değişir – pencere, görev çubuğu, masaüstü ve Başlat menüsü kısayolları ile telefonun ana ekranı. Etkinlik bitince normal simge kendiliğinden geri gelir.",
+      "eventLookTitle": "Etkinlik tasarımını göster (ör. Cadılar Bayramı)",
+      "eventLookDescription": "Etkinlik sırasında renkler, arka planlar, ilerleme çubukları, atmosfer ve etkinlik simgesi. Kapalı = normal görünüm. Balkabağı avı, şeker mi şaka mı ve ödüller kalır.",
       "motionTitle": "Animasyonlar",
       "motionDescription": "Animasyonlu arka plan, akan ışıklar, sayfa ve pencere geçişleri ve yerine kayan listeler. “Animasyonları azalt” hepsini kapatır; “Windows/sisteme göre”, Windows’un veya masaüstünün animasyon ayarını izler; bu ayar optimize edilmiş veya uzak bilgisayarlarda genellikle kapalıdır.",
       "motionModes": {
@@ -4044,7 +4052,12 @@
         "halloween": "Halloween"
       },
       "removeTitle": "Listeden kaldırılsın mı?",
-      "removeText": "{name} bu etkinlikten kaldırılsın mı?"
+      "removeText": "{name} bu etkinlikten kaldırılsın mı?",
+      "lookTitle": "Görünüm kapalı: …",
+      "lookHint": "Bu oyuncular etkinliği tasarımı ve efektleri olmadan alır (renkler, sahneler, korkutmalar). Balkabağı avı, şeker mi şaka mı ve ödüller kalır.",
+      "noLookBlocks": "Kimse – etkinliği olan herkes görünümü de görür.",
+      "lookRemoveTitle": "Görünüm yeniden açılsın mı?",
+      "lookRemoveText": "{name} bu etkinliğin görünümünü yeniden görecek."
     },
     "tabs": {
       "capes": "Pelerinleri incele"
@@ -5995,7 +6008,8 @@
       "blog_write": "Blog yazıları yazma (taslaklar, görseller)",
       "blog_publish": "Blog yazılarını yayınlama, zamanlama ve yayından kaldırma",
       "events_manage": "Etkinlikleri yönet",
-      "featured_manage": "Öne çıkan mod paketlerini yönet"
+      "featured_manage": "Öne çıkan mod paketlerini yönet",
+      "serverrules_bypass": "Sunucunun engellediği TRS Client özelliklerini yine de kullan (oyunda onaydan sonra)"
     }
   },
   "trsChoice": {
@@ -6692,7 +6706,22 @@
     "doneZip": "Sunucu kaydedildi: {file} ({size})",
     "doneLocal": "\"{name}\" sunucusu kuruldu",
     "localCreated": "\"{name}\" sunucusu kuruldu.",
-    "openConsole": "Konsolu aç"
+    "openConsole": "Konsolu aç",
+    "serverRules": {
+      "label": "TRS Server Rules (sunucuda TRS Client modüllerini kilitle)",
+      "info": "TRS sunucu eklentisini sunucuya ekler. Böylece oyuncuların sunucunda hangi TRS Client özelliklerini (ör. mini harita, yakınlaştırma, fullbright) kullanabileceğine sen karar verirsin – herkes için ya da dünya bazında. Yapılandırma ilk başlatmada config/trs-server-rules.yml konumunda oluşturulur.",
+      "link": "Daha fazla bilgi",
+      "version": "Sürüm {version}",
+      "teamNote": "Açıkça belgelenmiştir: TRS ekibi üyeleri bir kilidi onay sonrasında kendi istemcilerinde kaldırabilir.",
+      "unavailable": {
+        "vanilla": "Yalnızca Fabric, Quilt, Forge veya NeoForge sunucuları için – vanilla sunucu mod yükleyemez.",
+        "version": "TRS Server Rules, {loader} ile Minecraft {version} için (henüz) mevcut değil.",
+        "offline": "TRS Server Rules indirmesine şu an ulaşılamadı – pencereyi daha sonra yeniden aç."
+      },
+      "fabricApiIncluded": "Sunucuda Fabric API gerekir – seçili.",
+      "fabricApiMissing": "Sunucuda Fabric API gerekir – bu kurulumda yok. Dışa aktardıktan sonra Fabric API'yi sunucunun mods klasörüne koy.",
+      "fabricApiDeselected": "Sunucuda Fabric API gerekir – lütfen mod listesinde Fabric API'yi yeniden seç."
+    }
   },
   "localServers": {
     "title": "Sunucularım",

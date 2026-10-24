@@ -858,6 +858,7 @@
       "storageFull": "Der TRS-Server hat gerade keinen Platz – bitte später erneut versuchen.",
       "unchanged": "Seit der letzten Version hat sich nichts geändert.",
       "invalidPack": "Der Server hat das Modpack abgelehnt – es ist kein gültiges Modrinth-Pack.",
+      "invalidPackReason": "Der Server hat das Modpack abgelehnt: {reason}",
       "noRecipients": "Modpacks kannst du nur an deine Freunde schicken.",
       "invalidDuration": "Ungültige Laufzeit."
     },
@@ -919,6 +920,11 @@
       "noServerJar": "Für Minecraft {version} gibt es keinen offiziellen Server.",
       "loaderUnavailable": "Für Minecraft {version} gibt es diesen Modloader nicht als Server.",
       "installerFailed": "Der Modloader-Installer ist fehlgeschlagen. Bitte Internetverbindung prüfen und erneut versuchen."
+    },
+    "serverRules": {
+      "manifestUnreadable": "Das Manifest von TRS Server Rules ist unlesbar.",
+      "unavailable": "TRS Server Rules gibt es für diesen Server (Minecraft {version}) nicht – bitte die Option abwählen.",
+      "channelUnavailable": "TRS Server Rules konnte gerade nicht geladen werden – bitte später erneut versuchen oder die Option abwählen."
     },
     "localServer": {
       "notFound": "Diesen Server gibt es nicht (mehr).",
@@ -2497,6 +2503,8 @@
       "animatedBackgroundDescription": "Eine ruhige, animierte Szene hinter allen Seiten – je nach Design eine Redstone-Schaltung oder eine Winterlandschaft. Aus zeigt nur das Hintergrundmuster.",
       "eventIconsTitle": "Event-Symbole",
       "eventIconsDescription": "Bei Events wie Halloween wechselt auch das App-Symbol – Fenster, Taskleiste, Verknüpfungen auf dem Desktop und im Startmenü sowie der Startbildschirm am Handy. Nach dem Event kommt das normale Symbol von selbst zurück.",
+      "eventLookTitle": "Event-Design anzeigen (z. B. Halloween)",
+      "eventLookDescription": "Farben, Hintergründe, Ladebalken, Atmosphäre und Event-Symbol während eines Events. Aus = normales Aussehen. Kürbis-Suche, Süßes oder Saures und Belohnungen bleiben.",
       "motionTitle": "Animationen",
       "motionDescription": "Animierter Hintergrund, Lauflichter, Seiten- und Dialog-Übergänge und Listen, die an ihren Platz gleiten. „Animationen reduzieren“ schaltet alles ab; „Wie Windows/System“ folgt der Animations-Einstellung von Windows bzw. des Desktops – auf optimierten oder Remote-PCs ist sie oft aus.",
       "motionModes": {
@@ -4183,7 +4191,12 @@
         "halloween": "Halloween"
       },
       "removeTitle": "Von der Allowlist nehmen?",
-      "removeText": "{name} von diesem Event nehmen?"
+      "removeText": "{name} von diesem Event nehmen?",
+      "lookTitle": "Look aus für …",
+      "lookHint": "Diese Spieler sehen das Event ohne Design & Effekte (Farben, Szenen, Spuk). Kürbis-Suche, Süßes oder Saures und Belohnungen bleiben.",
+      "noLookBlocks": "Niemand – alle mit dem Event sehen auch den Look.",
+      "lookRemoveTitle": "Look wieder einschalten?",
+      "lookRemoveText": "{name} sieht den Look dieses Events dann wieder."
     },
     "tabs": {
       "capes": "Umhänge prüfen"
@@ -6137,7 +6150,8 @@
       "events_manage": "Events verwalten",
       "creators_review": "Creator-Symbole und Fan-Umhänge prüfen",
       "creators_manage": "Creator verwalten",
-      "featured_manage": "Empfohlene Modpacks verwalten"
+      "featured_manage": "Empfohlene Modpacks verwalten",
+      "serverrules_bypass": "Vom Server gesperrte TRS-Client-Funktionen trotzdem nutzen (nach Nachfrage im Spiel)"
     },
     "creators": {
       "intro": "Fan-Symbole und Fan-Umhänge prüfen, Creator verwalten und ihre Anträge beantworten. Bewerbungen laufen über die Website.",
@@ -6912,7 +6926,22 @@
     "doneZip": "Server gespeichert: {file} ({size})",
     "doneLocal": "Server „{name}“ ist angelegt",
     "localCreated": "Server „{name}“ ist angelegt.",
-    "openConsole": "Konsole öffnen"
+    "openConsole": "Konsole öffnen",
+    "serverRules": {
+      "label": "TRS Server Rules (TRS-Client-Module auf dem Server sperren)",
+      "info": "Legt das Server-Plugin von TRS mit auf den Server. Damit bestimmst du, welche TRS-Client-Funktionen (z. B. Minimap, Zoom, Fullbright) Spieler bei dir nutzen dürfen – für alle oder je Welt. Die Config entsteht beim ersten Start unter config/trs-server-rules.yml.",
+      "link": "Mehr erfahren",
+      "version": "Version {version}",
+      "teamNote": "Offen dokumentiert: Mitglieder des TRS-Teams können eine Sperre in ihrem eigenen Client nach einer Nachfrage aufheben.",
+      "unavailable": {
+        "vanilla": "Gibt es nur für Server mit Fabric, Quilt, Forge oder NeoForge – ein Vanilla-Server lädt keine Mods.",
+        "version": "Für Minecraft {version} mit {loader} gibt es TRS Server Rules (noch) nicht.",
+        "offline": "Der Download von TRS Server Rules war gerade nicht erreichbar – öffne den Dialog später noch einmal."
+      },
+      "fabricApiIncluded": "Braucht Fabric API auf dem Server – ist ausgewählt.",
+      "fabricApiMissing": "Braucht Fabric API auf dem Server – die Instanz hat keine. Lege Fabric API nach dem Export in den mods-Ordner des Servers.",
+      "fabricApiDeselected": "Braucht Fabric API auf dem Server – bitte Fabric API in der Mod-Liste wieder auswählen."
+    }
   },
   "localServers": {
     "title": "Meine Server",

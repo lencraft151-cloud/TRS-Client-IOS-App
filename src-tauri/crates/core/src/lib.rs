@@ -68,6 +68,7 @@ pub mod presets;
 pub mod process;
 pub mod screenshots;
 pub mod server_export;
+pub mod server_rules;
 pub mod server_share;
 pub mod servers;
 pub mod settings;
@@ -128,6 +129,8 @@ pub struct Launcher {
     client_mod_dir: std::sync::RwLock<Option<PathBuf>>,
     /// Update-Kanal für den TRS Client (GitHub-Release `client-mod`).
     client_mod_updates: client_mod_update::ClientModUpdater,
+    /// Kanal für das Server-Plugin „TRS Server Rules“ (GitHub-Release `server-plugin`).
+    server_rules: server_rules::ServerRulesChannel,
     /// Instanzen, die gerade vorbereitet werden (Schutz vor Doppelklicks).
     preparing: Mutex<HashSet<String>>,
     /// Instanzen, deren nächster Start nach einem Speicherfehler sichere Werte nimmt.
@@ -241,6 +244,7 @@ impl Launcher {
             import_folders: Mutex::default(),
             client_mod_dir: std::sync::RwLock::default(),
             client_mod_updates: client_mod_update::ClientModUpdater::new(&paths)?,
+            server_rules: server_rules::ServerRulesChannel::new()?,
             preparing: Mutex::default(),
             safe_memory: Mutex::default(),
             skin_sync: skin_sync::SkinSync::default(),
@@ -924,8 +928,9 @@ impl Launcher {
         let updates = Some(&self.client_mod_updates);
         // Der Mod liest daraus, ob er die TRS API benutzen darf (nur feste Werte, kein Token).
         let trs_enabled = self.trs.enabled().await;
+        let (events, look) = (self.trs.active_events(), self.trs.look_events());
         if let Err(e) =
-            client_mod::sync(&self.http, &self.paths, client_mod_dir.as_deref(), updates, instance, &settings.ui, trs_enabled, &self.trs.active_events())
+            client_mod::sync(&self.http, &self.paths, client_mod_dir.as_deref(), updates, instance, &settings.ui, trs_enabled, &events, &look)
                 .await
         {
             tracing::warn!("TRS Client konnte nicht eingerichtet werden: {e}");
@@ -1109,6 +1114,11 @@ impl Launcher {
         // Ein weiterer Prozess läuft ohne TRS-Link: Die Sitzung gehört dem ersten (Schlüssel = Instanz-ID).
         if extra {
             command.env.retain(|(k, _)| k != link::ENV_VAR);
+            // Zweitfenster: Es teilt sich Config + Sync-Stand mit dem ersten Prozess (gleicher Spielordner, evtl.
+            // anderes Konto). Der TRS Client schreibt dort nichts und synchronisiert nicht – sonst landen die
+            // Einstellungen des anderen Kontos in der gemeinsamen Datei und im Sync des Hauptkontos.
+            command.env.retain(|(k, _)| k != SECONDARY_ENV);
+            command.env.push((SECONDARY_ENV.to_owned(), "1".to_owned()));
         } else {
             self.link_open_for(&instance.id, legacy_mod, world, &mut command, &mut secrets).await?;
             // Clips: Port (bzw. altes Token für Mods ≤ 0.5.0) und Status für die Mod.
@@ -1557,6 +1567,10 @@ static DEMO_WITHOUT_ACCOUNT: std::sync::atomic::AtomicBool = std::sync::atomic::
 pub fn allow_demo_without_account() {
     DEMO_WITHOUT_ACCOUNT.store(true, std::sync::atomic::Ordering::Relaxed);
 }
+
+/// Umgebungsvariable für ein Zweitfenster derselben Instanz („Erneut starten“): Der TRS Client speichert dann
+/// weder seine Config noch den Sync-Stand und synchronisiert nicht (siehe `ConfigStore.readOnly()` im Mod).
+pub const SECONDARY_ENV: &str = "TRS_CLIENT_SECONDARY";
 
 /// Ohne Account startet nur ein Entwicklungs-Build oder der Messe-Build – und dann im
 /// offiziellen Demo-Modus des Spiels. Release-Builds verlangen sonst immer eine Anmeldung.

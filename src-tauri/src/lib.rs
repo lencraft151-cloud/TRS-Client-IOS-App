@@ -376,6 +376,13 @@ pub fn run() {
                 }
                 _ => {}
             }
+            // Hauptfenster zu → App beenden. Sonst hält ein unsichtbares Hilfsfenster (Clip-Overlay) den Prozess
+            // ohne Oberfläche am Leben: Ein neuer Start landet dann bei diesem Prozess, und es passiert nichts.
+            #[cfg(desktop)]
+            if matches!(event, tauri::WindowEvent::Destroyed) && window.label() == "main" {
+                window.app_handle().exit(0);
+                return;
+            }
             let payload = match event {
                 tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Enter { .. }) => DropEvent::Enter,
                 tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Leave) => DropEvent::Leave,
@@ -725,6 +732,7 @@ pub fn run() {
             commands::trs::trs_claim_cosmetic,
             commands::trs::trs_claim_cape,
             commands::trs::trs_active_events,
+            commands::trs::trs_look_events,
             commands::trs::trs_admin_events,
             commands::trs::trs_admin_set_event,
             commands::trs::trs_admin_featured_packs,
@@ -735,6 +743,8 @@ pub fn run() {
             commands::trs::trs_admin_refresh_featured_pack,
             commands::trs::trs_admin_add_event_player,
             commands::trs::trs_admin_remove_event_player,
+            commands::trs::trs_admin_add_event_look_block,
+            commands::trs::trs_admin_remove_event_look_block,
             commands::trs::trs_player_capes,
             commands::trs::trs_friends,
             commands::trs::trs_blocks,
