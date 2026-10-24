@@ -3,8 +3,9 @@
 Dieses Repo ist die iOS-Fassung von [theredstonee/TRS-Launcher](https://github.com/theredstonee/TRS-Launcher). Neue
 Versionen von dort kommen **automatisch** herein: Eine geplante Claude-Routine prüft jeden Tag, ob `main` von upstream
 weiter ist, übernimmt die neuen Commits, prüft alles, öffnet einen Pull Request und führt ihn zusammen, sobald der CI
-grün ist. Der Push auf `main` baut dann die iOS-App (Release `ios-latest`) – die App auf dem iPhone bietet das Update
-von selbst an (IOS.md → Automatische Updates).
+grün ist. Der Push auf `main` baut dann die iOS-App (Release `ios-latest`); aufs iPhone kommt sie von selbst – mit
+bezahltem Apple-Account über die App, mit kostenlosem über den Mac (`scripts/ios/auto-update-mac.sh`, IOS.md →
+Automatische Updates).
 
 Von Hand geht derselbe Ablauf genauso (Abschnitt „Ablauf“).
 

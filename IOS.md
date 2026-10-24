@@ -145,7 +145,8 @@ Die App prüft beim Start, alle 4 Stunden und wenn sie nach einer Pause wieder n
 jeder neue Build auf `main` als Update – Änderungen hier genauso wie neue Versionen von theredstonee/TRS-Launcher, die
 jeden Tag automatisch übernommen werden ([docs/upstream-sync.md](docs/upstream-sync.md)).
 
-- **Mit Profil signiert** (einmalige Einrichtung unten): Die App **installiert das Update von selbst**, sobald gerade
+- **Kostenloses Apple-Konto:** Der Mac hält die App aktuell (siehe „Kostenloses Apple-Konto“ unten).
+- **Mit Profil signiert** (bezahlter Account, einmalige Einrichtung unten): Die App **installiert das Update von selbst**, sobald gerade
   nichts läuft (kein Spiel, keine Downloads). iOS fragt nur noch einmal „Installieren?“ – ganz ohne Rückfrage lässt
   Apple keine App sich selbst ersetzen. Daten bleiben erhalten. Tippst du auf „Abbrechen“, bleibt oben ein Hinweis
   mit **Installieren**; beim nächsten Start fragt die App wieder.
@@ -153,7 +154,30 @@ jeden Tag automatisch übernommen werden ([docs/upstream-sync.md](docs/upstream-
   Release auch eine Quelle: `https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/altstore.json`
   – einmal als Quelle hinzufügen, dann kommen Updates dort an.
 
-### Einmalig einrichten: automatische Updates (Mac, bezahlter Apple-Developer-Account)
+### Kostenloses Apple-Konto: der Mac aktualisiert die App
+
+Ohne bezahlten Developer-Account kann GitHub die App nicht für dein iPhone signieren – dann übernimmt das der Mac:
+
+```bash
+bash scripts/ios/auto-update-mac.sh --install
+```
+
+Danach prüft der Mac jede Stunde (und nach dem Aufwachen): `git pull`, und gibt es eine neue Version – von hier oder
+aus dem täglichen Abgleich mit theredstonee –, baut er die App wie ▶ Run mit deinem Xcode-Konto und installiert sie
+per WLAN auf dem iPhone. Er erneuert dabei auch die Signatur, die beim kostenlosen Konto nach 7 Tagen abläuft. Ist
+TRS Launcher auf dem iPhone gerade offen, wartet er damit (höchstens 6 Stunden). Eine Mitteilung auf dem Mac sagt
+Bescheid.
+
+- Vorher einmal: `bash scripts/ios/mac-setup.sh`, in Xcode ▶ Run auf dem iPhone und in Xcode → *Window → Devices and
+  Simulators* beim iPhone **Connect via network** anhaken. Mac und iPhone im selben WLAN, der Mac darf schlafen
+  (er holt es beim Aufwachen nach).
+- `--now` aktualisiert sofort, `--status` zeigt Gerät, letzte Installation und Ablauf der Signatur,
+  `--uninstall` schaltet es ab. Log: `~/Library/Logs/TRS-Launcher-AutoUpdate.log`.
+- Liegt das Repo in *Dokumente*, *Schreibtisch* oder *Downloads*, braucht der Hintergrunddienst Zugriff
+  (Festplattenvollzugriff für `/bin/bash`) – oder das Repo z. B. nach `~/Developer` legen.
+- Minecraft braucht weiterhin JIT: zum Spielen ▶ Run in Xcode oder StikDebug (siehe unten).
+
+### Einmalig einrichten: automatische Updates über GitHub (bezahlter Apple-Developer-Account)
 
 1. **Zertifikat exportieren:** Schlüsselbundverwaltung → *Meine Zertifikate* → „Apple Development: …“ →
    Rechtsklick → *Exportieren …* → `.p12` mit Passwort, z. B. auf den Schreibtisch.
