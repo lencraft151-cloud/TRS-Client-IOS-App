@@ -351,6 +351,15 @@ class ShareTest {
 		return new FileClient(pipe[0]);
 	}
 
+	/**
+	 * Beim Öffnen abgewiesen (Gast nicht angenommen, Teilen aus): Der Server schickt {@code not_allowed} und schließt
+	 * sofort. Je nach Timing liest der Gast die Antwort noch ({@code not_allowed}) oder seine Anfrage trifft schon den
+	 * geschlossenen Kanal ({@code closed}) – geliefert wird in beiden Fällen nichts.
+	 */
+	static void assertRejectedAtOpen(FileClient.FileException ex) {
+		assertTrue("not_allowed".equals(ex.code) || "closed".equals(ex.code), "abgewiesen, aber Code " + ex.code);
+	}
+
 	@Test
 	void fileChannelServesOnlyTheAllowlist(@TempDir Path dir) throws Exception {
 		byte[] data = new byte[200_000];
@@ -403,7 +412,7 @@ class ShareTest {
 		try (FileClient fc = connect(server, "fremd", mc)) {
 			FileClient.FileException ex = assertThrows(FileClient.FileException.class,
 					() -> fc.fetch(FileChannel.KIND_MOD, e.sha256, e.size, SharedContent.MAX_HOST_FILE, null, new ByteArrayOutputStream(), null));
-			assertEquals("not_allowed", ex.code);
+			assertRejectedAtOpen(ex);
 		}
 
 		// Datei nach der Freigabe geÃ¤ndert â†’ nicht mehr geliefert.
@@ -419,7 +428,7 @@ class ShareTest {
 		try (FileClient fc = connect(server, "gast", mc)) {
 			FileClient.FileException ex = assertThrows(FileClient.FileException.class,
 					() -> fc.fetch(FileChannel.KIND_MOD, e.sha256, e.size, SharedContent.MAX_HOST_FILE, null, new ByteArrayOutputStream(), null));
-			assertEquals("not_allowed", ex.code);
+			assertRejectedAtOpen(ex);
 		}
 	}
 
