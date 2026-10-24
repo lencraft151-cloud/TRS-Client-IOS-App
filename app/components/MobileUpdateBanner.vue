@@ -2,10 +2,13 @@
 import { isTauri } from '@tauri-apps/api/core'
 import type { MobileUpdateStatus } from '~/types'
 import { MESSE } from '~/utils/messe'
+import { shouldAutoInstall, shouldRecheckOnResume } from '~/utils/mobileUpdate'
 
-// Android/iOS: Update-Hinweis aus dem Kanal `mobile`. Prüft kurz nach dem Start und danach alle paar Stunden.
-// iOS installiert per Tipp über den OTA-Link (mit Profil signierte IPA) – iOS fragt nach und ersetzt die App.
-// Android lädt die APK und öffnet den Installationsdialog. „Später“ blendet die Version für diese Sitzung aus.
+// Android/iOS: Update-Hinweis aus dem Kanal `mobile`. Prüft kurz nach dem Start, alle paar Stunden und wenn die App
+// nach einer Pause wieder nach vorn kommt. iOS installiert über den OTA-Link (mit Profil signierte IPA) von selbst:
+// Ist eine neue Version da und läuft gerade nichts (Spiel, Downloads, Einrichtung), öffnet die App die Installation –
+// iOS fragt nur noch einmal nach und ersetzt die App. Android lädt die APK auf Tipp und öffnet den Installationsdialog.
+// „Später“ blendet die Version für diese Sitzung aus.
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000
 const FIRST_CHECK_MS = 8000
 
@@ -14,11 +17,16 @@ const busy = ref(false)
 const message = ref('')
 const hidden = ref<string | null>(null)
 let timer: ReturnType<typeof setTimeout> | undefined
+let lastCheck = 0
+/** iOS: Versionen, deren Installation in dieser Sitzung schon von selbst geöffnet wurde (nicht ständig nachfragen). */
+const autoStarted = new Set<string>()
 
 const visible = computed(() => !!status.value?.available && !!status.value.latest && hidden.value !== status.value.latest)
 const canInstall = computed(() => hostOs === 'android' || !!status.value?.installUrl)
 
 async function check() {
+  clearTimeout(timer)
+  lastCheck = Date.now()
   try {
     status.value = await backend.mobileUpdateCheck()
   } catch {
@@ -26,6 +34,22 @@ async function check() {
   }
   timer = setTimeout(check, CHECK_INTERVAL_MS)
 }
+
+function onVisibility() {
+  if (document.visibilityState === 'visible' && shouldRecheckOnResume(lastCheck, Date.now())) void check()
+}
+
+// iOS: von selbst installieren, sobald nichts läuft – einmal je Version und App-Start.
+const games = useGamesStore()
+const tasks = useTasksStore()
+const onboarding = useOnboardingStore()
+const idle = computed(() => games.runningCount === 0 && tasks.active.length === 0 && !onboarding.open)
+watch([status, hidden, idle], () => {
+  const latest = status.value?.latest
+  if (!latest || !shouldAutoInstall({ os: hostOs, status: status.value, hidden: hidden.value, idle: idle.value, busy: busy.value, started: autoStarted })) return
+  autoStarted.add(latest)
+  void install()
+})
 
 async function install() {
   busy.value = true
@@ -43,6 +67,7 @@ async function install() {
 onMounted(() => {
   if (!isTauri() || !isMobile || MESSE) return
   timer = setTimeout(check, FIRST_CHECK_MS)
+  document.addEventListener('visibilitychange', onVisibility)
 })
 
 // „Beta-Versionen“ umgeschaltet: gleich neu prüfen (ein Beta-Update verschwindet beim Ausschalten wieder).
@@ -55,7 +80,10 @@ watch(
     void check()
   },
 )
-onBeforeUnmount(() => clearTimeout(timer))
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  document.removeEventListener('visibilitychange', onVisibility)
+})
 </script>
 
 <template>

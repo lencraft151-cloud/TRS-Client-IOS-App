@@ -140,16 +140,60 @@ P12_PASSWORD=… scripts/ios/sign-ipa.sh TRS-Launcher-unsigned.ipa zertifikat.p1
 
 ## Automatische Updates
 
-Die App prüft beim Start und alle 4 Stunden das Release **`ios-latest`** dieses Repos (`mobile.json`, signiert).
-Jeder Build hat die Version `0.27.1.<Lauf-Nr.>`, also gilt jeder neue Build auf `main` als Update. Gibt es eins,
-erscheint oben ein Hinweis:
+Die App prüft beim Start, alle 4 Stunden und wenn sie nach einer Pause wieder nach vorn kommt das Release
+**`ios-latest`** dieses Repos (`mobile.json`, signiert). Jeder Build hat die Version `<Version>.<Lauf-Nr.>`, also gilt
+jeder neue Build auf `main` als Update – Änderungen hier genauso wie neue Versionen von theredstonee/TRS-Launcher, die
+jeden Tag automatisch übernommen werden ([docs/upstream-sync.md](docs/upstream-sync.md)).
 
-- **Mit Profil signiert** (Secrets aus „Eigenes Zertifikat + Profil“ gesetzt): **Installieren** antippen →
-  iOS fragt einmal nach → die App wird ersetzt, Daten bleiben erhalten. Das Gerät muss im Profil stehen
-  (Development/Ad Hoc) bzw. das Profil ist Enterprise.
+- **Kostenloses Apple-Konto:** Der Mac hält die App aktuell (siehe „Kostenloses Apple-Konto“ unten).
+- **Mit Profil signiert** (bezahlter Account, einmalige Einrichtung unten): Die App **installiert das Update von selbst**, sobald gerade
+  nichts läuft (kein Spiel, keine Downloads). iOS fragt nur noch einmal „Installieren?“ – ganz ohne Rückfrage lässt
+  Apple keine App sich selbst ersetzen. Daten bleiben erhalten. Tippst du auf „Abbrechen“, bleibt oben ein Hinweis
+  mit **Installieren**; beim nächsten Start fragt die App wieder.
 - **Sonst** (AltStore/SideStore/Xcode): Der Hinweis sagt, wie du aktualisierst. Für SideStore/AltStore liegt im
   Release auch eine Quelle: `https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/altstore.json`
   – einmal als Quelle hinzufügen, dann kommen Updates dort an.
+
+### Kostenloses Apple-Konto: der Mac aktualisiert die App
+
+Ohne bezahlten Developer-Account kann GitHub die App nicht für dein iPhone signieren – dann übernimmt das der Mac:
+
+```bash
+bash scripts/ios/auto-update-mac.sh --install
+```
+
+Danach prüft der Mac jede Stunde (und nach dem Aufwachen): `git pull`, und gibt es eine neue Version – von hier oder
+aus dem täglichen Abgleich mit theredstonee –, baut er die App wie ▶ Run mit deinem Xcode-Konto und installiert sie
+per WLAN auf dem iPhone. Er erneuert dabei auch die Signatur, die beim kostenlosen Konto nach 7 Tagen abläuft. Ist
+TRS Launcher auf dem iPhone gerade offen, wartet er damit (höchstens 6 Stunden). Eine Mitteilung auf dem Mac sagt
+Bescheid.
+
+- Vorher einmal: `bash scripts/ios/mac-setup.sh`, in Xcode ▶ Run auf dem iPhone und in Xcode → *Window → Devices and
+  Simulators* beim iPhone **Connect via network** anhaken. Mac und iPhone im selben WLAN, der Mac darf schlafen
+  (er holt es beim Aufwachen nach).
+- `--now` aktualisiert sofort, `--status` zeigt Gerät, letzte Installation und Ablauf der Signatur,
+  `--uninstall` schaltet es ab. Log: `~/Library/Logs/TRS-Launcher-AutoUpdate.log`.
+- Liegt das Repo in *Dokumente*, *Schreibtisch* oder *Downloads*, braucht der Hintergrunddienst Zugriff
+  (Festplattenvollzugriff für `/bin/bash`) – oder das Repo z. B. nach `~/Developer` legen.
+- Minecraft braucht weiterhin JIT: zum Spielen ▶ Run in Xcode oder StikDebug (siehe unten).
+
+### Einmalig einrichten: automatische Updates über GitHub (bezahlter Apple-Developer-Account)
+
+1. **Zertifikat exportieren:** Schlüsselbundverwaltung → *Meine Zertifikate* → „Apple Development: …“ →
+   Rechtsklick → *Exportieren …* → `.p12` mit Passwort, z. B. auf den Schreibtisch.
+2. Die beiden Dateien des Update-Kanals (`ios-update.key`, `ios-update.key.password`) nach `~/Downloads` legen.
+3. Einmal ausführen (am besten mit GitHub-CLI: `brew install gh && gh auth login`):
+
+   ```bash
+   bash scripts/ios/ci-secrets.sh --p12 ~/Desktop/<datei>.p12
+   ```
+
+   Das Skript sucht das Profil, das Xcode beim ▶ Run angelegt hat (dein iPhone steht darin), setzt alle Secrets
+   (`IOS_CERTIFICATE_*`, `IOS_PROVISIONING_PROFILE_BASE64`, `IOS_UPDATE_SIGNING_KEY*`) und startet den ersten Build.
+   Ohne GitHub-CLI legt es die Werte in `~/TRS-CI-Secrets` ab und sagt, wo sie eingetragen werden.
+4. Ist der Build durch (Actions → iOS app), bietet die App auf dem iPhone das Update an – ab dann jedes neue.
+
+Läuft das Profil ab (nach einem Jahr) oder kommt ein neues Gerät dazu: in Xcode einmal ▶ Run, dann Schritt 3 wiederholen.
 
 ### Beta-Versionen
 
@@ -161,7 +205,8 @@ beide Releases und bietet die neuere Version an – ist `main` weiter, wieder di
 
 Damit niemand der App ein falsches Update unterschieben kann, ist `mobile.json` signiert. Der öffentliche
 Schlüssel steckt in der App (`src-tauri/gen/apple/UpdateChannel.xcconfig`, `update-public-key.txt`); den privaten
-legst du als Secret an – **Settings → Secrets and variables → Actions**:
+legst du als Secret an – `scripts/ios/ci-secrets.sh` erledigt das mit, von Hand unter
+**Settings → Secrets and variables → Actions**:
 
 | Secret | Inhalt |
 |---|---|
