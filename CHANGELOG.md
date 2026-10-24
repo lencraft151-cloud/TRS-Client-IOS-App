@@ -30,6 +30,13 @@ How to write an entry:
 
 ## Unreleased
 
+## 0.28.1 – 2026-10-24 – House Rules | Hausordnung
+<!-- banner: accent=#f2b72e motif=/news/0.28.1/banner.png -->
+<!-- shots:
+/news/0.28.1/server-rules-locked.png | A server with TRS Server Rules locks the minimap – the TRS Client shows a lock | Ein Server mit TRS Server Rules sperrt die Minimap – der TRS Client zeigt ein Schloss
+/news/0.28.1/server-rules-limit.png | Settings can be limited by the server, here the zoom factor | Einstellungen kann der Server begrenzen, hier den Zoom-Faktor
+-->
+
 ### English
 - **iPhone and iPad: install with your own profile.** The iOS app now comes as a ready-to-sign Xcode project and as an IPA signed with your own certificate and provisioning profile – install it straight from Safari, with Apple Configurator, Xcode or apps like Feather and ESign.
 - **Fixed:** the iPhone/iPad app no longer closes right after starting when it was built with Xcode 27.
