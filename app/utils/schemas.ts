@@ -239,6 +239,8 @@ export const settingsSchema = z
     mobileBeta: z.boolean().default(false),
     /** iOS: täglich automatisch sichern – fehlt das Feld (älterer Kern), ist es aus. */
     autoBackup: z.boolean().default(false),
+    /** iOS: Akku beim Spielen – fehlt das Feld (älterer Kern) oder ist es unbekannt, gilt „ausgewogen“. */
+    gamePower: z.enum(['performance', 'balanced', 'saver']).catch('balanced').default('balanced'),
   })
   .passthrough()
   .refine((s) => s.minMemoryMb <= s.maxMemoryMb, {

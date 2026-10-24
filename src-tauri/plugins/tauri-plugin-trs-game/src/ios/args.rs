@@ -80,6 +80,9 @@ pub struct EngineLaunch {
     /// Touch-Layout (`GameLaunchSpec.touchProfile`) und sein Ordner – für das Overlay.
     pub touch_profile: Option<String>,
     pub controls_dir: Option<String>,
+    /// Auflösung als Anteil der Bildschirmpixel (Akku-Plan) und die im Stromsparmodus von iOS.
+    pub render_scale: f64,
+    pub low_power_render_scale: f64,
 }
 
 /// `auto` bleibt auf iOS `auto`: Amethysts eigene Wahl (Start mit ANGLE, dann je nach
@@ -93,11 +96,15 @@ pub fn renderer_lib(renderer: Renderer) -> &'static str {
     }
 }
 
-/// Spielauflösung: Querformat, gerade Zahlen (wie Amethyst bei 100 %).
-pub fn window_size(probe: &DeviceProbe) -> (u32, u32) {
+/// Spielauflösung: Querformat, gerade Zahlen (wie Amethyst); `scale` = Anteil der Bildschirmpixel.
+pub fn window_size(probe: &DeviceProbe, scale: f64) -> (u32, u32) {
     let (a, b) = (probe.screen.width_px, probe.screen.height_px);
-    let (w, h) = (a.max(b), a.min(b));
+    let (w, h) = (scaled(a.max(b), scale), scaled(a.min(b), scale));
     (w - w % 2, h - h % 2)
+}
+
+fn scaled(px: u32, scale: f64) -> u32 {
+    (f64::from(px) * scale).round() as u32
 }
 
 fn check_text(value: &str, what: &'static str) -> Result<()> {
@@ -209,7 +216,8 @@ pub fn build(input: BuildInput<'_>) -> Result<EngineLaunch> {
     }
     let classpath = game_classpath(spec)?;
     let extra_jvm = filter_jvm_args(&spec.jvm_args)?;
-    let (width, height) = window_size(probe);
+    let render_scale = spec.render_scale();
+    let (width, height) = window_size(probe, render_scale);
     if width == 0 || height == 0 {
         return Err(Error::Engine("Bildschirmgröße unbekannt".into()));
     }
@@ -233,7 +241,9 @@ pub fn build(input: BuildInput<'_>) -> Result<EngineLaunch> {
     a.push(format!("-Duser.dir={game_dir}"));
     a.push(format!("-Duser.home={}", probe.home_dir));
     a.push(format!("-Duser.timezone={tz}"));
-    a.push(format!("-DUIScreen.maximumFramesPerSecond={}", probe.screen.max_fps.clamp(30, 240)));
+    // Akku-Plan: höchstens die FPS-Grenze als Bildrate melden.
+    let max_fps = spec.max_fps.map_or(probe.screen.max_fps, |cap| probe.screen.max_fps.min(cap));
+    a.push(format!("-DUIScreen.maximumFramesPerSecond={}", max_fps.clamp(30, 240)));
     a.push("-Dorg.lwjgl.glfw.checkThread0=false".into());
     a.push("-Dorg.lwjgl.system.allocator=system".into());
     a.push("-Dlog4j2.formatMsgNoLookups=true".into());
@@ -293,8 +303,10 @@ pub fn build(input: BuildInput<'_>) -> Result<EngineLaunch> {
     // Argumenten, damit ein eigener Wert ihn noch überschreiben kann.
     a.push("-Dsodium.checks.issue2561=false".into());
     a.extend(extra_jvm);
-    // Vertrag: das liest der TRS Client.
-    let [l, t, r, b] = probe.safe_insets_px;
+    // Vertrag: das liest der TRS Client (Ränder in Fensterpixeln, also mit der Auflösung skaliert;
+    // im Stromsparmodus wird das Fenster nur kleiner – die Ränder sind dann etwas großzügiger).
+    // Aufrunden: lieber etwas mehr Abstand als in die Notch.
+    let [l, t, r, b] = probe.safe_insets_px.map(|px| (f64::from(px) * render_scale).ceil() as u32);
     a.push("-Dtrs.mobile=ios".into());
     a.push("-Dtrs.touch=true".into());
     a.push("-Dtrs.overlay.version=1".into());
@@ -345,6 +357,8 @@ pub fn build(input: BuildInput<'_>) -> Result<EngineLaunch> {
         jit_help,
         touch_profile: spec.touch_profile.clone(),
         controls_dir,
+        render_scale,
+        low_power_render_scale: spec.low_power_render_scale(),
     })
 }
 
@@ -435,6 +449,31 @@ mod tests {
         assert_eq!(launch.env["POJAV_RENDERER"], "auto");
         assert!(argv.contains(&"-Dorg.lwjgl.opengl.libname=libtinygl4angle.dylib".to_string()));
         assert!(launch.metal_layer);
+    }
+
+    #[test]
+    fn power_plan_scales_window_insets_and_fps() {
+        let (mut spec, probe, layout) = (spec(), probe(), layout());
+        let full = build(input(&spec, &probe, &layout, 21)).unwrap();
+        assert_eq!((full.window_width, full.window_height), (2556, 1178));
+        assert_eq!((full.render_scale, full.low_power_render_scale), (1.0, 1.0));
+        assert!(full.argv.contains(&"-DUIScreen.maximumFramesPerSecond=120".to_string()));
+
+        spec.render_percent = Some(75);
+        spec.low_power_render_percent = Some(50);
+        spec.max_fps = Some(60);
+        let balanced = build(input(&spec, &probe, &layout, 21)).unwrap();
+        // 2556 × 0,75 = 1917 → gerade 1916; 1179 × 0,75 = 884,25 → 884.
+        assert_eq!((balanced.window_width, balanced.window_height), (1916, 884));
+        assert_eq!((balanced.render_scale, balanced.low_power_render_scale), (0.75, 0.5));
+        assert!(balanced.argv.contains(&"-Dcacio.managed.screensize=1916x884".to_string()));
+        // 177 × 0,75 = 132,75 → 133 (aufgerundet), 63 × 0,75 = 47,25 → 48.
+        assert!(balanced.argv.contains(&"-Dtrs.safeInsets=133,0,133,48".to_string()));
+        assert!(balanced.argv.contains(&"-DUIScreen.maximumFramesPerSecond=60".to_string()));
+
+        spec.max_fps = Some(20);
+        let slow = build(input(&spec, &probe, &layout, 21)).unwrap();
+        assert!(slow.argv.contains(&"-DUIScreen.maximumFramesPerSecond=30".to_string()));
     }
 
     #[test]

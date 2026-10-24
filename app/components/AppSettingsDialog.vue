@@ -527,6 +527,14 @@ async function allowFirewall() {
       <SettingRow v-if="caps.gameLaunch" :title="t('settings.behavior.closeOnLaunchTitle')" :description="t('settings.behavior.closeOnLaunchDescription')">
         <ToggleSwitch v-model="form.closeOnLaunch" :label="t('settings.behavior.closeOnLaunchTitle')" />
       </SettingRow>
+      <!-- iOS: Auflösung und FPS-Grenze des Spiels (Akku). -->
+      <SettingRow v-if="caps.platform === 'ios'" :title="t('settings.behavior.gamePowerTitle')" :description="t('settings.behavior.gamePowerDescription')">
+        <select v-model="form.gamePower" class="field w-52 py-1.5" :aria-label="t('settings.behavior.gamePowerTitle')" data-testid="game-power">
+          <option value="performance">{{ t('settings.behavior.gamePowerPerformance') }}</option>
+          <option value="balanced">{{ t('settings.behavior.gamePowerBalanced') }}</option>
+          <option value="saver">{{ t('settings.behavior.gamePowerSaver') }}</option>
+        </select>
+      </SettingRow>
       <SettingRow v-if="caps.platform === 'windows'" :title="t('settings.behavior.showBedrockTitle')" :description="t('settings.behavior.showBedrockDescription')">
         <ToggleSwitch v-model="form.showBedrock" :label="t('settings.behavior.showBedrockTitle')" />
       </SettingRow>

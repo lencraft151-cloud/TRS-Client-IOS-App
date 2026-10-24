@@ -1358,6 +1358,8 @@ pub struct LaunchOptions {
     pub account_id: Option<String>,
     /// „Trotzdem starten“ (Konflikt-Helfer): Mod-Versionen diesmal nicht prüfen.
     pub skip_mod_check: bool,
+    /// iOS: Stromsparmodus beim Start – der Akku-Plan ([`mobile_profile::PowerPlan`]) spart dann stärker.
+    pub low_power: bool,
 }
 
 /// Direkt beitreten: Server aus der Launcher-Liste (ID), freie Adresse oder

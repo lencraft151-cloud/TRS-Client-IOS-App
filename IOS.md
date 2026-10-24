@@ -205,6 +205,21 @@ bzw. wenn die App wieder nach vorn kommt, nie während Minecraft läuft); die le
   öffnen (**Öffnen in TRS Launcher**). Instanzen aus der Sicherung ersetzen die mit derselben ID, andere bleiben
   unberührt. Danach lädt der Launcher neu.
 
+## Akku beim Spielen
+
+**Einstellungen → Verhalten → Akku beim Spielen** legt fest, wie viel Strom Minecraft zieht:
+
+| Stufe | Auflösung | FPS | Sichtweite |
+| --- | --- | --- | --- |
+| Volle Leistung | 100 % der Bildschirmpixel | wie im Spiel eingestellt | wie im Spiel eingestellt |
+| **Ausgewogen** (ab Werk) | 75 % | höchstens 60 | wie im Spiel eingestellt |
+| Akku sparen | 50 % | höchstens 30 | höchstens 6 Chunks (Simulation 5) |
+
+Im **Stromsparmodus** von iOS spart „Ausgewogen“ wie „Akku sparen“ – die Auflösung wechselt sofort, auch mitten im
+Spiel; FPS und Sichtweite gelten ab dem nächsten Start. FPS-Grenze und Sichtweite schreibt der Launcher beim Start in
+die `options.txt` der Instanz und senkt sie dabei nur (höhere Werte stellst du im Spiel wieder ein, „Volle Leistung“
+lässt sie in Ruhe). Die Kamera dreht sich bei jeder Auflösung gleich schnell.
+
 ## Minecraft starten: JIT
 
 Minecraft Java läuft in einer JVM und braucht auf iOS **JIT** (Just-in-Time-Kompilierung).

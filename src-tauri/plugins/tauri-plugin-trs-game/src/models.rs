@@ -88,7 +88,19 @@ pub struct GameLaunchSpec {
     /// Spiel nutzt SDL3 statt GLFW (Minecraft 26.3+): Engine bindet SDL an und bevorzugt Vulkan.
     #[serde(default)]
     pub uses_sdl: bool,
+    /// iOS: Auflösung in Prozent der Bildschirmpixel (fehlt = 100) und die im Stromsparmodus
+    /// (fehlt = gleich). Swift wechselt beim Umschalten des Stromsparmodus auch mitten im Spiel.
+    #[serde(default)]
+    pub render_percent: Option<u8>,
+    #[serde(default)]
+    pub low_power_render_percent: Option<u8>,
+    /// iOS: FPS-Grenze – die Engine meldet dem Spiel höchstens diese Bildrate.
+    #[serde(default)]
+    pub max_fps: Option<u32>,
 }
+
+/// Kleinste erlaubte Auflösung in Prozent (darunter wäre das Spiel kaum noch lesbar).
+pub const MIN_RENDER_PERCENT: u8 = 25;
 
 impl GameLaunchSpec {
     /// Prüft Grenzen und Pflichtfelder (keine Panik bei kaputten Eingaben).
@@ -130,7 +142,24 @@ impl GameLaunchSpec {
         if self.touch_profile.as_deref().is_some_and(|p| p.len() > 64 || !p.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))) {
             return Err(Error::InvalidSpec("touchProfile"));
         }
+        let bad_percent = |p: Option<u8>| p.is_some_and(|p| !(MIN_RENDER_PERCENT..=100).contains(&p));
+        if bad_percent(self.render_percent) || bad_percent(self.low_power_render_percent) {
+            return Err(Error::InvalidSpec("renderPercent"));
+        }
+        if self.max_fps.is_some_and(|fps| !(10..=1000).contains(&fps)) {
+            return Err(Error::InvalidSpec("maxFps"));
+        }
         Ok(())
+    }
+
+    /// Auflösung als Faktor (1.0 = alle Bildschirmpixel).
+    pub fn render_scale(&self) -> f64 {
+        f64::from(self.render_percent.unwrap_or(100)) / 100.0
+    }
+
+    /// Faktor im Stromsparmodus; nie größer als der normale (die Ränder für den TRS Client passen so immer).
+    pub fn low_power_render_scale(&self) -> f64 {
+        self.low_power_render_percent.map_or(self.render_scale(), |p| f64::from(p) / 100.0).min(self.render_scale())
     }
 
     /// LWJGL-Fork der Engine: 3.4.1 ab LWJGL 3.4, sonst 3.3.3 (auch für LWJGL 2 über lwjglx).
@@ -382,6 +411,35 @@ mod tests {
         let mut s = spec();
         s.memory_mb = 10;
         assert!(s.validate().is_err());
+        let mut s = spec();
+        s.render_percent = Some(10);
+        assert!(s.validate().is_err());
+        let mut s = spec();
+        s.low_power_render_percent = Some(150);
+        assert!(s.validate().is_err());
+        let mut s = spec();
+        s.max_fps = Some(0);
+        assert!(s.validate().is_err());
+    }
+
+    #[test]
+    fn render_scale_defaults_and_limits() {
+        let mut s = spec();
+        assert_eq!((s.render_scale(), s.low_power_render_scale()), (1.0, 1.0));
+        s.render_percent = Some(75);
+        s.low_power_render_percent = Some(50);
+        assert_eq!((s.render_scale(), s.low_power_render_scale()), (0.75, 0.5));
+        assert!(s.validate().is_ok());
+        // Stromsparmodus nie schärfer als normal.
+        s.low_power_render_percent = Some(100);
+        assert_eq!(s.low_power_render_scale(), 0.75);
+        // Ältere Kerne kennen die Felder nicht.
+        let mut json = serde_json::to_value(spec()).unwrap();
+        for key in ["renderPercent", "lowPowerRenderPercent", "maxFps"] {
+            json.as_object_mut().unwrap().remove(key);
+        }
+        let back: GameLaunchSpec = serde_json::from_value(json).unwrap();
+        assert_eq!((back.render_percent, back.max_fps), (None, None));
     }
 
     #[test]

@@ -47,6 +47,15 @@ pub struct GameLaunchSpec {
     /// Spiel nutzt SDL3 statt GLFW (Minecraft 26.3+, `org.lwjgl:lwjgl-sdl`).
     #[serde(default)]
     pub uses_sdl: bool,
+    /// iOS: Auflösung in Prozent der Bildschirmpixel (fehlt = 100) und die im Stromsparmodus
+    /// (Akku-Plan, [`crate::mobile_profile::PowerPlan`]).
+    #[serde(default)]
+    pub render_percent: Option<u8>,
+    #[serde(default)]
+    pub low_power_render_percent: Option<u8>,
+    /// iOS: FPS-Grenze des Akku-Plans (die Engine meldet dem Spiel höchstens diese Bildrate).
+    #[serde(default)]
+    pub max_fps: Option<u32>,
 }
 
 /// Engine-Java für die Java-Version des Spiels (16 → 17, 22–24 → 25 …).
@@ -171,6 +180,9 @@ pub fn spec_from_command(
         game_version: Some(instance.game_version.clone()),
         lwjgl_version: lwjgl_version(version),
         uses_sdl: uses_sdl(version),
+        render_percent: None,
+        low_power_render_percent: None,
+        max_fps: None,
     })
 }
 
@@ -189,8 +201,7 @@ impl Launcher {
         self: &Arc<Self>,
         instance_id: &str,
         join: Option<Join<'_>>,
-        account_id: Option<&str>,
-        skip_mod_check: bool,
+        options: &crate::LaunchOptions,
         runner: Option<&dyn forge::ProcessorRunner>,
         on_progress: &ProgressFn,
     ) -> Result<MobileLaunch> {
@@ -205,7 +216,7 @@ impl Launcher {
                 return Err(Error::launch(crate::msg!("launcher.alreadyStarting", "Diese Instanz wird bereits gestartet.")));
             }
         }
-        let result = self.prepare_mobile_inner(&instance, join, account_id, skip_mod_check, runner, on_progress).await;
+        let result = self.prepare_mobile_inner(&instance, join, options, runner, on_progress).await;
         self.preparing.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&instance.id);
         result
     }
@@ -214,11 +225,11 @@ impl Launcher {
         self: &Arc<Self>,
         instance: &Instance,
         join_request: Option<Join<'_>>,
-        account_id: Option<&str>,
-        skip_mod_check: bool,
+        options: &crate::LaunchOptions,
         runner: Option<&dyn forge::ProcessorRunner>,
         on_progress: &ProgressFn,
     ) -> Result<MobileLaunch> {
+        let (account_id, skip_mod_check) = (options.account_id.as_deref(), options.skip_mod_check);
         let join: Option<JoinTarget> = match join_request {
             Some(Join::Server(id)) => Some(servers::join_target(&self.servers.get(id).await?.address).await?),
             Some(Join::Address(address)) => Some(servers::join_target(address).await?),
@@ -301,6 +312,15 @@ impl Launcher {
         if let Err(e) = instance::seed_game_options(&game_dir, data_version).await {
             tracing::warn!("Standard-Optionen konnten nicht geschrieben werden: {e}");
         }
+        // iOS: Akku-Plan (Auflösung setzt die Engine, FPS und Sichtweite die options.txt).
+        let power = cfg!(target_os = "ios").then(|| crate::mobile_profile::PowerPlan::new(settings.game_power, options.low_power));
+        if let Some(plan) = &power {
+            match crate::mobile_profile::apply_power_plan(&game_dir, plan).await {
+                Ok(true) => tracing::info!("Akku-Plan {:?} in options.txt übernommen", settings.game_power),
+                Ok(false) => {}
+                Err(e) => tracing::warn!("Akku-Plan konnte nicht in options.txt geschrieben werden: {e}"),
+            }
+        }
         if let Err(e) = self.servers.sync_to_instance(&game_dir).await {
             tracing::warn!("servers.dat konnte nicht aktualisiert werden: {e}");
         }
@@ -323,6 +343,11 @@ impl Launcher {
         let memory = mobile_heap_mb(configured, crate::mobile_profile::heap_base_mb());
         let mut spec = spec_from_command(&prepared, command, instance, memory, trs_client)?;
         spec.assets_dir = assets_dir;
+        if let Some(plan) = power {
+            spec.render_percent = Some(plan.render_percent);
+            spec.low_power_render_percent = plan.low_power_render_percent;
+            spec.max_fps = plan.max_fps;
+        }
         // Touch-Steuerung: Layout der Instanz (fehlt es, gilt PvP) und der Ordner der Layouts.
         spec.touch_profile = match crate::controls::resolve(&self.paths, instance.overrides.touch_profile.as_deref()).await {
             Ok(id) => Some(id),
