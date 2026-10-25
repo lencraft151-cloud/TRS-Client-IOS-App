@@ -4,6 +4,7 @@ mod commands;
 mod crash_report;
 mod deeplink;
 mod dialog_text;
+mod engine_events;
 mod error;
 mod event_icon;
 mod mobile;

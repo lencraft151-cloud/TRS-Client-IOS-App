@@ -39,8 +39,15 @@ class TrsGamePlugin: Plugin {
       let session = GameSession(request: args.request, events: args.events)
       GameSession.current = session
       let game = GameViewController(engine: engine, session: session)
-      presenter.present(game, animated: true) {
+      presenter.present(game, animated: true)
+      // Gleich antworten, nicht erst nach der Animation: Rust wartet auf diese Antwort, während die Spielansicht schon
+      // Ereignisse schickt. Lehnt iOS das Anzeigen ab (Ansicht nicht im Fenster, schon etwas offen), käme der
+      // Abschluss nie – der Start hinge dann für immer bei 98 %.
+      if presenter.presentedViewController === game {
         invoke.resolve()
+      } else {
+        GameSession.current = nil
+        invoke.reject("Spielansicht ließ sich nicht öffnen", code: "platform")
       }
     }
   }
