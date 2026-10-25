@@ -146,20 +146,50 @@ Die App prüft beim Start, alle 4 Stunden und wenn sie nach einer Pause wieder n
 jeder neue Build auf `main` als Update – Änderungen hier genauso wie neue Versionen von theredstonee/TRS-Launcher, die
 jeden Tag automatisch übernommen werden ([docs/upstream-sync.md](docs/upstream-sync.md)).
 
-- **Kostenloses Apple-Konto:** Der Mac hält die App aktuell (siehe „Kostenloses Apple-Konto“ unten).
+- **Kostenloses Apple-Konto, ohne Mac (empfohlen):** SideStore signiert und aktualisiert auf dem iPhone selbst (siehe
+  „Ohne Mac: SideStore“ unten). Gibt es eine neue Version, öffnet der Launcher von selbst SideStore – du tippst nur
+  noch „Installieren“.
+- **Kostenloses Apple-Konto mit Mac:** Der Mac hält die App aktuell (siehe „Kostenloses Apple-Konto: der Mac“ unten).
 - **Mit Profil signiert** (bezahlter Account, einmalige Einrichtung unten): Die App **installiert das Update von selbst**, sobald gerade
   nichts läuft (kein Spiel, keine Downloads). iOS fragt nur noch einmal „Installieren?“ – ganz ohne Rückfrage lässt
   Apple keine App sich selbst ersetzen. Daten bleiben erhalten. Tippst du auf „Abbrechen“, bleibt oben ein Hinweis
   mit **Installieren**; beim nächsten Start fragt die App wieder.
-- **Sonst** (AltStore/SideStore/Xcode): Der Hinweis sagt, wie du aktualisierst. Für SideStore/AltStore liegt im
-  Release auch eine Quelle: `https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/altstore.json`
-  – einmal als Quelle hinzufügen, dann kommen Updates dort an.
+- **Sonst** (Xcode ohne Mac-Helfer, andere Installer): Der Hinweis sagt, wie du aktualisierst.
+
+### Ohne Mac: SideStore (einmal einrichten, danach signiert sich alles selbst)
+
+Eine App kann sich auf iOS nicht selbst neu signieren – das erlaubt Apple nicht. Genau das übernimmt **SideStore**: ein
+App-Store auf dem iPhone, der Apps mit deiner (kostenlosen) Apple-ID **auf dem Gerät** signiert, die 7-Tage-Signatur im
+Hintergrund von selbst erneuert und Updates aus Quellen installiert. Einen Computer brauchst du dafür nur **einmal**.
+
+1. **SideStore installieren** – nach der offiziellen Anleitung auf [docs.sidestore.io](https://docs.sidestore.io)
+   (Mac, Windows oder Linux; dabei entsteht die „Pairing-Datei“). Die VPN-App, die die Anleitung nennt, ebenfalls
+   installieren: Über sie signiert SideStore ohne Computer.
+2. In SideStore → **Quellen** → **+** diese Quelle hinzufügen (der CI veröffentlicht sie bei jedem Build auf `main`,
+   auch ohne eigene Secrets):
+
+   ```
+   https://github.com/lencraft151-cloud/TRS-Client-IOS-App/releases/download/ios-latest/altstore.json
+   ```
+
+3. **TRS Launcher aus der Quelle installieren.** Eine Version aus Xcode ist für iOS eine andere App: vorher unter
+   **Einstellungen → Sicherung** sichern, in der neuen App wiederherstellen, dann die alte löschen.
+
+Danach läuft es von selbst:
+
+- **Neue Version** (von hier oder aus dem täglichen Abgleich mit theredstonee): Der Launcher merkt sie, öffnet – sobald
+  gerade nichts läuft – SideStore mit der neuen IPA, und du tippst **Installieren**. Daten bleiben erhalten.
+- **Signatur:** SideStore erneuert seine Apps im Hintergrund, bevor die 7 Tage um sind („Hintergrundaktualisierung“ für
+  SideStore anlassen). Läuft sie doch einmal ab: SideStore öffnen → **Alle aktualisieren**.
+- Grenzen der kostenlosen Apple-ID: höchstens 3 aktive Apps über SideStore (SideStore selbst zählt mit).
+- Minecraft braucht weiter JIT (siehe „Minecraft starten: JIT“).
 
 ### Kostenloses Apple-Konto: der Mac aktualisiert die App
 
-Ohne bezahlten Developer-Account kann GitHub die App nicht für dein iPhone signieren – dann übernimmt das der Mac,
-mit Xcode und deiner Apple-ID. **Am einfachsten: im Finder `iPhone-Updates einrichten.command` (im Repo-Ordner)
-doppelklicken.** Das Terminal öffnet sich und führt durch alles, was fehlt:
+Wer die App lieber aus Xcode behält, lässt den Mac die Arbeit machen – mit Xcode und deiner Apple-ID (GitHub kann
+sie ohne bezahlten Developer-Account nicht für dein iPhone signieren). **Am einfachsten: im Finder
+`iPhone-Updates einrichten.command` (im Repo-Ordner) doppelklicken.** Das Terminal öffnet sich und führt durch alles,
+was fehlt:
 
 1. Xcode (App Store), Lizenz und iOS-Unterstützung,
 2. Rust, Node.js und pnpm,

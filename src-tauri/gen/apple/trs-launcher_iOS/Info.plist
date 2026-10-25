@@ -40,6 +40,8 @@
 		<string>shareddocuments</string>
 		<string>filza</string>
 		<string>santander</string>
+		<string>sidestore</string>
+		<string>altstore</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

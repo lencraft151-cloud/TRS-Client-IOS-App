@@ -4,12 +4,14 @@
 //
 //   node scripts/mobile-channel.mjs --version 0.18.0 --notes release-notes.md \
 //     [--apk out/TRS-Launcher_0.18.0.apk] [--ipa out/TRS-Launcher_0.18.0.ipa] [--out out/mobile] [--repo o/r] [--date ISO]
-//     [--tag mobile] [--in-place] [--ota URL] [--pubkey-file datei]
+//     [--tag mobile] [--in-place] [--ota URL] [--pubkey-file datei] [--no-sign]
 //
 // Eigener Kanal (z. B. iOS-Builds eines Forks, .github/workflows/ios-app.yml): --tag = Release (ios-latest),
 // --in-place = die Dateien liegen schon unter ihrem Namen in --out (nicht kopieren), --ota = manifest.plist der
 // mit Profil signierten IPA (die App bietet dann „Installieren“ per itms-services an), --pubkey-file = öffentlicher
-// Schlüssel, gegen den nach dem Signieren geprüft wird (Standard: tauri.conf.json).
+// Schlüssel, gegen den nach dem Signieren geprüft wird (Standard: tauri.conf.json). --no-sign = ohne Schlüssel nur die
+// AltStore-/SideStore-Quelle schreiben (iOS-Fork mit kostenlosem Apple-Konto: SideStore installiert und signiert auf
+// dem Gerät; die App erkennt Updates dann an der Quelle).
 //
 // Ergebnis in --out (Standard: out/mobile):
 //   mobile.json        { version, notes, pubDate, android: { url, sha256, size }, ios: { url, sha256, size, altstore } }
@@ -46,7 +48,7 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const args = { version: null, notes: null, apk: null, ipa: null, altstoreApp: null, out: join(ROOT, 'out', 'mobile'), repo: 'theredstonee/TRS-Launcher', date: null, tag: 'mobile', inPlace: false, ota: null, pubkeyFile: null }
+  const args = { version: null, notes: null, apk: null, ipa: null, altstoreApp: null, out: join(ROOT, 'out', 'mobile'), repo: 'theredstonee/TRS-Launcher', date: null, tag: 'mobile', inPlace: false, ota: null, pubkeyFile: null, noSign: false }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     const value = () => argv[++i] ?? fail(`${a} braucht einen Wert`)
@@ -63,6 +65,7 @@ function parseArgs(argv) {
     else if (a === '--in-place') args.inPlace = true
     else if (a === '--ota') args.ota = value()
     else if (a === '--pubkey-file') args.pubkeyFile = resolve(value())
+    else if (a === '--no-sign') args.noSign = true
     else fail(`Unbekannte Option ${a}`)
   }
   if (!args.version || !VERSION_RE.test(args.version) || args.version.length > 32) fail('--version fehlt oder ist ungültig')
@@ -71,6 +74,8 @@ function parseArgs(argv) {
   // Wie die App: nur Dateien aus den Releases dieses Repos (mobile_update.rs, verify_manifest).
   if (args.ota && !args.ota.startsWith(`https://github.com/${args.repo}/releases/download/`)) fail('--ota muss in den Releases von --repo liegen')
   if (!args.apk && !args.ipa) fail('mindestens --apk oder --ipa angeben')
+  // Ohne Signatur gibt es kein mobile.json – die APK-Updates der Android-App lesen nur das.
+  if (args.noSign && (args.apk || !args.ipa)) fail('--no-sign nur mit --ipa (ohne --apk)')
   return args
 }
 
@@ -217,6 +222,14 @@ if (args.ipa) {
   if (args.ota) manifest.ios.ota = args.ota
   const source = altstoreSource(args, notes, pubDate, manifest.ios)
   writeFileSync(join(args.out, ALTSTORE), `${JSON.stringify(source, null, 2)}\n`)
+}
+
+if (args.noSign) {
+  // Ohne Schlüssel: nur die Quelle. Ein unsigniertes mobile.json würde die App ablehnen.
+  rmSync(join(args.out, MANIFEST), { force: true })
+  rmSync(join(args.out, SIGNATURE), { force: true })
+  console.log(`altstore.json ${args.version} geschrieben (ohne Signier-Schlüssel kein mobile.json)`)
+  process.exit(0)
 }
 
 const manifestFile = join(args.out, MANIFEST)

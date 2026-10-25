@@ -31,6 +31,7 @@ pub struct InstallOutcome {
     /// iOS: `started` heißt, die Rückfrage „Installieren?“ von iOS ist offen.
     /// `permissionRequired`: Erst „Unbekannte Apps installieren“ für den Launcher erlauben
     /// (die Einstellungsseite ist schon offen), dann erneut versuchen.
+    /// iOS ohne Profil: `storeStarted` = SideStore/AltStore ist offen, `noStore` = keiner installiert.
     pub status: String,
 }
 
@@ -52,14 +53,18 @@ pub async fn mobile_update_install(
     task_id: Option<String>,
 ) -> CommandResult<InstallOutcome> {
     if cfg!(target_os = "ios") {
-        let Some(link) = state.0.ios_install_url().await else {
+        if let Some(link) = state.0.ios_install_url().await {
+            crate::open::url(&app, &link).map_err(|e| {
+                log::error!("iOS-Update konnte nicht geöffnet werden: {e}");
+                trs_core::Error::validation(trs_core::msg!("mobileUpdate.installFailed", "Die Installation konnte nicht gestartet werden."))
+            })?;
+            return Ok(InstallOutcome { status: "started".into() });
+        }
+        // Ohne mit Profil signierte IPA (kostenloses Apple-Konto): SideStore installiert und signiert auf dem Gerät.
+        let Some(ipa) = state.0.ios_sideload_url().await else {
             return Err(trs_core::Error::validation(trs_core::msg!("mobileUpdate.noUpdate", "Es gibt keine neuere Version.")).into());
         };
-        crate::open::url(&app, &link).map_err(|e| {
-            log::error!("iOS-Update konnte nicht geöffnet werden: {e}");
-            trs_core::Error::validation(trs_core::msg!("mobileUpdate.installFailed", "Die Installation konnte nicht gestartet werden."))
-        })?;
-        return Ok(InstallOutcome { status: "started".into() });
+        return store_install(&app, ipa).await;
     }
     if !cfg!(target_os = "android") {
         return Err(trs_core::Error::validation(trs_core::msg!(
@@ -73,6 +78,27 @@ pub async fn mobile_update_install(
         return Err(trs_core::Error::Internal("APK liegt nicht im Update-Ordner".into()).into());
     }
     install(&app, path).await
+}
+
+/// iOS: IPA in SideStore/AltStore öffnen. `storeStarted` = der Store ist offen, `noStore` = keiner installiert.
+#[cfg(target_os = "ios")]
+async fn store_install(app: &AppHandle, ipa: String) -> CommandResult<InstallOutcome> {
+    use tauri_plugin_trs_ios::TrsIosExt;
+    let handle = app.clone();
+    let opened = tauri::async_runtime::spawn_blocking(move || handle.trs_ios().open_store_install(&ipa))
+        .await
+        .map_err(|e| trs_core::Error::Internal(e.to_string()))?
+        .map_err(|e| {
+            log::error!("SideStore konnte nicht geöffnet werden: {e}");
+            trs_core::Error::validation(trs_core::msg!("mobileUpdate.installFailed", "Die Installation konnte nicht gestartet werden."))
+        })?;
+    let status = if opened.is_some() { "storeStarted" } else { "noStore" };
+    Ok(InstallOutcome { status: status.into() })
+}
+
+#[cfg(not(target_os = "ios"))]
+async fn store_install(_app: &AppHandle, _ipa: String) -> CommandResult<InstallOutcome> {
+    Err(trs_core::Error::UnsupportedOnMobile.into())
 }
 
 #[cfg(target_os = "android")]

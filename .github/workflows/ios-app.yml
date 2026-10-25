@@ -13,7 +13,7 @@ name: iOS app
 #   IOS_PROVISIONING_PROFILE_BASE64 base64 der .mobileprovision (Development, Ad Hoc oder Enterprise)
 #   IOS_BUNDLE_ID                   Bundle-ID erzwingen (sonst aus dem Profil)
 #   IOS_UPDATE_SIGNING_KEY          Update-Kanal: privater Minisign-Schlüssel (Inhalt von ios-update.key)
-#   IOS_UPDATE_SIGNING_KEY_PASSWORD Passwort dazu – ohne beide kein mobile.json, die App meldet dann keine Updates
+#   IOS_UPDATE_SIGNING_KEY_PASSWORD Passwort dazu – ohne beide nur die SideStore-Quelle (altstore.json), kein mobile.json
 # Anleitung: IOS.md
 #
 # Auslöser: von Hand (Actions → iOS app → Run workflow), Push auf main, beta und Tag „ios-v*“ (veröffentlichen ein
@@ -227,14 +227,18 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.IOS_UPDATE_SIGNING_KEY_PASSWORD }}
         run: |
           set -euo pipefail
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version").$RUN"
+          git log -1 --format='%s' > "$RUNNER_TEMP/notes.md"
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "::notice::Kein IOS_UPDATE_SIGNING_KEY – kein Update-Kanal, die App meldet keine Updates (siehe IOS.md)."
+            # Ohne Schlüssel nur die SideStore-/AltStore-Quelle: SideStore installiert und signiert auf dem iPhone, die App
+            # erkennt Updates an der Quelle (kostenloses Apple-Konto, ganz ohne Mac – siehe IOS.md).
+            echo "::notice::Kein IOS_UPDATE_SIGNING_KEY – Update-Kanal nur als SideStore-Quelle (altstore.json)."
+            node scripts/mobile-channel.mjs --version "$version" --notes "$RUNNER_TEMP/notes.md" \
+              --ipa out/TRS-Launcher-unsigned.ipa --out out --in-place --repo "$GITHUB_REPOSITORY" --tag "$TAG" --no-sign
             exit 0
           fi
-          version="$(node -p "require('./src-tauri/tauri.conf.json').version").$RUN"
           ota=()
           if [ -f out/manifest.plist ]; then ota=(--ota "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/manifest.plist"); fi
-          git log -1 --format='%s' > "$RUNNER_TEMP/notes.md"
           node scripts/mobile-channel.mjs --version "$version" --notes "$RUNNER_TEMP/notes.md" \
             --ipa out/TRS-Launcher-unsigned.ipa --out out --in-place --repo "$GITHUB_REPOSITORY" --tag "$TAG" \
             --pubkey-file src-tauri/gen/apple/update-public-key.txt ${ota[@]+"${ota[@]}"}

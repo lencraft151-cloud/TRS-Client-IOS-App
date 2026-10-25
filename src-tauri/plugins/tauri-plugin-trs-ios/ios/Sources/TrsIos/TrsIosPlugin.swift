@@ -211,6 +211,37 @@ class TrsIosPlugin: Plugin {
     invoke.resolve()
   }
 
+  /// Update über SideStore (sonst AltStore) installieren: Die App öffnet `<store>://install?url=<IPA>`, der Store lädt,
+  /// signiert mit der Apple-ID des Nutzers und installiert nach Rückfrage. Antwort `{ store: "sidestore" | "altstore" }`,
+  /// `store: null` = keiner installiert (Schemata stehen in LSApplicationQueriesSchemes).
+  @objc public func openStoreInstall(_ invoke: Invoke) {
+    guard let args = try? invoke.parseArgs(UrlArgs.self), let ipa = URL(string: args.url), ipa.scheme == "https" else {
+      invoke.reject("invalid_args", code: "invalid_args")
+      return
+    }
+    var allowed = CharacterSet.alphanumerics
+    allowed.insert(charactersIn: "-._~")
+    let encoded = args.url.addingPercentEncoding(withAllowedCharacters: allowed) ?? args.url
+    DispatchQueue.main.async {
+      for store in ["sidestore", "altstore"] {
+        guard let url = URL(string: "\(store)://install?url=\(encoded)"), UIApplication.shared.canOpenURL(url) else { continue }
+        UIApplication.shared.open(url)
+        invoke.resolve(["store": store])
+        return
+      }
+      invoke.resolve(["store": nil])
+    }
+  }
+
+  /// Bilder aus „Fotos“ oder „Dateien“ wählen (`ImagePicker`). Antwort: `{ paths: [...] }`, `null` = abgebrochen.
+  @objc public func pickImages(_ invoke: Invoke) {
+    guard let args = try? invoke.parseArgs(PickImagesArgs.self), ["photos", "files"].contains(args.source) else {
+      invoke.reject("invalid_args", code: "invalid_args")
+      return
+    }
+    ImagePicker.shared.pick(invoke, args: args)
+  }
+
   @objc public func deviceInfo(_ invoke: Invoke) {
     let info = ProcessInfo.processInfo
     invoke.resolve([

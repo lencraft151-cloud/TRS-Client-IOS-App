@@ -42,6 +42,10 @@ pub const DOWNLOAD_PREFIX: &str = "https://github.com/theredstonee/TRS-Launcher/
 const DEFAULT_TAG: &str = "mobile";
 pub const MANIFEST_FILE: &str = "mobile.json";
 pub const SIGNATURE_FILE: &str = "mobile.json.sig";
+/// AltStore-/SideStore-Quelle (Source v2) neben der IPA.
+pub const ALTSTORE_FILE: &str = "altstore.json";
+/// Bundle-ID der App in der Quelle.
+const BUNDLE_ID: &str = "dev.theredstonee.trslauncher";
 const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
 const MAX_SIGNATURE_BYTES: u64 = 4 * 1024;
 /// Die APK liegt heute um die 30–60 MB – alles über diesem Limit ist verdächtig.
@@ -112,6 +116,8 @@ pub struct UpdateStatus {
     pub altstore_source: Option<String>,
     /// iOS: `itms-services://…` – öffnen installiert das Update (nur bei mit Profil signierten Builds).
     pub install_url: Option<String>,
+    /// iOS: IPA der neueren Version für SideStore/AltStore (die installieren und signieren sie auf dem Gerät).
+    pub sideload_url: Option<String>,
 }
 
 /// Kanal, aus dem die App liest: eigener (beim Bauen gesetzt) oder der des Originals.
@@ -264,9 +270,9 @@ impl MobileUpdater {
     /// `beta`: zusätzlich den Beta-Kanal prüfen und die neuere Version nehmen (ist er leer
     /// oder nicht erreichbar, gilt der normale Kanal – und umgekehrt).
     pub async fn check(&self, target: Target, beta: bool) -> Result<UpdateStatus> {
-        let stable = self.fetch(&self.base_url).await;
+        let stable = self.fetch(&self.base_url, target).await;
         let beta_manifest = match (&self.beta_url, beta) {
-            (Some(url), true) => Some(self.fetch(url).await),
+            (Some(url), true) => Some(self.fetch(url, target).await),
             _ => None,
         };
         let (manifest, from_beta) = pick(stable, beta_manifest, target)?;
@@ -276,10 +282,21 @@ impl MobileUpdater {
         Ok(status)
     }
 
-    async fn fetch(&self, base_url: &str) -> Result<Manifest> {
-        let bytes = self.get(base_url, MANIFEST_FILE, MAX_MANIFEST_BYTES).await?;
-        let signature = self.get(base_url, SIGNATURE_FILE, MAX_SIGNATURE_BYTES).await?;
-        verify_manifest(&self.public_key, &self.download_prefix, &bytes, &signature)
+    async fn fetch(&self, base_url: &str, target: Target) -> Result<Manifest> {
+        match self.get_optional(base_url, MANIFEST_FILE, MAX_MANIFEST_BYTES).await? {
+            Some(bytes) => {
+                let signature = self.get(base_url, SIGNATURE_FILE, MAX_SIGNATURE_BYTES).await?;
+                verify_manifest(&self.public_key, &self.download_prefix, &bytes, &signature)
+            }
+            // Kanal ohne Signier-Schlüssel (kostenloses Apple-Konto): Es gibt nur die SideStore-/AltStore-Quelle. Sie ist
+            // nicht signiert – die App liest daraus nur, dass es eine neuere Version gibt, und reicht die IPA an
+            // SideStore weiter, das nach Rückfrage installiert. Fehlt dagegen nur die Signatur, gilt das als Fehler.
+            None if target == Target::Ios => {
+                let source = self.get(base_url, ALTSTORE_FILE, MAX_MANIFEST_BYTES).await?;
+                manifest_from_altstore(&self.download_prefix, &format!("{}{ALTSTORE_FILE}", with_slash(base_url)), &source)
+            }
+            None => Err(Error::download(format!("{}{MANIFEST_FILE}", with_slash(base_url)), "nicht gefunden")),
+        }
     }
 
     fn status(&self, manifest: &Manifest, target: Target) -> UpdateStatus {
@@ -291,6 +308,10 @@ impl MobileUpdater {
             }
         };
         let available = has_asset && is_newer(&manifest.version, &self.current);
+        let sideload = match target {
+            Target::Ios => manifest.ios.as_ref().map(|i| i.file.url.clone()).filter(|_| available),
+            Target::Android => None,
+        };
         UpdateStatus {
             beta: false,
             beta_channel: self.beta_url.is_some(),
@@ -302,6 +323,7 @@ impl MobileUpdater {
             size,
             altstore_source: altstore,
             install_url: ota.filter(|_| available),
+            sideload_url: sideload,
         }
     }
 
@@ -312,9 +334,26 @@ impl MobileUpdater {
         self.status(manifest, Target::Ios).install_url
     }
 
+    /// iOS: IPA der zuletzt geprüften, neueren Version (für SideStore/AltStore).
+    pub async fn ios_sideload_url(&self) -> Option<String> {
+        let latest = self.latest.lock().await;
+        let manifest = latest.as_ref()?;
+        self.status(manifest, Target::Ios).sideload_url
+    }
+
     async fn get(&self, base_url: &str, file: &str, limit: u64) -> Result<Vec<u8>> {
         let url = format!("{}{file}", with_slash(base_url));
-        let response = self.http.get(&url).timeout(MANIFEST_TIMEOUT).send().await?.error_for_status()?;
+        self.get_optional(base_url, file, limit).await?.ok_or_else(|| Error::download(url, "nicht gefunden"))
+    }
+
+    /// Wie [`Self::get`], aber `None` bei 404 (Datei gibt es im Kanal nicht).
+    async fn get_optional(&self, base_url: &str, file: &str, limit: u64) -> Result<Option<Vec<u8>>> {
+        let url = format!("{}{file}", with_slash(base_url));
+        let response = self.http.get(&url).timeout(MANIFEST_TIMEOUT).send().await?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        let response = response.error_for_status()?;
         if response.content_length().is_some_and(|len| len > limit) {
             return Err(Error::download(url, "Datei zu groß"));
         }
@@ -327,7 +366,7 @@ impl MobileUpdater {
             }
             body.extend_from_slice(&chunk);
         }
-        Ok(body)
+        Ok(Some(body))
     }
 
     /// Lädt die APK der zuletzt geprüften (neueren) Version und prüft Größe +
@@ -431,6 +470,63 @@ fn pick(stable: Result<Manifest>, beta: Option<Result<Manifest>>, target: Target
         (Err(_), Some(Ok(b))) => Ok((b, true)),
         (Err(e), _) => Err(e),
     }
+}
+
+/// Manifest aus der AltStore-/SideStore-Quelle (Source v2), wenn der Kanal kein signiertes `mobile.json` hat:
+/// neueste Version der App, IPA nur per HTTPS aus den eigenen Releases, mit SHA-256 und plausibler Größe.
+pub fn manifest_from_altstore(prefix: &str, source_url: &str, bytes: &[u8]) -> Result<Manifest> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Source {
+        #[serde(default)]
+        apps: Vec<App>,
+    }
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct App {
+        #[serde(default)]
+        bundle_identifier: String,
+        #[serde(default)]
+        versions: Vec<Version>,
+    }
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Version {
+        version: String,
+        #[serde(default)]
+        date: Option<String>,
+        #[serde(default)]
+        localized_description: String,
+        #[serde(rename = "downloadURL")]
+        download_url: String,
+        size: u64,
+        #[serde(default)]
+        sha256: String,
+    }
+    let unreadable = || Error::validation(crate::msg!("mobileUpdate.manifestUnreadable", "Update-Manifest unlesbar"));
+    let source: Source = serde_json::from_slice(bytes).map_err(|_| unreadable())?;
+    let app = source.apps.into_iter().find(|a| a.bundle_identifier == BUNDLE_ID).ok_or_else(unreadable)?;
+    let latest = app.versions.into_iter().next().ok_or_else(unreadable)?;
+    let own = |url: &str| url.len() <= MAX_URL_LEN && url.starts_with(prefix) && url::Url::parse(url).is_ok();
+    let file_ok = own(&latest.download_url)
+        && latest.sha256.len() == 64
+        && latest.sha256.bytes().all(|b| b.is_ascii_hexdigit())
+        && latest.size > 0
+        && latest.size <= MAX_APK_BYTES;
+    if !is_valid_version(&latest.version) || !file_ok {
+        return Err(unreadable());
+    }
+    Ok(Manifest {
+        version: latest.version,
+        notes: latest.localized_description.chars().take(MAX_NOTES_CHARS).collect(),
+        pub_date: latest.date.filter(|d| d.len() <= 64),
+        android: None,
+        ios: Some(IosAsset {
+            file: Asset { url: latest.download_url, sha256: latest.sha256, size: latest.size },
+            altstore: Some(source_url.to_owned()).filter(|u| own(u)),
+            ota: None,
+        }),
+    })
 }
 
 /// Prüft Signatur (`file:mobile.json` im signierten Kommentar) und Inhalt:
@@ -639,6 +735,88 @@ mod tests {
         put(manifest("0.27.1.9", "https://evil.example/manifest.plist"));
         let status = updater.check(Target::Ios, false).await.unwrap();
         assert!(status.available && status.install_url.is_none());
+    }
+
+    fn altstore_json(url: &str, version: &str) -> Vec<u8> {
+        serde_json::json!({
+            "name": "TRS Launcher",
+            "apps": [
+                { "bundleIdentifier": "other.app", "versions": [] },
+                {
+                    "bundleIdentifier": "dev.theredstonee.trslauncher",
+                    "versions": [{
+                        "version": version,
+                        "date": "2026-10-25T06:00:00Z",
+                        "localizedDescription": "Neu",
+                        "downloadURL": format!("{url}TRS-Launcher-unsigned.ipa"),
+                        "size": 1234,
+                        "sha256": "c".repeat(64),
+                        "minOSVersion": "15.0"
+                    }]
+                }
+            ]
+        })
+        .to_string()
+        .into_bytes()
+    }
+
+    #[tokio::test]
+    async fn ios_channel_without_signing_key_uses_sidestore_source() {
+        let key = TestKey::generate();
+        let (server, url) = TestServer::start().await;
+        let dir = tempfile::tempdir().unwrap();
+        let updater = MobileUpdater::for_tests(dir.path().join(UPDATE_DIR), &url, &key.public, "0.29.0");
+        server.put(ALTSTORE_FILE, altstore_json(&url, "0.29.0.40"));
+
+        // Kein mobile.json (CI ohne Schlüssel): die Quelle reicht für iOS – Installation über SideStore.
+        let status = updater.check(Target::Ios, false).await.unwrap();
+        assert!(status.available);
+        assert_eq!(status.latest.as_deref(), Some("0.29.0.40"));
+        assert_eq!(status.install_url, None);
+        assert_eq!(status.sideload_url, Some(format!("{url}TRS-Launcher-unsigned.ipa")));
+        assert_eq!(status.altstore_source, Some(format!("{url}{ALTSTORE_FILE}")));
+        assert_eq!(updater.ios_sideload_url().await, status.sideload_url);
+        // Android hat dort nichts.
+        assert!(updater.check(Target::Android, false).await.is_err());
+
+        // Gleiche Version: nichts anzubieten.
+        server.put(ALTSTORE_FILE, altstore_json(&url, "0.29.0"));
+        let status = updater.check(Target::Ios, false).await.unwrap();
+        assert!(!status.available && status.sideload_url.is_none());
+    }
+
+    #[tokio::test]
+    async fn signed_channel_never_falls_back_to_the_unsigned_source() {
+        let key = TestKey::generate();
+        let (server, url) = TestServer::start().await;
+        let dir = tempfile::tempdir().unwrap();
+        let updater = MobileUpdater::for_tests(dir.path().join(UPDATE_DIR), &url, &key.public, "0.29.0");
+        server.put(ALTSTORE_FILE, altstore_json(&url, "9.9.9"));
+        // mobile.json ohne (oder mit falscher) Signatur: Fehler, keine Quelle als Ersatz.
+        server.put(MANIFEST_FILE, manifest_json(&url, "1.0.0", b"apk"));
+        assert!(updater.check(Target::Ios, false).await.is_err());
+        server.put(SIGNATURE_FILE, TestKey::generate().sign(&manifest_json(&url, "1.0.0", b"apk"), MANIFEST_FILE));
+        assert!(updater.check(Target::Ios, false).await.is_err());
+    }
+
+    #[test]
+    fn altstore_source_needs_own_https_ipa_with_checksum() {
+        let prefix = "https://github.com/o/r/releases/download/";
+        let base = format!("{prefix}ios-latest/");
+        let ok = manifest_from_altstore(prefix, &format!("{base}altstore.json"), &altstore_json(&base, "0.29.0.7")).unwrap();
+        assert_eq!(ok.version, "0.29.0.7");
+        assert_eq!(ok.notes, "Neu");
+        assert!(ok.android.is_none());
+        let ios = ok.ios.unwrap();
+        assert_eq!(ios.file.url, format!("{base}TRS-Launcher-unsigned.ipa"));
+        assert_eq!(ios.ota, None);
+        // Fremder Host, kaputte Version, falsche Bundle-ID: abgelehnt.
+        assert!(manifest_from_altstore(prefix, "x", &altstore_json("https://evil.example/", "0.29.0.7")).is_err());
+        assert!(manifest_from_altstore(prefix, "x", &altstore_json(&base, "../1")).is_err());
+        let other = String::from_utf8(altstore_json(&base, "1.0.0")).unwrap().replace("dev.theredstonee.trslauncher", "evil.app");
+        assert!(manifest_from_altstore(prefix, "x", other.as_bytes()).is_err());
+        let no_sha = String::from_utf8(altstore_json(&base, "1.0.0")).unwrap().replace(&"c".repeat(64), "abc");
+        assert!(manifest_from_altstore(prefix, "x", no_sha.as_bytes()).is_err());
     }
 
     #[tokio::test]

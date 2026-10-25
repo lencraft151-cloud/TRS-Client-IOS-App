@@ -515,15 +515,20 @@ export interface MobileUpdateStatus {
   altstoreSource: string | null
   /** iOS: `itms-services://…` einer mit Profil signierten IPA – installiert das Update direkt. */
   installUrl: string | null
+  /** iOS: IPA für SideStore/AltStore (installieren und signieren auf dem Gerät, ohne Mac). */
+  sideloadUrl: string | null
   /** Die gezeigte Version kommt aus dem Beta-Kanal. */
   beta: boolean
   /** Dieser Build kennt einen Beta-Kanal. */
   betaChannel: boolean
 }
 
-/** `started`: Installationsdialog des Systems offen; `permissionRequired`: erst „Unbekannte Apps installieren“ erlauben. */
+/**
+ * `started`: Installationsdialog des Systems offen; `permissionRequired`: erst „Unbekannte Apps installieren“ erlauben;
+ * iOS ohne Profil: `storeStarted` = SideStore/AltStore ist offen, `noStore` = keiner installiert.
+ */
 export interface MobileInstallOutcome {
-  status: 'started' | 'permissionRequired'
+  status: 'started' | 'permissionRequired' | 'storeStarted' | 'noStore'
 }
 
 export interface AppInfo {

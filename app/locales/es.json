@@ -3380,7 +3380,17 @@
     "installing": "Abriendo …",
     "later": "Más tarde",
     "iosStarted": "Confirma «Instalar» en el diálogo: la app se cierra y se actualiza sola.",
-    "permissionRequired": "Permite «Instalar apps desconocidas» para TRS Launcher y vuelve a tocar «Instalar»."
+    "permissionRequired": "Permite «Instalar apps desconocidas» para TRS Launcher y vuelve a tocar «Instalar».",
+    "storeHint": "Toca «Instalar»: SideStore descarga la nueva versión, la firma y actualiza la app.",
+    "storeStarted": "SideStore está abierto: toca «Instalar» allí. Tus datos se conservan.",
+    "noStore": "Para actualizar sin Mac, instala SideStore (guía: IOS.md). Mientras tanto, actualiza como instalaste la app."
+  },
+  "imageSource": {
+    "title": "Elegir imagen",
+    "photos": "Fotos",
+    "photosHint": "De tu fototeca",
+    "files": "Archivos",
+    "filesHint": "De la app Archivos, p. ej. descargas de Safari"
   },
   "play": {
     "stopGame": "Cerrar el juego",

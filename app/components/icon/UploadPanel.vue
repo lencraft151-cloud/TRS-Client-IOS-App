@@ -23,7 +23,9 @@ const result = ref<HTMLCanvasElement | null>(null)
 async function pick() {
   picking.value = true
   try {
-    const picked = await backend.pickIconImage()
+    const source = await chooseImageSource()
+    if (source === null) return
+    const picked = await backend.pickIconImage(source)
     if (!picked) return
     const img = await loadImage(picked.dataUrl)
     image.value = img
