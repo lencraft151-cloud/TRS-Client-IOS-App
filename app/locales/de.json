@@ -3380,7 +3380,10 @@
     "installing": "Wird geöffnet …",
     "later": "Später",
     "iosStarted": "Bestätige „Installieren“ im Dialog – die App schließt sich und aktualisiert sich selbst.",
-    "permissionRequired": "Erlaube „Unbekannte Apps installieren“ für TRS Launcher und tippe dann erneut auf „Installieren“."
+    "permissionRequired": "Erlaube „Unbekannte Apps installieren“ für TRS Launcher und tippe dann erneut auf „Installieren“.",
+    "storeHint": "Tippe auf „Installieren“ – SideStore lädt die neue Version, signiert sie und aktualisiert die App.",
+    "storeStarted": "SideStore ist offen – tippe dort auf „Installieren“. Deine Daten bleiben erhalten.",
+    "noStore": "Für Updates ohne Mac SideStore installieren (Anleitung: IOS.md). Bis dahin: so aktualisieren, wie du die App installiert hast."
   },
   "play": {
     "stopGame": "Spiel beenden",

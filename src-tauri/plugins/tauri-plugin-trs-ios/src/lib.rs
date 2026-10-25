@@ -84,6 +84,11 @@ struct ImportedFile {
 }
 
 #[derive(Debug, Deserialize)]
+struct StoreOpened {
+    store: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct SharedDirs {
     dirs: Vec<String>,
 }
@@ -194,6 +199,11 @@ impl<R: Runtime> TrsIos<R> {
     /// Modell, iOS-Version, Arbeitsspeicher.
     pub fn device_info(&self) -> Result<DeviceInfo> {
         self.call("deviceInfo", ())
+    }
+
+    /// IPA in SideStore (sonst AltStore) zum Installieren öffnen. Liefert den geöffneten Store, `None` = keiner da.
+    pub fn open_store_install(&self, ipa_url: &str) -> Result<Option<String>> {
+        self.call::<StoreOpened, _>("openStoreInstall", UrlArgs { url: ipa_url }).map(|r| r.store)
     }
 }
 
