@@ -22,7 +22,11 @@ let lastCheck = 0
 const autoStarted = new Set<string>()
 
 const visible = computed(() => !!status.value?.available && !!status.value.latest && hidden.value !== status.value.latest)
-const canInstall = computed(() => hostOs === 'android' || !!status.value?.installUrl)
+/** In dieser Sitzung fand sich kein SideStore/AltStore. */
+const noStore = ref(false)
+const canInstall = computed(() => hostOs === 'android' || !!status.value?.installUrl || (!!status.value?.sideloadUrl && !noStore.value))
+/** iOS ohne Profil: Update über SideStore (installiert und signiert auf dem Gerät). */
+const viaStore = computed(() => hostOs === 'ios' && !status.value?.installUrl && !!status.value?.sideloadUrl)
 
 async function check() {
   clearTimeout(timer)
@@ -46,7 +50,8 @@ const onboarding = useOnboardingStore()
 const idle = computed(() => games.runningCount === 0 && tasks.active.length === 0 && !onboarding.open)
 watch([status, hidden, idle], () => {
   const latest = status.value?.latest
-  if (!latest || !shouldAutoInstall({ os: hostOs, status: status.value, hidden: hidden.value, idle: idle.value, busy: busy.value, started: autoStarted })) return
+  const state = { os: hostOs, status: status.value, hidden: hidden.value, idle: idle.value, busy: busy.value, started: autoStarted, noStore: noStore.value }
+  if (!latest || !shouldAutoInstall(state)) return
   autoStarted.add(latest)
   void install()
 })
@@ -56,7 +61,13 @@ async function install() {
   message.value = ''
   try {
     const outcome = await backend.mobileUpdateInstall()
-    message.value = outcome.status === 'permissionRequired' ? t('mobileUpdate.permissionRequired') : hostOs === 'ios' ? t('mobileUpdate.iosStarted') : ''
+    if (outcome.status === 'noStore') noStore.value = true
+    message.value = {
+      permissionRequired: t('mobileUpdate.permissionRequired'),
+      storeStarted: t('mobileUpdate.storeStarted'),
+      noStore: t('mobileUpdate.noStore'),
+      started: hostOs === 'ios' ? t('mobileUpdate.iosStarted') : '',
+    }[outcome.status]
   } catch (e) {
     message.value = errorMessage(e)
   } finally {
@@ -101,7 +112,7 @@ onBeforeUnmount(() => {
           <span v-if="status.beta" class="badge ml-1 bg-lamp-400/15 text-lamp-300">{{ t('mobileUpdate.betaBadge') }}</span>
         </p>
         <p class="text-xs text-base-300">
-          {{ message || (canInstall ? t('mobileUpdate.installHint') : t('mobileUpdate.sideloadHint')) }}
+          {{ message || (viaStore && canInstall ? t('mobileUpdate.storeHint') : canInstall ? t('mobileUpdate.installHint') : t('mobileUpdate.sideloadHint')) }}
         </p>
       </div>
       <div class="flex shrink-0 items-center gap-2">

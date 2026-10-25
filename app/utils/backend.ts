@@ -337,11 +337,13 @@ const mobileUpdateStatusSchema = z.object({
   size: z.number().int().nonnegative().nullable(),
   altstoreSource: z.string().max(512).nullable(),
   installUrl: z.string().max(2048).startsWith('itms-services://').nullable(),
+  /** iOS: IPA für SideStore/AltStore (älterer Kern: fehlt). */
+  sideloadUrl: z.string().max(2048).startsWith('https://').nullable().default(null),
   beta: z.boolean().default(false),
   betaChannel: z.boolean().default(false),
 })
 
-const mobileInstallOutcomeSchema = z.object({ status: z.enum(['started', 'permissionRequired']) })
+const mobileInstallOutcomeSchema = z.object({ status: z.enum(['started', 'permissionRequired', 'storeStarted', 'noStore']) })
 
 function channel<T>(onMessage: (message: T) => void): Channel<T> {
   const ch = new Channel<T>()

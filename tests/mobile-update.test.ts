@@ -11,6 +11,7 @@ const status: MobileUpdateStatus = {
   size: null,
   altstoreSource: null,
   installUrl: 'itms-services://?action=download-manifest&url=https%3A%2F%2Fgithub.com%2Fo%2Fr%2Fmanifest.plist',
+  sideloadUrl: 'https://github.com/o/r/releases/download/ios-latest/TRS-Launcher-unsigned.ipa',
   beta: false,
   betaChannel: true,
 }
@@ -30,9 +31,17 @@ describe('Automatische App-Updates (iOS)', () => {
     expect(shouldAutoInstall({ ...state, status: { ...status, latest: '0.28.1.42' }, started: new Set(['0.28.1.41']) })).toBe(true)
   })
 
-  it('nur auf iOS und nur mit OTA-Link (mit Profil signierte IPA)', () => {
+  it('ohne Profil über SideStore – aber nicht mehr, wenn sich keiner fand', () => {
+    const viaStore = { ...status, installUrl: null }
+    expect(shouldAutoInstall({ ...state, status: viaStore })).toBe(true)
+    expect(shouldAutoInstall({ ...state, status: viaStore, noStore: true })).toBe(false)
+    // Mit OTA-Link spielt SideStore keine Rolle.
+    expect(shouldAutoInstall({ ...state, noStore: true })).toBe(true)
+  })
+
+  it('nur auf iOS und nur mit OTA-Link oder SideStore-IPA', () => {
     expect(shouldAutoInstall({ ...state, os: 'android' })).toBe(false)
-    expect(shouldAutoInstall({ ...state, status: { ...status, installUrl: null } })).toBe(false)
+    expect(shouldAutoInstall({ ...state, status: { ...status, installUrl: null, sideloadUrl: null } })).toBe(false)
     expect(shouldAutoInstall({ ...state, status: { ...status, available: false } })).toBe(false)
     expect(shouldAutoInstall({ ...state, status: null })).toBe(false)
   })
