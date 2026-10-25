@@ -111,7 +111,9 @@ async function run(kind: Busy, action: () => Promise<void>) {
 // --- Dateien ---------------------------------------------------------------------------
 function pickFiles() {
   return run('files', async () => {
-    const batch = await backend.pickSkinFiles()
+    const source = await chooseImageSource()
+    if (source === null) return
+    const batch = await backend.pickSkinFiles(source)
     busy.value = null
     if (batch) await handleBatch(batch)
   })

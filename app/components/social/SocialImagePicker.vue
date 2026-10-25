@@ -116,7 +116,9 @@ async function pickFiles() {
   if (busy.value) return
   busy.value = true
   try {
-    const result = await backend.social.pickImages()
+    const source = await chooseImageSource()
+    if (source === null) return
+    const result = await backend.social.pickImages(source)
     if (result) {
       filter.value = 'uploads'
       addLocal(result.images, result.rejected)

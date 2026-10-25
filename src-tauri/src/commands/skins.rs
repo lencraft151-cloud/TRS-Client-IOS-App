@@ -1,16 +1,15 @@
 //! Skins & Umhänge. Das Webview sieht nur Bilder als Data-URL – das
 //! Minecraft-Token und alle Dateipfade bleiben im Kern.
 
-use std::path::PathBuf;
 
 use tauri::{AppHandle, State};
-use tauri_plugin_dialog::DialogExt;
 use trs_core::skin_import::{ImportBatch, ImportCandidate, ImportReport, ImportRequest, LauncherScan};
 use trs_core::skin_packs::{BuiltinSkinsView, SkinPackView};
 use trs_core::skin_sync::{SkinChanges, SkinSyncStatus};
 use trs_core::skins::{LibrarySkinView, Profile};
 
 use crate::LauncherState;
+use crate::image_pick::{self, ImagePick, ImageSource};
 use crate::commands::system::DropState;
 use crate::dialog_text::{self, DialogText};
 use crate::error::CommandResult;
@@ -50,20 +49,14 @@ pub async fn skin_packs(launcher: State<'_, LauncherState>) -> CommandResult<Vec
 /// Öffnet den Dateidialog (Mehrfachauswahl) und merkt die PNGs vor.
 /// `None` = abgebrochen.
 #[tauri::command]
-pub async fn pick_skin_files(app: AppHandle, launcher: State<'_, LauncherState>) -> CommandResult<Option<ImportBatch>> {
+pub async fn pick_skin_files(
+    app: AppHandle,
+    launcher: State<'_, LauncherState>,
+    source: Option<ImageSource>,
+) -> CommandResult<Option<ImportBatch>> {
     let lang = dialog_text::language(&launcher).await;
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .file()
-            .set_title(DialogText::PickSkin.text(lang))
-            .add_filter(DialogText::Skins.text(lang), &["png"])
-            .blocking_pick_files()
-    })
-    .await
-    .ok()
-    .flatten();
-    let Some(picked) = picked else { return Ok(None) };
-    let files: Vec<PathBuf> = picked.into_iter().filter_map(|p| p.into_path().ok()).collect();
+    let pick = ImagePick { title: DialogText::PickSkin.text(lang), filter: DialogText::Skins.text(lang), extensions: &["png"], multiple: true };
+    let Some(files) = image_pick::pick(&app, pick, source).await else { return Ok(None) };
     Ok(Some(launcher.stage_skin_files(files).await?))
 }
 

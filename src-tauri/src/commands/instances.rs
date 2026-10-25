@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
-use tauri_plugin_dialog::DialogExt;
 use trs_core::Launcher;
 use trs_core::history::HistoryEntry;
 use trs_core::instance::{Instance, Loader, LoaderKind, NewInstance, UpdateInstance};
@@ -11,6 +10,7 @@ use trs_core::loaders::LoaderVersionInfo;
 use trs_core::shared_folders::{SharedFolder, SharedFolderStatus};
 
 use crate::LauncherState;
+use crate::image_pick::{self, IMAGE_EXTENSIONS, ImagePick, ImageSource};
 use crate::commands::extras::allow;
 use crate::commands::tasks::tracked;
 use crate::dialog_text::{self, DialogText};
@@ -145,24 +145,12 @@ pub async fn pick_instance_icon(
     app: AppHandle,
     launcher: State<'_, LauncherState>,
     id: String,
+    source: Option<ImageSource>,
 ) -> CommandResult<Option<InstanceView>> {
     let instance = launcher.instances().get(&id).await?;
-    let dialog_app = app.clone();
     let lang = dialog_text::language(&launcher).await;
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        dialog_app
-            .dialog()
-            .file()
-            .set_title(DialogText::PickInstanceIcon.text(lang))
-            .add_filter(DialogText::Images.text(lang), &["png", "jpg", "jpeg", "webp"])
-            .blocking_pick_file()
-    })
-    .await
-    .ok()
-    .flatten()
-    .and_then(|p| p.into_path().ok());
-
-    let Some(file) = picked else { return Ok(None) };
+    let pick = ImagePick { title: DialogText::PickInstanceIcon.text(lang), filter: DialogText::Images.text(lang), extensions: IMAGE_EXTENSIONS, multiple: false };
+    let Some(file) = image_pick::pick(&app, pick, source).await.and_then(|f| f.into_iter().next()) else { return Ok(None) };
     let updated = launcher.set_instance_icon_from_file(&instance.id, &file).await?;
     Ok(Some(view(&app, &launcher, updated)))
 }
@@ -183,24 +171,12 @@ pub async fn pick_instance_banner(
     app: AppHandle,
     launcher: State<'_, LauncherState>,
     id: String,
+    source: Option<ImageSource>,
 ) -> CommandResult<Option<InstanceView>> {
     let instance = launcher.instances().get(&id).await?;
-    let dialog_app = app.clone();
     let lang = dialog_text::language(&launcher).await;
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        dialog_app
-            .dialog()
-            .file()
-            .set_title(DialogText::PickInstanceBanner.text(lang))
-            .add_filter(DialogText::Images.text(lang), &["png", "jpg", "jpeg", "webp"])
-            .blocking_pick_file()
-    })
-    .await
-    .ok()
-    .flatten()
-    .and_then(|p| p.into_path().ok());
-
-    let Some(file) = picked else { return Ok(None) };
+    let pick = ImagePick { title: DialogText::PickInstanceBanner.text(lang), filter: DialogText::Images.text(lang), extensions: IMAGE_EXTENSIONS, multiple: false };
+    let Some(file) = image_pick::pick(&app, pick, source).await.and_then(|f| f.into_iter().next()) else { return Ok(None) };
     let updated = launcher.set_instance_banner_from_file(&instance.id, &file).await?;
     Ok(Some(view(&app, &launcher, updated)))
 }

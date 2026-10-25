@@ -6,6 +6,7 @@ use tauri_plugin_dialog::DialogExt;
 use trs_core::icon_editor::{self, PreparedImage, TextureSet};
 
 use crate::LauncherState;
+use crate::image_pick::{self, IMAGE_EXTENSIONS, ImagePick, ImageSource};
 use crate::commands::instances::{InstanceView, view};
 use crate::dialog_text::{self, DialogText};
 use crate::error::CommandResult;
@@ -43,20 +44,14 @@ pub async fn mc_textures(launcher: State<'_, LauncherState>, version: Option<Str
 
 /// Eigenes Bild wählen (Pfad bleibt in Rust); `None` = abgebrochen.
 #[tauri::command]
-pub async fn pick_icon_image(app: AppHandle, launcher: State<'_, LauncherState>) -> CommandResult<Option<PreparedImage>> {
+pub async fn pick_icon_image(
+    app: AppHandle,
+    launcher: State<'_, LauncherState>,
+    source: Option<ImageSource>,
+) -> CommandResult<Option<PreparedImage>> {
     let lang = dialog_text::language(&launcher).await;
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .file()
-            .set_title(DialogText::PickInstanceIcon.text(lang))
-            .add_filter(DialogText::Images.text(lang), &["png", "jpg", "jpeg", "webp"])
-            .blocking_pick_file()
-    })
-    .await
-    .ok()
-    .flatten()
-    .and_then(|p| p.into_path().ok());
-    let Some(file) = picked else { return Ok(None) };
+    let pick = ImagePick { title: DialogText::PickInstanceIcon.text(lang), filter: DialogText::Images.text(lang), extensions: IMAGE_EXTENSIONS, multiple: false };
+    let Some(file) = image_pick::pick(&app, pick, source).await.and_then(|f| f.into_iter().next()) else { return Ok(None) };
     Ok(Some(icon_editor::prepare_upload_file(&file).await?))
 }
 

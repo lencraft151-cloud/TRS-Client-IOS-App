@@ -3382,6 +3382,13 @@
     "iosStarted": "Confirma «Instalar» en el diálogo: la app se cierra y se actualiza sola.",
     "permissionRequired": "Permite «Instalar apps desconocidas» para TRS Launcher y vuelve a tocar «Instalar»."
   },
+  "imageSource": {
+    "title": "Elegir imagen",
+    "photos": "Fotos",
+    "photosHint": "De tu fototeca",
+    "files": "Archivos",
+    "filesHint": "De la app Archivos, p. ej. descargas de Safari"
+  },
   "play": {
     "stopGame": "Cerrar el juego",
     "cancelLaunch": "Cancelar inicio",

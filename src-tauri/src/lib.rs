@@ -6,6 +6,7 @@ mod deeplink;
 mod dialog_text;
 mod error;
 mod event_icon;
+mod image_pick;
 mod mobile;
 #[cfg(mobile)]
 mod mobile_game;

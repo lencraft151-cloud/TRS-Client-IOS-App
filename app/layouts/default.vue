@@ -323,6 +323,8 @@ onBeforeUnmount(() => void backListener?.unregister())
     <!-- iOS: Absturzberichte vom letzten Lauf. -->
     <CrashReportDialog v-if="!onboarding.open" />
     <BackupRestoreDialog />
+    <!-- iOS: „Fotos oder Dateien?“ vor dem Hochladen eines Bildes. -->
+    <ImageSourceSheet />
     <ToastHost />
     <SocialToastHost />
     <JoinServerDialog />
