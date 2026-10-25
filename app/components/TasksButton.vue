@@ -297,7 +297,7 @@ function open(id: string) {
               </div>
             </li>
             <li v-if="updating" class="row">
-              <span class="kind-icon"><img src="/icon.png" alt="" class="size-4 [image-rendering:pixelated]" /></span>
+              <span class="kind-icon"><img :src="publicUrl('/icon.png')" alt="" class="size-4 [image-rendering:pixelated]" /></span>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-base-50">TRS Launcher {{ updater.version }}</p>
                 <p class="truncate text-[11px] text-base-400">{{ t('tasks.updateBackground') }}</p>

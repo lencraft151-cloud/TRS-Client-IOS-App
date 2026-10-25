@@ -140,7 +140,7 @@
   },
   "errors": {
     "unexpected": "Ocorreu um erro inesperado.",
-    "noBackend": "O backend só está disponível no aplicativo para desktop.",
+    "noBackend": "Disponível apenas no aplicativo, não no navegador.",
     "io": "Não foi possível ler ou gravar um arquivo.",
     "network": "Erro de rede – verifique sua conexão com a internet.",
     "data": "Não foi possível processar os dados.",

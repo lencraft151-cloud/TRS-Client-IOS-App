@@ -1,0 +1,17 @@
+{
+  "name": "TRS Launcher",
+  "short_name": "TRS Launcher",
+  "description": "TRS Launcher – Web-Version",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#111116",
+  "theme_color": "#111116",
+  "icons": [
+    { "src": "app-icons/AppIcon-60x60@3x.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "app-icons/AppIcon-512@2x.png", "sizes": "1024x1024", "type": "image/png" }
+  ]
+}

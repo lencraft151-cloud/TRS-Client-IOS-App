@@ -76,7 +76,7 @@ function play(len: IntroLength, sound: boolean, volumePct: number = prefs.volume
     sound: sound && volumePct > 0,
     volume: 0.8 * (introVolume(volumePct) / 100),
     jingle: introJingleUrl(design.id),
-    logo: '/icon.png',
+    logo: publicUrl('/icon.png'),
     mobile: isMobile,
     onReady: () => {
       animDone = true

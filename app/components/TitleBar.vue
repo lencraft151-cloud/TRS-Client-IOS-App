@@ -46,7 +46,7 @@ async function toggleMaximize() {
       </g>
     </svg>
     <div data-tauri-drag-region class="relative z-[1] flex items-center gap-2 text-base-200">
-      <img src="/icon.png" alt="" class="pointer-events-none size-4 [image-rendering:pixelated]" />
+      <img :src="publicUrl('/icon.png')" alt="" class="pointer-events-none size-4 [image-rendering:pixelated]" />
       <template v-if="events.lookHalloween">
         <HalloweenPixelSprite name="pumpkin" class="pumpkin" />
         <HalloweenPixelSprite name="moonbat" class="moonbat" />

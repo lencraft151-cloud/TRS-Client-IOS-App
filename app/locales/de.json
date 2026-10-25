@@ -140,7 +140,7 @@
   },
   "errors": {
     "unexpected": "Ein unerwarteter Fehler ist aufgetreten.",
-    "noBackend": "Das Backend ist nur in der Desktop-App verfügbar.",
+    "noBackend": "Das geht nur in der App, nicht im Browser.",
     "io": "Datei konnte nicht gelesen oder geschrieben werden.",
     "network": "Netzwerkfehler – bitte Internetverbindung prüfen.",
     "data": "Daten konnten nicht verarbeitet werden.",
@@ -3384,6 +3384,12 @@
     "storeHint": "Tippe auf „Installieren“ – SideStore lädt die neue Version, signiert sie und aktualisiert die App.",
     "storeStarted": "SideStore ist offen – tippe dort auf „Installieren“. Deine Daten bleiben erhalten.",
     "noStore": "Für Updates ohne Mac SideStore installieren (Anleitung: IOS.md). Bis dahin: so aktualisieren, wie du die App installiert hast."
+  },
+  "web": {
+    "title": "Web-Version",
+    "body": "Im Browser zeigt der Launcher Neuigkeiten und die Oberfläche. Minecraft spielen, Instanzen, Mods und Anmelden gehen nur in der App.",
+    "dismiss": "Verstanden",
+    "updated": "Neue Version geladen"
   },
   "imageSource": {
     "title": "Bild wählen",

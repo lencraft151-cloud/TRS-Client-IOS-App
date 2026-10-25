@@ -85,7 +85,7 @@ function onKey(e: KeyboardEvent) {
               @click="choose(l.code)"
             >
               <span class="lang-radio" :class="{ 'lang-radio-on': model === l.code }"><span v-if="model === l.code" /></span>
-              <img :src="`/flags/${l.flag}.svg`" alt="" class="lang-flag" draggable="false" />
+              <img :src="publicUrl(`/flags/${l.flag}.svg`)" alt="" class="lang-flag" draggable="false" />
               <span class="min-w-0 flex-1 truncate">
                 <span class="text-sm font-semibold text-base-50">{{ l.native }}</span>
                 <span v-if="l.native !== l.english" class="ml-2 text-xs text-base-400">{{ l.english }}</span>
@@ -117,7 +117,7 @@ function onKey(e: KeyboardEvent) {
               @click="choose(l.code)"
             >
               <span class="lang-radio" :class="{ 'lang-radio-on': model === l.code }"><span v-if="model === l.code" /></span>
-              <img :src="`/flags/${l.flag}.svg`" alt="" class="lang-flag" draggable="false" />
+              <img :src="publicUrl(`/flags/${l.flag}.svg`)" alt="" class="lang-flag" draggable="false" />
               <span class="min-w-0 flex-1 truncate">
                 <span class="text-sm font-semibold text-base-50">{{ l.native }}</span>
                 <span class="ml-2 text-xs text-base-400">{{ l.english }}</span>

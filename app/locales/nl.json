@@ -140,7 +140,7 @@
   },
   "errors": {
     "unexpected": "Er is een onverwachte fout opgetreden.",
-    "noBackend": "De backend is alleen beschikbaar in de desktop-app.",
+    "noBackend": "Alleen beschikbaar in de app, niet in de browser.",
     "io": "Een bestand kon niet worden gelezen of geschreven.",
     "network": "Netwerkfout – controleer je internetverbinding.",
     "data": "Gegevens konden niet worden verwerkt.",
