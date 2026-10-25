@@ -19,6 +19,7 @@ Skins & Umhänge, Freunde und Chat, News, Benachrichtigungen, PC-Fernbedienung p
 | CI (GitHub Actions, macOS) | `.github/workflows/ios-app.yml` |
 | Projekt neu erzeugen | `ruby scripts/ios/generate-xcodeproj.rb` |
 | Xcode-Paket bauen | `scripts/ios/package-xcode.sh` |
+| **Mac hält die App aktuell** (kostenloses Konto) | Doppelklick auf **`iPhone-Updates einrichten.command`** |
 
 ## Am einfachsten: Xcode-Paket herunterladen und öffnen
 
@@ -185,11 +186,27 @@ Danach läuft es von selbst:
 
 ### Kostenloses Apple-Konto: der Mac aktualisiert die App
 
-Wer die App lieber aus Xcode behält, lässt den Mac die Arbeit machen (GitHub kann sie ohne bezahlten
-Developer-Account nicht für dein iPhone signieren):
+Wer die App lieber aus Xcode behält, lässt den Mac die Arbeit machen – mit Xcode und deiner Apple-ID (GitHub kann
+sie ohne bezahlten Developer-Account nicht für dein iPhone signieren). **Am einfachsten: im Finder
+`iPhone-Updates einrichten.command` (im Repo-Ordner) doppelklicken.** Das Terminal öffnet sich und führt durch alles,
+was fehlt:
+
+1. Xcode (App Store), Lizenz und iOS-Unterstützung,
+2. Rust, Node.js und pnpm,
+3. Apple-ID in Xcode (öffnet Xcode an der richtigen Stelle),
+4. iPhone per Kabel verbinden, „Vertrauen“, Entwicklermodus,
+5. App bauen, signieren und aufs iPhone – danach läuft der Hintergrunddienst.
+
+Bei einem kostenlosen Konto stellt es dabei selbst um, was Apple dort nicht erlaubt (Entitlements ohne
+Increased-Memory-Limit und App-Gruppe; eigene Bundle-ID, falls `dev.theredstonee.trslauncher` vergeben ist – beides in
+`Signing.local.xcconfig`). Ist schon alles eingerichtet, **aktualisiert ein erneuter Doppelklick sofort**. Danach einmal
+am iPhone: *Einstellungen → Allgemein → VPN & Geräteverwaltung → deine Apple-ID → Vertrauen*.
+
+Von Hand geht dasselbe mit:
 
 ```bash
-bash scripts/ios/auto-update-mac.sh --install
+bash scripts/ios/mac-setup.sh
+bash scripts/ios/auto-update-mac.sh --setup     # jetzt bauen und installieren, dann stündlich im Hintergrund
 ```
 
 Danach prüft der Mac jede Stunde (und nach dem Aufwachen): `git pull`, und gibt es eine neue Version – von hier oder
@@ -198,9 +215,10 @@ per WLAN auf dem iPhone. Er erneuert dabei auch die Signatur, die beim kostenlos
 TRS Launcher auf dem iPhone gerade offen, wartet er damit (höchstens 6 Stunden). Eine Mitteilung auf dem Mac sagt
 Bescheid.
 
-- Vorher einmal: `bash scripts/ios/mac-setup.sh`, in Xcode ▶ Run auf dem iPhone und in Xcode → *Window → Devices and
-  Simulators* beim iPhone **Connect via network** anhaken. Mac und iPhone im selben WLAN, der Mac darf schlafen
-  (er holt es beim Aufwachen nach).
+- Mac und iPhone im selben WLAN, der Mac darf schlafen (er holt es beim Aufwachen nach). Bietet Xcode unter
+  *Window → Devices and Simulators* beim iPhone **Connect via network** an, dort anhaken.
+- Fragt der Mac beim ersten Bauen nach dem Schlüsselbund: Mac-Passwort und **Immer erlauben** – dann klappt das
+  Signieren künftig auch im Hintergrund.
 - `--now` aktualisiert sofort, `--status` zeigt Gerät, letzte Installation und Ablauf der Signatur,
   `--uninstall` schaltet es ab. Log: `~/Library/Logs/TRS-Launcher-AutoUpdate.log`.
 - Liegt das Repo in *Dokumente*, *Schreibtisch* oder *Downloads*, braucht der Hintergrunddienst Zugriff

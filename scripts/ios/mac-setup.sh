@@ -108,5 +108,5 @@ command -v pnpm > /dev/null || say "pnpm fehlt – installieren mit: npm install
 
 say "Fertig. Jetzt in Xcode: Product → Clean Build Folder (⇧⌘K), dann ▶ Run. Künftig reicht git pull."
 if [ ! -f "$HOME/Library/LaunchAgents/de.trs-launcher.ios-auto-update.plist" ]; then
-  say "Tipp: Nach dem ersten ▶ Run hält 'bash scripts/ios/auto-update-mac.sh --install' die App auf dem iPhone von selbst aktuell"
+  say "Tipp: Doppelklick auf 'iPhone-Updates einrichten.command' – dann hält der Mac die App auf dem iPhone von selbst aktuell"
 fi
