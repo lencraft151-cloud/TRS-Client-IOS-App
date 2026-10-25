@@ -172,7 +172,7 @@ function backPress() {
     <!-- Kopf: Logo, Bereiche (LB/RB), Uhr und Konto. -->
     <header class="relative z-10 flex shrink-0 items-center gap-6 px-12 pt-8 pb-4">
       <div class="flex items-center gap-3">
-        <img src="/icon.png" alt="" class="size-10 [image-rendering:pixelated]" />
+        <img :src="publicUrl('/icon.png')" alt="" class="size-10 [image-rendering:pixelated]" />
         <span class="display hidden text-2xl text-base-50 2xl:inline">{{ t('bigPicture.title') }}</span>
       </div>
 

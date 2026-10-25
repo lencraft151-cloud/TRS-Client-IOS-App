@@ -140,7 +140,7 @@
   },
   "errors": {
     "unexpected": "Wystąpił nieoczekiwany błąd.",
-    "noBackend": "Backend jest dostępny tylko w aplikacji desktopowej.",
+    "noBackend": "Dostępne tylko w aplikacji, nie w przeglądarce.",
     "io": "Nie udało się odczytać lub zapisać pliku.",
     "network": "Błąd sieci – sprawdź połączenie z internetem.",
     "data": "Nie udało się przetworzyć danych.",

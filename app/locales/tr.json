@@ -140,7 +140,7 @@
   },
   "errors": {
     "unexpected": "Beklenmeyen bir hata oluştu.",
-    "noBackend": "Arka uç yalnızca masaüstü uygulamasında kullanılabilir.",
+    "noBackend": "Yalnızca uygulamada kullanılabilir, tarayıcıda değil.",
     "io": "Bir dosya okunamadı veya yazılamadı.",
     "network": "Ağ hatası – lütfen internet bağlantını kontrol et.",
     "data": "Veriler işlenemedi.",

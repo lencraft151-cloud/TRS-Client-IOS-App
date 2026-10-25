@@ -140,7 +140,7 @@
   },
   "errors": {
     "unexpected": "Une erreur inattendue s'est produite.",
-    "noBackend": "Le backend n'est disponible que dans l'application de bureau.",
+    "noBackend": "Disponible uniquement dans l'application, pas dans le navigateur.",
     "io": "Impossible de lire ou d'écrire un fichier.",
     "network": "Erreur réseau – vérifie ta connexion Internet.",
     "data": "Impossible de traiter les données.",

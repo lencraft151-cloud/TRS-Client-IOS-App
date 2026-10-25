@@ -27,7 +27,7 @@ const style = computed(() => ({ '--accent': props.accent && /^#[0-9a-f]{6}$/i.te
     <div class="ub-glow" aria-hidden="true" />
     <span class="ub-wire ub-wire-top" aria-hidden="true" />
     <span class="ub-wire ub-wire-bottom" aria-hidden="true" />
-    <img v-if="motif" :src="motif" alt="" class="ub-motif" loading="lazy" decoding="async" />
+    <img v-if="motif" :src="publicUrl(motif)" alt="" class="ub-motif" loading="lazy" decoding="async" />
     <div v-if="!bare" class="ub-text">
       <p class="ub-kicker">{{ kicker }}</p>
       <component :is="tag" class="ub-title">{{ title }}</component>

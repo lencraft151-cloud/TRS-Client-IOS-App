@@ -92,7 +92,7 @@ function hide() {
               :aria-label="shot.caption || t('updateNews.imageOf', { n: i + 1, total: content.shots.length })"
               @click="reading = i"
             >
-              <img :src="shot.src" alt="" loading="lazy" decoding="async" class="size-full object-cover" />
+              <img :src="publicUrl(shot.src)" alt="" loading="lazy" decoding="async" class="size-full object-cover" />
             </button>
           </li>
           <li v-if="moreShots">

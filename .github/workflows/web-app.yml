@@ -1,0 +1,80 @@
+name: Web app
+
+# Web-Version des Launchers (PWA) auf GitHub Pages: https://<owner>.github.io/<repo>/
+# Jeder Push auf main baut und veröffentlicht sie neu – eigene Änderungen genauso wie der tägliche Abgleich mit
+# theredstonee. Offene Web-Apps laden die neue Version von selbst (app/plugins/web.client.ts).
+# Pull Requests, die den Web-Build berühren, bauen nur (ohne Veröffentlichen).
+#
+# Einmalig im Repo: Settings → Pages → Build and deployment → Source „GitHub Actions“ (sonst scheitert „Deploy“).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - web/**
+      - nuxt.config.ts
+      - app/plugins/web.client.ts
+      - app/utils/web.ts
+      - app/spa-loading-template.html
+      - .github/workflows/web-app.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-app-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/setup@v3
+        with:
+          install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build web version
+        run: pnpm generate
+        env:
+          TRS_WEB: '1'
+          TRS_WEB_BASE: ${{ github.event.repository.name }}
+
+      # Jede Version bringt einen neuen Service Worker mit, der den Cache der alten wegräumt.
+      - name: Stamp service worker
+        run: |
+          grep -q __TRS_BUILD__ .output/public/sw.js
+          sed -i "s/__TRS_BUILD__/${GITHUB_SHA}/" .output/public/sw.js
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .output/public
+
+  deploy:
+    name: Deploy
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

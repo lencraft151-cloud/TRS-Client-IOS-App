@@ -85,7 +85,7 @@ function openRelease() {
   <Teleport to="body">
     <Transition name="fade">
       <div v-if="updater.phase === 'installing'" class="update-splash" role="status" aria-live="polite">
-        <img src="/icon.png" alt="" width="64" height="64" />
+        <img :src="publicUrl('/icon.png')" alt="" width="64" height="64" />
         <p class="display text-sm tracking-widest text-base-200 uppercase">TRS Launcher {{ updater.version }}</p>
         <p class="text-xs text-base-400">{{ t('updater.splash') }}</p>
         <div class="update-wire"><span /></div>

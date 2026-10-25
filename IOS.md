@@ -20,6 +20,7 @@ Skins & Umhänge, Freunde und Chat, News, Benachrichtigungen, PC-Fernbedienung p
 | Projekt neu erzeugen | `ruby scripts/ios/generate-xcodeproj.rb` |
 | Xcode-Paket bauen | `scripts/ios/package-xcode.sh` |
 | **Mac hält die App aktuell** (kostenloses Konto) | Doppelklick auf **`iPhone-Updates einrichten.command`** |
+| **Web-App** (ohne Installieren) | **https://lencraft151-cloud.github.io/TRS-Client-IOS-App/** (`.github/workflows/web-app.yml`) |
 
 ## Am einfachsten: Xcode-Paket herunterladen und öffnen
 
@@ -33,6 +34,24 @@ Skins & Umhänge, Freunde und Chat, News, Benachrichtigungen, PC-Fernbedienung p
 
 App-Kern (Rust + Oberfläche) und Spiel-Engine sind im Paket schon fertig gebaut: kein Rust, kein Node, kein
 Terminal. Einschränkung: nur echte Geräte (arm64), kein Simulator. Details stehen in `LIESMICH.md` im Paket.
+
+## Web-Version (ohne Installieren und Signieren)
+
+Den Launcher gibt es auch als Web-App: **https://lencraft151-cloud.github.io/TRS-Client-IOS-App/** – in Safari
+öffnen, dann *Teilen → Zum Home-Bildschirm*. Sie startet wie eine App (Vollbild, eigenes Symbol), braucht kein
+Signieren und läuft nicht nach 7 Tagen ab.
+
+- **Immer aktuell:** GitHub Actions ([`web-app.yml`](.github/workflows/web-app.yml)) baut sie bei jedem Push auf `main`
+  neu und veröffentlicht sie auf GitHub Pages – eigene Änderungen genauso wie der tägliche Abgleich mit theredstonee.
+  Die offene Web-App schaut alle 15 Minuten und beim Zurückkommen nach und lädt eine neue Version beim nächsten
+  Seitenwechsel (oder wenn sie gerade im Hintergrund ist) von selbst; danach steht kurz „Neue Version geladen“.
+- **Was geht:** Neuigkeiten, Update-Beiträge und die ganze Oberfläche, auch ohne Netz (zuletzt geladene Version).
+- **Was nicht geht:** Im Browser fehlt der App-Kern (Rust) – Minecraft spielen, Instanzen, Mods, Skins aufs Konto
+  und Anmelden gehen nur in der App. Die Web-App sagt das oben in einem Hinweis.
+- **Einmalig im Repo:** *Settings → Pages → Build and deployment → Source* auf **GitHub Actions** stellen. Bis dahin
+  scheitert der Schritt „Deploy“ im Workflow.
+- Lokal bauen: `TRS_WEB=1 TRS_WEB_BASE=TRS-Client-IOS-App pnpm generate` → `.output/public` (unter `/<Repo-Name>/`
+  ausliefern).
 
 ## Weg 1: Fertige IPA aus GitHub Actions (ohne Mac)
 

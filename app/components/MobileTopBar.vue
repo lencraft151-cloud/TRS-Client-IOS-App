@@ -23,7 +23,7 @@ function back() {
         <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7" /></svg>
       </button>
       <NuxtLink v-else to="/" class="flex h-11 items-center gap-2 px-2 text-base-200" :aria-label="t('nav.home')">
-        <img src="/icon.png" alt="" class="pointer-events-none size-5 [image-rendering:pixelated]" />
+        <img :src="publicUrl('/icon.png')" alt="" class="pointer-events-none size-5 [image-rendering:pixelated]" />
         <PixelSnowflake v-if="design === 'winter' && !events.lookHalloween" />
         <span class="display text-[15px] leading-none">TRS Launcher</span>
       </NuxtLink>

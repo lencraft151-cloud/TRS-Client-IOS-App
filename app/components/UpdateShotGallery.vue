@@ -61,7 +61,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
     <figure class="space-y-2">
       <div class="stage group relative overflow-hidden rounded-xl border border-base-700 bg-base-950">
         <button type="button" class="block size-full cursor-zoom-in" :title="t('updateNews.enlarge')" :aria-label="t('updateNews.enlarge')" @click="open">
-          <img :key="current.src" :src="current.src" :alt="current.caption" class="shot-img size-full object-contain" decoding="async" />
+          <img :key="current.src" :src="publicUrl(current.src)" :alt="current.caption" class="shot-img size-full object-contain" decoding="async" />
         </button>
         <template v-if="shots.length > 1">
           <button type="button" class="nav-btn left-2" :title="t('updateNews.previous')" :aria-label="t('updateNews.previous')" @click="step(-1)">
@@ -92,7 +92,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
           :title="shot.caption || undefined"
           @click="index = i"
         >
-          <img :src="shot.src" alt="" loading="lazy" decoding="async" class="size-full object-cover" />
+          <img :src="publicUrl(shot.src)" alt="" loading="lazy" decoding="async" class="size-full object-cover" />
         </button>
       </li>
     </ol>
@@ -107,7 +107,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
           :aria-label="current.caption || t('updateNews.screenshots')"
           @mousedown.self="close"
         >
-          <img :key="current.src" :src="current.src" :alt="current.caption" class="max-h-[82vh] max-w-full rounded-lg object-contain shadow-2xl" />
+          <img :key="current.src" :src="publicUrl(current.src)" :alt="current.caption" class="max-h-[82vh] max-w-full rounded-lg object-contain shadow-2xl" />
           <div class="max-w-3xl text-center">
             <p v-if="current.caption" class="font-medium text-base-50">{{ current.caption }}</p>
             <p v-if="shots.length > 1" class="mt-1 text-xs text-base-400 tabular-nums">{{ index + 1 }} / {{ shots.length }}</p>
