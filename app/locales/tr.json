@@ -625,7 +625,9 @@
       "invalidCodeId": "Geçersiz kod kimliği.",
       "redemptionsRange": "Kod başına kullanım: 1 ile 100.000 arası.",
       "countRange": "Miktar: aynı anda 1 ile 100 kod arası.",
-      "expiryInPast": "Son kullanma tarihi geçmişte."
+      "expiryInPast": "Son kullanma tarihi geçmişte.",
+      "invalidCosmeticSlot": "Bilinmeyen kozmetik yuvası.",
+      "invalidCosmeticOption": "Bu öğe için geçersiz seçenek."
     },
     "trsEvents": {
       "invalidEvent": "Geçersiz etkinlik."
@@ -2409,6 +2411,8 @@
       "startIntroDescription": "Başlatıcı açılırken kısa, 4 saniyelik bir sahne oynar. Günün ilk açılışında ve güncellemeden sonra daha uzun bir sürüm her zaman bir kez oynar; geçmek için tıkla veya herhangi bir tuşa bas.",
       "startIntroSoundTitle": "Açılış animasyonu sesi",
       "startIntroSoundDescription": "Açılış animasyonunun müziği ve efektleri. Başlatıcı penceresi odakta değilken sessiz kalır.",
+      "startIntroVolumeTitle": "Başlangıç animasyonu ses düzeyi",
+      "startIntroVolumeDescription": "Başlangıç animasyonunun müzik ve efektlerinin ne kadar yüksek olduğu. %0 = sessiz.",
       "startIntroReplay": "Şimdi oynat",
       "startIntroFlickerTitle": "Açılış animasyonunda titreme ve ışık patlamaları",
       "startIntroFlickerDescription": "Titreyen meşaleler, ışık patlamaları ve ritimle parlayan atımlar. Kapalıyken aynı sahneler ve müzik sakin oynar: sabit ışıklar ve patlama yerine yumuşak bir parıltı."
@@ -3806,7 +3810,9 @@
       "title": "“{name}” açıldı!",
       "text": "Şimdi takmak ister misin? TRS Client’ta başında görürsün (üçüncü şahıs), diğer TRS oyuncuları da görür.",
       "wear": "Tak",
-      "later": "Sonra"
+      "later": "Sonra",
+      "textPet": "Şimdi yanına alalım mı? TRS Client’ta yanında yürür, diğer TRS oyuncuları da görür.",
+      "textOther": "Şimdi takalım mı? TRS Client’ta (üçüncü şahıs) görürsün, diğer TRS oyuncuları da."
     },
     "filter": {
       "search": "Pelerinleri ada göre ara",
@@ -3901,6 +3907,42 @@
       "toasts": {
         "on": "“{name}” seninle uçuyor",
         "off": "Yoldaş çıkarıldı"
+      }
+    },
+    "pet": {
+      "title": "Yerdeki yoldaşlar",
+      "intro": "Yanında yürür – TRS Client kullanan herkes onu görür. Önizleme onu karakterinin yanında gösterir.",
+      "creatorHint": "İçerik üreticileri hayran sayısına göre otomatik penguen alır: 1 hayrandan itibaren bir, 10’dan iki, 100’den üç, 1000’den dört.",
+      "empty": "Henüz yerde yoldaş yok.",
+      "wearing": "Yanında: {name}",
+      "selectedWorn": "Yanında yürür – TRS Client kullanan herkes onu görür.",
+      "toasts": {
+        "on": "“{name}” artık yanında yürüyor",
+        "off": "Yerdeki yoldaş gönderildi"
+      },
+      "states": "Yoldaş:",
+      "state": {
+        "idle": "Duruyor",
+        "walk": "Yürüyor",
+        "slide": "Kayıyor",
+        "swim": "Yüzüyor",
+        "air": "Zıplıyor"
+      },
+      "count": "{n} × {name} | {n} × {name}",
+      "counts": {
+        "penguin": "{n} penguen | {n} penguen"
+      },
+      "creatorTier": "{label} – içerik üretici seviyesi"
+    },
+    "options": {
+      "title": "{name}:",
+      "on": "açık",
+      "off": "kapalı",
+      "hintWorn": "Hemen kaydedilir – diğerleri oyunda görür.",
+      "hintPreview": "Yalnızca önizleme – takınca geçerli olur.",
+      "toasts": {
+        "on": "{option} açık ({name})",
+        "off": "{option} kapalı ({name})"
       }
     }
   },
@@ -5606,7 +5648,8 @@
       "website": "Web sitesinde",
       "websiteHint": "Web sitesini tarayıcında açar (Microsoft ile giriş).",
       "blog": "Blog",
-      "featured": "Öne çıkan mod paketleri"
+      "featured": "Öne çıkan mod paketleri",
+      "previews": "Önizleme sürümleri"
     },
     "search": {
       "placeholder": "Oyuncu, UUID, şikayet kimliği, #ceza, pelerin ara …",
@@ -6009,7 +6052,8 @@
       "blog_publish": "Blog yazılarını yayınlama, zamanlama ve yayından kaldırma",
       "events_manage": "Etkinlikleri yönet",
       "featured_manage": "Öne çıkan mod paketlerini yönet",
-      "serverrules_bypass": "Sunucunun engellediği TRS Client özelliklerini yine de kullan (oyunda onaydan sonra)"
+      "serverrules_bypass": "Sunucunun engellediği TRS Client özelliklerini yine de kullan (oyunda onaydan sonra)",
+      "previews_access": "Önizleme sürümleri: Başlatıcının ve TRS Client'ın önizleme sürümlerini Partner içerik üreticileri gibi indir"
     }
   },
   "trsChoice": {

@@ -113,7 +113,7 @@ def mixinClasses = ['CameraMixin', 'CrosshairMixin', 'FovMixin', 'GuiMixin', 'Li
 		'AttackMixin', 'BlockOutlineMixin', 'ChatComponentAccessor', 'ChatMixin', 'ChatScreenMixin',
 		'HurtCamMixin', 'LowFireMixin', 'OldAnimationsMixin',
 		// TRS API: TRS-Umhang-Textur, Umhang-Physik, Abzeichen in Tabliste und über dem Namen
-		'CapeTextureMixin', 'CapeLayerMixin', 'HatLayerMixin', 'WingsLayerMixin', 'TabBadgeMixin', 'NameTagBadgeMixin',
+		'CapeTextureMixin', 'CapeLayerMixin', 'HatLayerMixin', 'WingsLayerMixin', 'PetWorldMixin', 'TabBadgeMixin', 'NameTagBadgeMixin',
 		// Emotes: Pose auf HumanoidModel#setupAnim; ab 1.21.2 Spieler über den Render-State zuordnen.
 		'EmoteModelMixin',
 		// Farben: Farb-Durchgang direkt nach GameRenderer#renderLevel (vor HUD und Menüs).
@@ -127,6 +127,10 @@ if (stonecutter.eval(mc, '>=26.2')) mixinClasses << 'FanNameTagMixin'
 mixinClasses += ['MenuScreenMixin', 'MenuButtonMixin', 'MenuEditBoxMixin', 'ServerEntryMixin', 'WorldEntryMixin', 'LoadingOverlayMixin',
 		'JoinMultiplayerAccessor']
 if (stonecutter.eval(mc, '>=1.20.5')) mixinClasses << 'MenuListMixin'
+// Ladebildschirm mit RRLS: TRS-Fläche über ein eigenes Zeichenziel (ab 1.21.6 auf dem Oberflächen-Zustand des
+// Bildes), die Ladeleiste von RRLS bleibt dann weg (require = 0 – ohne RRLS ohne Wirkung).
+if (stonecutter.eval(mc, '>=1.20')) mixinClasses << 'RrlsOverlayMixin'
+if (stonecutter.eval(mc, '>=1.21.6') && stonecutter.eval(mc, '<26.1')) mixinClasses << 'GuiStateAccessor'
 // Suche in der Tastenbelegung: Einträge der Liste ersetzen (alle Versionen).
 mixinClasses << 'KeySearchListInvoker'
 // Fehlerbildschirm: Ziel der letzten Verbindung merken (Erneut verbinden, Neu anmelden).
@@ -205,3 +209,5 @@ if (srg) {
 
 // Autotests ohne Ton (siehe gradle/autotest-mute.gradle).
 apply from: new File(buildscript.sourceFile.parentFile, '../gradle/autotest-mute.gradle')
+// Vorschau-Builds (-PtrsPreview=map-v3, siehe gradle/preview-features.gradle).
+apply from: new File(buildscript.sourceFile.parentFile, '../gradle/preview-features.gradle')

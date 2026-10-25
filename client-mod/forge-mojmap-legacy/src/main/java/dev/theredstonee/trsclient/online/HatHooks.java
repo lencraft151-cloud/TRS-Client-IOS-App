@@ -32,7 +32,7 @@ import java.util.UUID;
  */
 public final class HatHooks {
 	/** Volle Helligkeit (Himmels- und Blocklicht 15), wie {@code LightTexture.FULL_BRIGHT}. */
-	private static final int FULL_BRIGHT = 0xF000F0;
+	static final int FULL_BRIGHT = 0xF000F0;
 
 	private HatHooks() {
 	}
@@ -91,7 +91,7 @@ public final class HatHooks {
 		} finally {
 			pose.popPose();
 		}
-		drawV2(features, features.companionV2(id, helmet(p)), pose, collector, light, head);
+		drawV2(features, features.companionV2(id, helmet(p), WingsHooks.state(p)), pose, collector, light, head);
 	}
 	*///?} elif >=1.21.9 {
 	/*public static void render(PoseStack pose, net.minecraft.client.renderer.SubmitNodeCollector collector, int light,
@@ -116,7 +116,7 @@ public final class HatHooks {
 		} finally {
 			pose.popPose();
 		}
-		drawV2(features, features.companionV2(id, helmet(p)), pose, collector, light, head);
+		drawV2(features, features.companionV2(id, helmet(p), WingsHooks.state(p)), pose, collector, light, head);
 	}
 	*///?} else {
 	// Bis 1.21.8: sofort zeichnen.
@@ -141,7 +141,7 @@ public final class HatHooks {
 		} finally {
 			pose.popPose();
 		}
-		drawV2(features, features.companionV2(id, helmet(p)), pose, buffers, light, head);
+		drawV2(features, features.companionV2(id, helmet(p), WingsHooks.state(p)), pose, buffers, light, head);
 	}
 	//?}
 
@@ -152,8 +152,8 @@ public final class HatHooks {
 			net.minecraft.client.renderer.SubmitNodeCollector collector, final int light, ModelPart head) {
 		final UUID id = p.getUUID();
 		final boolean helm = helmet(p);
-		drawV2(f, f.hatV2(id, helm), pose, collector, light, head);
-		drawV2(f, f.companionV2(id, helm), pose, collector, light, head);
+		drawV2(f, f.hatV2(id, helm, WingsHooks.state(p)), pose, collector, light, head);
+		drawV2(f, f.companionV2(id, helm, WingsHooks.state(p)), pose, collector, light, head);
 	}
 
 	static void drawV2(final OnlineFeatures<Object> f, final V2Hat<Object> hat, PoseStack pose,
@@ -181,8 +181,8 @@ public final class HatHooks {
 						(last, vc) -> f.emitV2(hat, CosmeticV2Renderer.PASS_GLOW, null, additiveSink(vc, last)));
 			}
 			if (eye != null) {
-				collector.submitCustomGeometry(pose, additive(hat.halo),
-						(last, vc) -> f.emitV2(hat, CosmeticV2Renderer.PASS_HALO, eye, additiveSink(vc, last)));
+				collector.submitCustomGeometry(pose, halo(hat.halo),
+						(last, vc) -> f.emitV2(hat, CosmeticV2Renderer.PASS_HALO, eye, haloSink(vc, last)));
 			}
 		} catch (RuntimeException e) {
 			f.online().reportError(e);
@@ -195,8 +195,8 @@ public final class HatHooks {
 			net.minecraft.client.renderer.MultiBufferSource buffers, int light, ModelPart head) {
 		UUID id = p.getUUID();
 		boolean helm = helmet(p);
-		drawV2(f, f.hatV2(id, helm), pose, buffers, light, head);
-		drawV2(f, f.companionV2(id, helm), pose, buffers, light, head);
+		drawV2(f, f.hatV2(id, helm, WingsHooks.state(p)), pose, buffers, light, head);
+		drawV2(f, f.companionV2(id, helm, WingsHooks.state(p)), pose, buffers, light, head);
 	}
 
 	/** Ein Format-2-Teil (Hut oder Begleiter) im schon bekannten Kopf-Raum. */
@@ -223,7 +223,7 @@ public final class HatHooks {
 			}
 			if (hat.has(CosmeticV2Renderer.PASS_HALO)) {
 				if (eye != null) {
-					f.emitV2(hat, CosmeticV2Renderer.PASS_HALO, eye, additiveSink(buffers.getBuffer(additive(hat.halo)), last));
+					f.emitV2(hat, CosmeticV2Renderer.PASS_HALO, eye, haloSink(buffers.getBuffer(halo(hat.halo)), last));
 				}
 			}
 		} catch (RuntimeException e) {
@@ -234,32 +234,35 @@ public final class HatHooks {
 	}
 	//?}
 
-	// Render-Typen: Grundmodell ohne Rückseiten-Culling mit Alpha-Test, durchscheinend.
+	// Render-Typen: Grundmodell ohne Rückseiten-Culling mit Alpha-Test, durchscheinend. Durchscheinend bis 1.21.11 als
+	// „entity_no_outline“ (wie entity_translucent, aber ohne Tiefe schreiben – wie Legacy mit depthMask(false)): Wasser
+	// wird erst nach den Wesen gezeichnet und fehlte sonst hinter durchscheinenden Flächen (Eisflügel über dem Meer).
+	// Ab 26.1 (neue Mischung durchscheinender Wesen, kein entity_no_outline mehr) bleibt entity_translucent.
 	//? if >=26.1 {
-	/*private static net.minecraft.client.renderer.rendertype.RenderType cutout(Object tex) {
+	/*static net.minecraft.client.renderer.rendertype.RenderType cutout(Object tex) {
 		return net.minecraft.client.renderer.rendertype.RenderTypes.entityCutout((net.minecraft.resources.Identifier) tex);
 	}
 
-	private static net.minecraft.client.renderer.rendertype.RenderType translucent(Object tex) {
+	static net.minecraft.client.renderer.rendertype.RenderType translucent(Object tex) {
 		return net.minecraft.client.renderer.rendertype.RenderTypes.entityTranslucent((net.minecraft.resources.Identifier) tex);
 	}
 
 	*///?} elif >=1.21.11 {
-	/*private static net.minecraft.client.renderer.rendertype.RenderType cutout(Object tex) {
+	/*static net.minecraft.client.renderer.rendertype.RenderType cutout(Object tex) {
 		return net.minecraft.client.renderer.rendertype.RenderTypes.entityCutoutNoCull((net.minecraft.resources.Identifier) tex);
 	}
 
-	private static net.minecraft.client.renderer.rendertype.RenderType translucent(Object tex) {
-		return net.minecraft.client.renderer.rendertype.RenderTypes.entityTranslucent((net.minecraft.resources.Identifier) tex);
+	static net.minecraft.client.renderer.rendertype.RenderType translucent(Object tex) {
+		return net.minecraft.client.renderer.rendertype.RenderTypes.entityNoOutline((net.minecraft.resources.Identifier) tex);
 	}
 
 	*///?} else {
-	private static net.minecraft.client.renderer.RenderType cutout(Object tex) {
+	static net.minecraft.client.renderer.RenderType cutout(Object tex) {
 		return net.minecraft.client.renderer.RenderType.entityCutoutNoCull((net.minecraft.resources.ResourceLocation) tex);
 	}
 
-	private static net.minecraft.client.renderer.RenderType translucent(Object tex) {
-		return net.minecraft.client.renderer.RenderType.entityTranslucent((net.minecraft.resources.ResourceLocation) tex);
+	static net.minecraft.client.renderer.RenderType translucent(Object tex) {
+		return net.minecraft.client.renderer.RenderType.entityNoOutline((net.minecraft.resources.ResourceLocation) tex);
 	}
 
 	//?}
@@ -267,38 +270,67 @@ public final class HatHooks {
 	// Additiv und voll hell: bis 1.21.4 „eyes“ (ONE/ONE, mit Rückseiten-Culling → beidseitig ausgeben); ab 1.21.5 mischt
 	// „eyes“ normal (TRANSLUCENT) – dort „energy_swirl“ (ADDITIVE, EMISSIVE, ohne Culling, Textur-Versatz 0).
 	//? if >=1.21.11 {
-	/*private static net.minecraft.client.renderer.rendertype.RenderType additive(Object tex) {
+	/*static net.minecraft.client.renderer.rendertype.RenderType additive(Object tex) {
 		return net.minecraft.client.renderer.rendertype.RenderTypes.energySwirl((net.minecraft.resources.Identifier) tex, 0f, 0f);
 	}
 
-	private static CosmeticV2Renderer.VertexSink additiveSink(VertexConsumer vc, PoseStack.Pose last) {
+	static CosmeticV2Renderer.VertexSink additiveSink(VertexConsumer vc, PoseStack.Pose last) {
 		return v2sink(vc, last, FULL_BRIGHT);
 	}
 	*///?} elif >=1.21.5 {
-	/*private static net.minecraft.client.renderer.RenderType additive(Object tex) {
+	/*static net.minecraft.client.renderer.RenderType additive(Object tex) {
 		return net.minecraft.client.renderer.RenderType.energySwirl((net.minecraft.resources.ResourceLocation) tex, 0f, 0f);
 	}
 
-	private static CosmeticV2Renderer.VertexSink additiveSink(VertexConsumer vc, PoseStack.Pose last) {
+	static CosmeticV2Renderer.VertexSink additiveSink(VertexConsumer vc, PoseStack.Pose last) {
 		return v2sink(vc, last, FULL_BRIGHT);
 	}
 	*///?} else {
-	private static net.minecraft.client.renderer.RenderType additive(Object tex) {
+	static net.minecraft.client.renderer.RenderType additive(Object tex) {
 		return net.minecraft.client.renderer.RenderType.eyes((net.minecraft.resources.ResourceLocation) tex);
 	}
 
-	private static CosmeticV2Renderer.VertexSink additiveSink(VertexConsumer vc, PoseStack.Pose last) {
+	static CosmeticV2Renderer.VertexSink additiveSink(VertexConsumer vc, PoseStack.Pose last) {
 		return CosmeticV2Renderer.bothSides(v2sink(vc, last, FULL_BRIGHT));
 	}
 	//?}
 
+	// Leucht-Höfe: ab 1.21.5 als Dreiecks-Scheibe ohne Textur in „dragon_rays“ (additiv SRC_ALPHA/ONE, schreibt KEINE
+	// Tiefe) – „energy_swirl“ schreibt Tiefe, und das erst danach gezeichnete Wasser fehlte hinter jedem Hof. Bis 1.21.4
+	// zeichnet „eyes“ ohne Tiefe, dort bleibt das Hof-Viereck mit Textur.
+	//? if >=1.21.11 {
+	/*static net.minecraft.client.renderer.rendertype.RenderType halo(Object tex) {
+		return net.minecraft.client.renderer.rendertype.RenderTypes.dragonRays();
+	}
+
+	static CosmeticV2Renderer.VertexSink haloSink(final VertexConsumer vc, final PoseStack.Pose last) {
+		return CosmeticV2Renderer.haloTriangles((x, y, z, argb) -> vc.addVertex(last, x, y, z).setColor(argb));
+	}
+	*///?} elif >=1.21.5 {
+	/*static net.minecraft.client.renderer.RenderType halo(Object tex) {
+		return net.minecraft.client.renderer.RenderType.dragonRays();
+	}
+
+	static CosmeticV2Renderer.VertexSink haloSink(final VertexConsumer vc, final PoseStack.Pose last) {
+		return CosmeticV2Renderer.haloTriangles((x, y, z, argb) -> vc.addVertex(last, x, y, z).setColor(argb));
+	}
+	*///?} else {
+	static net.minecraft.client.renderer.RenderType halo(Object tex) {
+		return additive(tex);
+	}
+
+	static CosmeticV2Renderer.VertexSink haloSink(VertexConsumer vc, PoseStack.Pose last) {
+		return additiveSink(vc, last);
+	}
+	//?}
+
 	/** Senkrechtes Sichtfeld der Welt (mit Zoom) – für die Entfernungs-Stufe der HD-Texturen. */
-	private static double fov() {
+	static double fov() {
 		return dev.theredstonee.trsclient.TrsClient.get().worldFov();
 	}
 
 	/** Bildhöhe in Pixeln – für die Entfernungs-Stufe der HD-Texturen. */
-	private static int screenHeight() {
+	static int screenHeight() {
 		return dev.theredstonee.trsclient.compat.Mc.window().getHeight();
 	}
 
@@ -316,7 +348,7 @@ public final class HatHooks {
 		return V2Math.eyeInAttachSpace(m, out) ? out : null;
 	}
 
-	private static CosmeticV2Renderer.VertexSink v2sink(final VertexConsumer vc, final PoseStack.Pose last, final int light) {
+	static CosmeticV2Renderer.VertexSink v2sink(final VertexConsumer vc, final PoseStack.Pose last, final int light) {
 		final int overlay = OverlayTexture.NO_OVERLAY;
 		return (x, y, z, u, v, nx, ny, nz, argb) -> {
 			//? if >=1.21 {
