@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # TRS Launcher – der Mac hält die App auf dem iPhone aktuell, auch mit kostenlosem Apple-Konto.
 #
-#   bash scripts/ios/auto-update-mac.sh --install [--device <Name oder UDID>]  # einrichten, läuft dann stündlich
+#   bash scripts/ios/auto-update-mac.sh --setup [--device <Name oder UDID>]    # jetzt bauen + installieren, dann stündlich
+#   bash scripts/ios/auto-update-mac.sh --install [--device <Name oder UDID>]  # nur einrichten, läuft dann stündlich
 #   bash scripts/ios/auto-update-mac.sh --now                                 # sofort prüfen, bauen, installieren
 #   bash scripts/ios/auto-update-mac.sh --status                              # Gerät, letzter Lauf, Log
 #   bash scripts/ios/auto-update-mac.sh --uninstall                           # wieder abschalten
@@ -9,9 +10,12 @@
 # Stündlich und nach dem Aufwachen: `git pull`. Gibt es eine neue Version – oder läuft die Signatur der App auf dem
 # iPhone bald ab (kostenloses Konto: nach 7 Tagen) –, baut xcodebuild die App wie ▶ Run mit deinem Xcode-Konto und
 # installiert sie per WLAN oder Kabel auf dem iPhone (`xcrun devicectl`). Eine Mitteilung auf dem Mac sagt Bescheid.
+# Kostenloses Konto: Lehnt Xcode Capabilities ab, die ein Personal Team nicht hat, oder ist die Bundle-ID vergeben,
+# stellt das Skript Signing.local.xcconfig selbst um und baut erneut.
 #
-# Vorher einmal: `bash scripts/ios/mac-setup.sh`, in Xcode ▶ Run auf dem iPhone, und in Xcode → Window → Devices and
-# Simulators beim iPhone „Connect via network“ anhaken. Mac und iPhone im selben WLAN, iPhone entsperrt reicht.
+# Am einfachsten per Doppelklick auf „iPhone-Updates einrichten.command“ im Repo (führt durch alles Nötige). Von Hand:
+# `bash scripts/ios/mac-setup.sh`, iPhone einmal per Kabel verbinden (vertrauen, Entwicklermodus an), dann --setup.
+# Mac und iPhone im selben WLAN, iPhone entsperrt reicht.
 # Für Minecraft braucht es weiter JIT: ▶ Run in Xcode oder StikDebug (IOS.md).
 set -euo pipefail
 
@@ -26,6 +30,7 @@ LOCK="$SUPPORT/lock"
 DERIVED="$SUPPORT/DerivedData"
 LOG="$HOME/Library/Logs/TRS-Launcher-AutoUpdate.log"
 WORKSPACE="$ROOT/src-tauri/gen/apple/TRS-Launcher.xcworkspace"
+LOCAL_SIGNING="$ROOT/src-tauri/gen/apple/Signing.local.xcconfig"
 SCHEME=trs-launcher_iOS
 CONFIG=debug
 # Nach einem fehlgeschlagenen Build erst so spät wieder bauen (außer die Signatur läuft ab).
@@ -40,7 +45,11 @@ log() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M')" "$*"; }
 notify() {
   osascript -e "display notification \"${2//\"/\\\"}\" with title \"${1//\"/\\\"}\"" 2> /dev/null || true
 }
-state_get() { sed -n "s/^$1=//p" "$STATE" 2> /dev/null | tail -n 1; }
+# Erster Lauf: Statusdatei, Build-Ordner und Signing.local.xcconfig fehlen noch – unter pipefail darf das nicht abbrechen.
+state_get() {
+  [ -f "$STATE" ] || return 0
+  sed -n "s/^$1=//p" "$STATE" | tail -n 1
+}
 state_set() {
   mkdir -p "$SUPPORT"
   { grep -v "^$1=" "$STATE" 2> /dev/null || true; echo "$1=$2"; } > "$STATE.tmp"
@@ -92,7 +101,9 @@ PY
 }
 
 built_app() {
-  find "$DERIVED/Build/Products/$CONFIG-iphoneos" -maxdepth 1 -name '*.app' -type d 2> /dev/null | head -n 1
+  local dir="$DERIVED/Build/Products/$CONFIG-iphoneos"
+  [ -d "$dir" ] || return 0
+  find "$dir" -maxdepth 1 -name '*.app' -type d | head -n 1 || true
 }
 
 # Ablauf der Signatur (Unix-Zeit) der zuletzt gebauten App; leer, wenn unbekannt.
@@ -107,13 +118,90 @@ signature_expiry() {
   rm -f "$plist"
 }
 
-update() {
-  local force="$1" udid head upstream reason="" app expiry new_expiry now failed version exe since
-  mkdir -p "$SUPPORT"
-  if ! mkdir "$LOCK" 2> /dev/null; then
-    # Hängengebliebene Sperre (älter als 3 Stunden) aufräumen.
-    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +180 2> /dev/null)" ]; then rmdir "$LOCK" && mkdir "$LOCK"; else log "läuft schon"; return 0; fi
+# Zeile `KEY = Wert` in Signing.local.xcconfig setzen (von git ignoriert, überschreibt Signing.xcconfig).
+set_local() {
+  touch "$LOCAL_SIGNING"
+  { grep -v "^$1 *=" "$LOCAL_SIGNING" || true; echo "$1 = $2"; } > "$LOCAL_SIGNING.tmp"
+  mv "$LOCAL_SIGNING.tmp" "$LOCAL_SIGNING"
+}
+get_local() {
+  [ -f "$LOCAL_SIGNING" ] || return 0
+  sed -nE "s/^$1 *= *//p" "$LOCAL_SIGNING" | tr -d '[:space:]' | tail -n 1
+}
+
+# Kostenloses Apple-Konto: typische Signier-Fehler aus der Build-Ausgabe beheben. Erfolg = erneut bauen lohnt sich.
+free_account_fix() {
+  local out="$1" team fixed=1
+  if grep -qiE 'personal development teams?|do(es)? not support the .*capabilit' "$out" \
+    && [ "$(get_local TRS_ENTITLEMENTS)" != trs-launcher_iOS/trs-launcher_iOS-basic.entitlements ]; then
+    set_local TRS_ENTITLEMENTS trs-launcher_iOS/trs-launcher_iOS-basic.entitlements
+    set_local TRS_WIDGET_ENTITLEMENTS Widgets/TRSWidgets-basic.entitlements
+    log "kostenloses Apple-Konto: App ohne Zusatz-Capabilities (basic-Entitlements in Signing.local.xcconfig)"
+    fixed=0
   fi
+  team="$(get_local DEVELOPMENT_TEAM)"
+  if grep -qiE 'failed registering bundle identifier|cannot be registered to your development team' "$out" \
+    && [ -z "$(get_local PRODUCT_BUNDLE_IDENTIFIER)" ] && [ -n "$team" ]; then
+    set_local PRODUCT_BUNDLE_IDENTIFIER "dev.theredstonee.trslauncher.$(tr '[:upper:]' '[:lower:]' <<< "$team")"
+    log "Bundle-ID vergeben – nehme eigene: $(get_local PRODUCT_BUNDLE_IDENTIFIER) (in Signing.local.xcconfig)"
+    fixed=0
+  fi
+  return "$fixed"
+}
+
+# Was der Nutzer bei einem Build-Fehler tun kann (leer, wenn unbekannt). Liest $BUILD_OUT.
+build_hint() {
+  if grep -qiE 'requires a development team|no account for team|no accounts' "$BUILD_OUT" 2> /dev/null; then
+    echo "In Xcode → Settings → Accounts mit deiner Apple-ID anmelden."
+  elif grep -qiE 'no devices from which to generate|device .*not registered|is not registered' "$BUILD_OUT" 2> /dev/null; then
+    echo "iPhone einmal per Kabel anschließen, entsperren und erneut versuchen (oder in Xcode ▶ Run)."
+  elif grep -qiE 'maximum number of apps|limit .*app ?ids' "$BUILD_OUT" 2> /dev/null; then
+    echo "Kostenloses Konto: höchstens 3 eigene Apps je iPhone – eine andere selbst signierte App löschen."
+  fi
+}
+
+# Baut wie ▶ Run; Ausgabe auch in $BUILD_OUT. Beim ersten Mal mit dem iPhone als Ziel – dann registriert Xcode es selbst
+# im Konto (sonst wäre ▶ Run in Xcode nötig). Danach reicht „irgendein iPhone“, das Gerät muss nicht erreichbar sein.
+build_app() {
+  local udid="$1" dest=(-destination 'generic/platform=iOS')
+  BUILD_OUT="$(mktemp)"
+  if [ -z "$(state_get installed_at)" ] && xcrun devicectl device info details --device "$udid" > /dev/null 2>&1; then
+    dest=(-destination "id=$udid" -allowProvisioningDeviceRegistration)
+  fi
+  for _ in 1 2 3; do
+    if xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration "$CONFIG" "${dest[@]}" \
+      -derivedDataPath "$DERIVED" -allowProvisioningUpdates -quiet build 2>&1 | tee "$BUILD_OUT"; then
+      return 0
+    fi
+    free_account_fix "$BUILD_OUT" && continue
+    if [ "${dest[1]}" != generic/platform=iOS ]; then
+      log "mit dem iPhone als Ziel ging es nicht – baue allgemein für iOS"
+      dest=(-destination 'generic/platform=iOS')
+      continue
+    fi
+    return 1
+  done
+  return 1
+}
+
+update() {
+  local force="$1" udid head upstream reason="" app expiry new_expiry now failed version exe since hint waited=""
+  mkdir -p "$SUPPORT"
+  until mkdir "$LOCK" 2> /dev/null; do
+    # Hängengebliebene Sperre (älter als 3 Stunden) aufräumen.
+    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +180 2> /dev/null)" ]; then
+      rmdir "$LOCK" 2> /dev/null || true
+      continue
+    fi
+    # Von Hand gestartet (Doppelklick, --now): auf den laufenden Hintergrund-Lauf warten, statt nichts zu tun.
+    if [ "$force" != yes ]; then
+      log "läuft schon"
+      return 0
+    fi
+    [ -n "$waited" ] || log "eine Aktualisierung läuft gerade im Hintergrund – ich warte darauf"
+    waited=yes
+    sleep 10
+  done
   trap 'rmdir "$LOCK" 2> /dev/null || true' EXIT
   udid="$(cut -f1 "$DEVICE_FILE" 2> /dev/null || true)"
   [ -n "$udid" ] || die "kein iPhone eingerichtet – erst: bash scripts/ios/auto-update-mac.sh --install"
@@ -155,13 +243,16 @@ update() {
 
   # --- bauen (wie ▶ Run; das iPhone muss dafür nicht erreichbar sein) ---
   log "$reason – baue die App"
-  if ! xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration "$CONFIG" -destination 'generic/platform=iOS' \
-    -derivedDataPath "$DERIVED" -allowProvisioningUpdates -quiet build; then
+  if ! build_app "$udid"; then
     state_set build_failed "$now"
     state_set failed_commit "$head"
-    notify "TRS Launcher" "Die App ließ sich nicht bauen – Details: $LOG"
+    hint="$(build_hint)"
+    rm -f "$BUILD_OUT"
+    [ -z "$hint" ] || log "$hint"
+    notify "TRS Launcher" "Die App ließ sich nicht bauen – ${hint:-Details: $LOG}"
     die "Build fehlgeschlagen"
   fi
+  rm -f "$BUILD_OUT"
   state_set build_failed ""
   app="$(built_app)"
   [ -n "$app" ] || die "gebaute App nicht gefunden"
@@ -198,23 +289,28 @@ update() {
 
 xml() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' <<< "$1"; }
 
-case "$mode" in
-  --install)
-    want=""
-    if [ "${1:-}" = --device ]; then want="${2:?Name oder UDID fehlt}"; fi
-    command -v xcodebuild > /dev/null || die "Xcode fehlt"
-    device="$(find_device "$want")"
-    [ -n "$device" ] || die "kein gepaartes iPhone gefunden – einmal per Kabel verbinden und in Xcode ▶ Run, dann erneut${want:+ (gesucht: $want)}"
-    mkdir -p "$SUPPORT" "$(dirname "$PLIST")" "$(dirname "$LOG")"
-    printf '%s\n' "$device" > "$DEVICE_FILE"
-    case "$ROOT" in
-      "$HOME/Documents"/* | "$HOME/Desktop"/* | "$HOME/Downloads"/*)
-        printf '\nHinweis: Das Repo liegt in %s. macOS lässt Hintergrund-Aufgaben dort nur mit Erlaubnis zu:\n' "$ROOT"
-        printf 'Systemeinstellungen → Datenschutz & Sicherheit → Festplattenvollzugriff → /bin/bash hinzufügen –\n'
-        printf 'oder das Repo z. B. nach ~/Developer verschieben und dieses Skript dort erneut ausführen.\n'
-        ;;
-    esac
-    cat > "$PLIST" << EOF
+# iPhone wählen und merken (--device <Name oder UDID> in "$@").
+pick_device() {
+  local want=""
+  if [ "${1:-}" = --device ]; then want="${2:?Name oder UDID fehlt}"; fi
+  command -v xcodebuild > /dev/null || die "Xcode fehlt"
+  device="$(find_device "$want")"
+  [ -n "$device" ] || die "kein gepaartes iPhone gefunden – einmal per Kabel verbinden, entsperren, auf Vertrauen tippen, dann erneut${want:+ (gesucht: $want)}"
+  mkdir -p "$SUPPORT" "$(dirname "$LOG")"
+  printf '%s\n' "$device" > "$DEVICE_FILE"
+}
+
+# Hintergrunddienst (launchd, stündlich und nach dem Anmelden) einrichten.
+install_agent() {
+  mkdir -p "$(dirname "$PLIST")"
+  case "$ROOT" in
+    "$HOME/Documents"/* | "$HOME/Desktop"/* | "$HOME/Downloads"/*)
+      printf '\nHinweis: Das Repo liegt in %s. macOS lässt Hintergrund-Aufgaben dort nur mit Erlaubnis zu:\n' "$ROOT"
+      printf 'Systemeinstellungen → Datenschutz & Sicherheit → Festplattenvollzugriff → /bin/bash hinzufügen –\n'
+      printf 'oder das Repo z. B. nach ~/Developer verschieben und dieses Skript dort erneut ausführen.\n'
+      ;;
+  esac
+  cat > "$PLIST" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -234,12 +330,29 @@ case "$mode" in
 </dict>
 </plist>
 EOF
-    plutil -lint "$PLIST" > /dev/null
-    launchctl bootout "gui/$(id -u)/$LABEL" 2> /dev/null || true
-    launchctl bootstrap "gui/$(id -u)" "$PLIST"
-    printf '\n== Eingerichtet für %s (%s)\n' "$(cut -f2 <<< "$device")" "$(cut -f1 <<< "$device")"
-    printf '   Läuft stündlich und gleich jetzt einmal. Log: %s\n' "$LOG"
-    printf '   Stand ansehen: bash scripts/ios/auto-update-mac.sh --status\n'
+  plutil -lint "$PLIST" > /dev/null
+  launchctl bootout "gui/$(id -u)/$LABEL" 2> /dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$PLIST"
+  printf '\n== Eingerichtet für %s (%s)\n' "$(cut -f2 "$DEVICE_FILE")" "$(cut -f1 "$DEVICE_FILE")"
+  printf '   Läuft stündlich und gleich jetzt einmal. Log: %s\n' "$LOG"
+  printf '   Stand ansehen: bash scripts/ios/auto-update-mac.sh --status\n'
+}
+
+case "$mode" in
+  --install)
+    pick_device "$@"
+    install_agent
+    ;;
+  --setup)
+    # Erstes Mal im Vordergrund: Fragen von Xcode/Schlüsselbund kommen jetzt, nicht unbemerkt im Hintergrund.
+    pick_device "$@"
+    update yes 2>&1 | tee -a "$LOG"
+    install_agent
+    ;;
+  --find-device)
+    device="$(find_device "${1:-}")"
+    [ -n "$device" ] || exit 1
+    printf '%s\n' "$device"
     ;;
   --run)
     update no
