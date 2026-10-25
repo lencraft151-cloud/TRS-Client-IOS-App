@@ -46,26 +46,42 @@ export function noise(x: number, y: number, seed = 0): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296
 }
 
+/** Farbe eines Boden-Texels (`gx`/`gy` über die ganze Schaltung): Deepslate-Fliesen, 2 × 2 je Block, Fugen, Körnung. */
+function floorColor(gx: number, gy: number, p: Palette): string {
+  if (gx % 8 === 7 || gy % 8 === 7) return p.grout
+  // Jede Fliese hat einen eigenen Grundton, darauf Körnung.
+  const tile = noise((gx >> 3) + 11, gy >> 3, 3)
+  const n = noise(gx, gy, 7)
+  const shade = tile < 0.34 ? 0 : tile < 0.8 ? 1 : 2
+  return n < 0.12 ? p.floor[(shade + 1) % 3]! : n > 0.94 ? p.grout : p.floor[shade]!
+}
+
 /** Deepslate-Fliesen: 2 × 2 Fliesen je Block, Fugen, leichte Körnung. */
 export function paintFloorBlock(g: Ctx, ox: number, oy: number, bx: number, by: number, p: Palette) {
   for (let y = 0; y < TEX; y++) {
     for (let x = 0; x < TEX; x++) {
-      const gx = bx * TEX + x
-      const gy = by * TEX + y
-      const groutLine = x % 8 === 7 || y % 8 === 7
-      let color: string
-      if (groutLine) color = p.grout
-      else {
-        // Jede Fliese hat einen eigenen Grundton, darauf Körnung.
-        const tile = noise((gx >> 3) + 11, gy >> 3, 3)
-        const n = noise(gx, gy, 7)
-        const shade = tile < 0.34 ? 0 : tile < 0.8 ? 1 : 2
-        color = n < 0.12 ? p.floor[(shade + 1) % 3]! : n > 0.94 ? p.grout : p.floor[shade]!
-      }
-      g.fillStyle = color
+      g.fillStyle = floorColor(bx * TEX + x, by * TEX + y, p)
       g.fillRect(ox + x, oy + y, 1, 1)
     }
   }
+}
+
+type Rgba = readonly [number, number, number, number]
+const rgbaCache = new Map<string, Rgba>()
+let probe: Ctx | null = null
+
+/** CSS-Farbe → RGBA (0–255) über ein 1 × 1-Canvas – versteht jede Farbe, die der Browser kennt. */
+function rgbaOf(color: string): Rgba {
+  let rgba = rgbaCache.get(color)
+  if (rgba) return rgba
+  probe ??= ctx2d(surface(1, 1))
+  probe.clearRect(0, 0, 1, 1)
+  probe.fillStyle = color
+  probe.fillRect(0, 0, 1, 1)
+  const d = probe.getImageData(0, 0, 1, 1).data
+  rgba = [d[0]!, d[1]!, d[2]!, d[3]!]
+  rgbaCache.set(color, rgba)
+  return rgba
 }
 
 /** Deepslate-Ziegel als erhöhter Block. */
@@ -89,13 +105,25 @@ function paintBlock(g: Ctx, ox: number, oy: number, bx: number, by: number, p: P
 }
 
 /** Boden-Ebene einer ganzen Schaltung – einmal je Aufbau/Theme. Blöcke kommen als Sprites
- *  darüber, damit der Umbau sie jederzeit setzen und entfernen kann. */
+ *  darüber, damit der Umbau sie jederzeit setzen und entfernen kann. In einem Rutsch als Pixelpuffer: ein `fillRect`
+ *  je Texel (Zehntausende je Seitenwechsel) machte das Wechseln der Seiten spürbar zäh, am Handy besonders. */
 export function paintFloor(circuit: Circuit, p: Palette): Surface {
-  const s = surface(circuit.w * TEX, circuit.h * TEX)
+  const w = circuit.w * TEX
+  const h = circuit.h * TEX
+  const s = surface(w, h)
   const g = ctx2d(s)
-  for (let by = 0; by < circuit.h; by++) {
-    for (let bx = 0; bx < circuit.w; bx++) paintFloorBlock(g, bx * TEX, by * TEX, bx, by, p)
+  const img = g.createImageData(w, h)
+  const d = img.data
+  for (let gy = 0, i = 0; gy < h; gy++) {
+    for (let gx = 0; gx < w; gx++, i += 4) {
+      const [r, gr, b, a] = rgbaOf(floorColor(gx, gy, p))
+      d[i] = r
+      d[i + 1] = gr
+      d[i + 2] = b
+      d[i + 3] = a
+    }
   }
+  g.putImageData(img, 0, 0)
   return s
 }
 

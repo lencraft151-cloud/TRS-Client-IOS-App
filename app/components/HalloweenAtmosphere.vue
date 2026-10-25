@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
       <span
         v-for="(d, i) in drips"
         :key="i"
-        :style="{ left: `${d.left}%`, width: `${d.w}px`, '--h': `${d.h}px`, '--d': `${d.d}s`, animationDelay: `${d.delay}s` }"
+        :style="{ left: `${d.left}%`, width: `${d.w}px`, '--h': `${d.h}px`, '--s': (d.h / (d.h + 6)).toFixed(3), '--d': `${d.d}s`, animationDelay: `${d.delay}s` }"
       />
     </div>
     <div class="dangle" style="left: 64%; --len: 64px"><i /><canvas ref="hanging" width="7" height="6" /></div>
@@ -311,31 +311,55 @@ onBeforeUnmount(() => {
 :root.is-mobile .drips {
   top: var(--safe-top);
 }
+/* Tropfen wachsen per transform (Faden skaliert, Tropfen wandert mit) – eine wachsende Höhe hieße Layout in jedem Bild.
+   --s = h / (h + 6): bei 70 % ist der Faden h hoch, am Ende h + 6 px wie zuvor. */
 .drips span {
   position: absolute;
   top: 0;
+  height: 0;
+}
+.drips span::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(var(--h) + 6px);
   border-radius: 0 0 3px 3px;
   background: linear-gradient(180deg, #3d070c, #7a0f18);
+  transform-origin: top;
   animation: hw-drip var(--d) ease-in infinite;
+  animation-delay: inherit;
 }
 .drips span::after {
   content: "";
   position: absolute;
-  bottom: -4px;
+  top: 0;
   left: -1px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #7a0f18;
+  animation: hw-drip-drop var(--d) ease-in infinite;
+  animation-delay: inherit;
 }
-.still .drips span {
+.still .drips span::before {
   animation: none;
-  height: calc(var(--h) * 0.5);
+  transform: scaleY(calc(var(--s) * 0.5));
+}
+.still .drips span::after {
+  animation: none;
+  transform: translateY(calc(var(--h) * 0.5 - 2px));
 }
 @keyframes hw-drip {
-  0% { height: 0; opacity: 1; }
-  70% { height: var(--h); opacity: 1; }
-  100% { height: calc(var(--h) + 6px); opacity: 0; }
+  0% { transform: scaleY(0); opacity: 1; }
+  70% { transform: scaleY(var(--s)); opacity: 1; }
+  100% { transform: scaleY(1); opacity: 0; }
+}
+@keyframes hw-drip-drop {
+  0% { transform: translateY(-2px); opacity: 1; }
+  70% { transform: translateY(calc(var(--h) - 2px)); opacity: 1; }
+  100% { transform: translateY(calc(var(--h) + 4px)); opacity: 0; }
 }
 .dangle {
   position: absolute;
@@ -344,12 +368,14 @@ onBeforeUnmount(() => {
   transform-origin: top center;
   animation: hw-dangle 5s ease-in-out infinite;
 }
+/* Faden und Spinne per transform (Faden kürzer, Spinne zieht mit) statt über die Fadenhöhe – kein Layout je Bild. */
 .dangle i {
   display: block;
   width: 1px;
   margin: 0 auto;
   height: var(--len, 60px);
   background: rgba(207, 213, 227, 0.45);
+  transform-origin: top;
   animation: hw-drop 6s ease-in-out infinite;
 }
 .dangle canvas {
@@ -357,16 +383,21 @@ onBeforeUnmount(() => {
   width: 14px;
   height: 12px;
   image-rendering: pixelated;
+  animation: hw-drop-spider 6s ease-in-out infinite;
 }
 .still .dangle,
-.still .dangle i {
+.still .dangle i,
+.still .dangle canvas {
   animation: none;
 }
 @keyframes hw-dangle {
   50% { transform: rotate(4deg); }
 }
 @keyframes hw-drop {
-  50% { height: calc(var(--len, 60px) * 0.55); }
+  50% { transform: scaleY(0.55); }
+}
+@keyframes hw-drop-spider {
+  50% { transform: translateY(calc(var(--len, 60px) * -0.45)); }
 }
 .whisper {
   position: absolute;
