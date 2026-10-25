@@ -654,7 +654,9 @@
       "invalidCodeId": "Ungültige Code-ID.",
       "redemptionsRange": "Einlösungen je Code: 1 bis 100 000.",
       "countRange": "Anzahl: 1 bis 100 Codes auf einmal.",
-      "expiryInPast": "Das Ablaufdatum liegt in der Vergangenheit."
+      "expiryInPast": "Das Ablaufdatum liegt in der Vergangenheit.",
+      "invalidCosmeticSlot": "Unbekanntes Kosmetik-Fach.",
+      "invalidCosmeticOption": "Ungültige Option für dieses Teil."
     },
     "trsEvents": {
       "invalidEvent": "Ungültiges Event."
@@ -2518,6 +2520,8 @@
       "startIntroDescription": "Beim Öffnen des Launchers läuft eine kurze 4-Sekunden-Szene. Beim ersten Start des Tages und nach Updates läuft immer einmal eine längere Fassung; ein Klick oder eine beliebige Taste überspringt sie.",
       "startIntroSoundTitle": "Ton der Start-Animation",
       "startIntroSoundDescription": "Musik und Effekte der Start-Animation. Solange das Launcher-Fenster nicht im Vordergrund ist, bleiben sie stumm.",
+      "startIntroVolumeTitle": "Lautstärke der Start-Animation",
+      "startIntroVolumeDescription": "Wie laut Musik und Effekte der Start-Animation sind. 0 % = stumm.",
       "startIntroReplay": "Jetzt abspielen",
       "startIntroFlickerTitle": "Flackern und Lichtblitze in der Start-Animation",
       "startIntroFlickerDescription": "Flackernde Fackeln, Lichtblitze und helle Pulse auf den Schlägen. Aus: dieselben Szenen und dieselbe Musik, aber ruhig – stetiges Licht und ein sanftes Aufleuchten statt eines Blitzes."
@@ -3931,7 +3935,9 @@
       "title": "„{name}“ freigeschaltet!",
       "text": "Jetzt aufsetzen? Du siehst sie im TRS Client auf deinem Kopf (3. Person), andere TRS-Spieler auch.",
       "wear": "Aufsetzen",
-      "later": "Später"
+      "later": "Später",
+      "textPet": "Jetzt hinstellen? Er läuft im TRS Client neben dir her, andere TRS-Spieler sehen ihn auch.",
+      "textOther": "Jetzt anlegen? Du siehst es im TRS Client (3. Person), andere TRS-Spieler auch."
     },
     "filter": {
       "search": "Umhänge nach Namen suchen",
@@ -4045,6 +4051,42 @@
         "idle": "Am Boden",
         "air": "In der Luft",
         "sneak": "Schleichen"
+      }
+    },
+    "pet": {
+      "title": "Begleiter am Boden",
+      "intro": "Läuft neben dir her – alle mit TRS Client sehen ihn. Die Vorschau zeigt ihn neben deiner Figur.",
+      "creatorHint": "Creator bekommen Pinguine automatisch nach Fans: ab 1 Fan einen, ab 10 zwei, ab 100 drei, ab 1000 vier.",
+      "empty": "Noch keine Begleiter am Boden.",
+      "wearing": "Neben dir: {name}",
+      "selectedWorn": "Läuft neben dir her – alle mit TRS Client sehen ihn.",
+      "toasts": {
+        "on": "„{name}“ läuft jetzt neben dir",
+        "off": "Begleiter am Boden weggeschickt"
+      },
+      "states": "Begleiter:",
+      "state": {
+        "idle": "Steht",
+        "walk": "Läuft",
+        "slide": "Rutscht",
+        "swim": "Schwimmt",
+        "air": "Springt"
+      },
+      "count": "{n} × {name} | {n} × {name}",
+      "counts": {
+        "penguin": "{n} Pinguin | {n} Pinguine"
+      },
+      "creatorTier": "{label} – Creator-Stufe"
+    },
+    "options": {
+      "title": "{name}:",
+      "on": "an",
+      "off": "aus",
+      "hintWorn": "Wird sofort gespeichert – andere sehen es im Spiel.",
+      "hintPreview": "Nur in der Vorschau – gilt beim Aufsetzen.",
+      "toasts": {
+        "on": "{option} an ({name})",
+        "off": "{option} aus ({name})"
       }
     }
   },
@@ -5751,7 +5793,8 @@
       "websiteHint": "Öffnet die Website im Browser (Anmeldung mit Microsoft).",
       "blog": "Blog",
       "creators": "Creator",
-      "featured": "Empfohlene Modpacks"
+      "featured": "Empfohlene Modpacks",
+      "previews": "Vorschau-Builds"
     },
     "search": {
       "placeholder": "Spieler, UUIDs, Meldungs-IDs, #Strafen, Umhänge suchen …",
@@ -6156,7 +6199,8 @@
       "creators_review": "Creator-Symbole und Fan-Umhänge prüfen",
       "creators_manage": "Creator verwalten",
       "featured_manage": "Empfohlene Modpacks verwalten",
-      "serverrules_bypass": "Vom Server gesperrte TRS-Client-Funktionen trotzdem nutzen (nach Nachfrage im Spiel)"
+      "serverrules_bypass": "Vom Server gesperrte TRS-Client-Funktionen trotzdem nutzen (nach Nachfrage im Spiel)",
+      "previews_access": "Vorschau-Builds: Vorschau-Builds von Launcher und TRS Client laden wie Partner-Creator"
     },
     "creators": {
       "intro": "Fan-Symbole und Fan-Umhänge prüfen, Creator verwalten und ihre Anträge beantworten. Bewerbungen laufen über die Website.",

@@ -625,7 +625,9 @@
       "invalidCodeId": "Ongeldige code-ID.",
       "redemptionsRange": "Inwisselingen per code: 1 tot 100.000.",
       "countRange": "Aantal: 1 tot 100 codes tegelijk.",
-      "expiryInPast": "De vervaldatum ligt in het verleden."
+      "expiryInPast": "De vervaldatum ligt in het verleden.",
+      "invalidCosmeticSlot": "Onbekend cosmetica-vak.",
+      "invalidCosmeticOption": "Ongeldige optie voor dit item."
     },
     "trsEvents": {
       "invalidEvent": "Ongeldig evenement."
@@ -2409,6 +2411,8 @@
       "startIntroDescription": "Bij het openen van de launcher speelt een korte scène van 4 seconden. Bij de eerste start van de dag en na een update speelt altijd één keer een langere versie; klik of druk op een toets om over te slaan.",
       "startIntroSoundTitle": "Geluid van de startanimatie",
       "startIntroSoundDescription": "Muziek en effecten van de startanimatie. Ze zijn gedempt zolang het launchervenster niet op de voorgrond staat.",
+      "startIntroVolumeTitle": "Volume van de startanimatie",
+      "startIntroVolumeDescription": "Hoe hard de muziek en effecten van de startanimatie zijn. 0% = stil.",
       "startIntroReplay": "Nu afspelen",
       "startIntroFlickerTitle": "Flikkeren en lichtflitsen in de startanimatie",
       "startIntroFlickerDescription": "Flikkerende fakkels, lichtflitsen en felle pulsen op de beat. Uit: dezelfde scènes en muziek, maar rustig – constant licht en een zachte gloed in plaats van een flits."
@@ -3806,7 +3810,9 @@
       "title": "„{name}” vrijgespeeld!",
       "text": "Nu opzetten? Je ziet het op je hoofd in de TRS Client (derde persoon), net als andere TRS-spelers.",
       "wear": "Opzetten",
-      "later": "Later"
+      "later": "Later",
+      "textPet": "Nu meenemen? Hij loopt in TRS Client naast je mee, andere TRS-spelers zien hem ook.",
+      "textOther": "Nu aandoen? Je ziet het in TRS Client (derde persoon), andere TRS-spelers ook."
     },
     "filter": {
       "search": "Capes zoeken op naam",
@@ -3901,6 +3907,42 @@
       "toasts": {
         "on": "„{name}” vliegt mee",
         "off": "Metgezel afgezet"
+      }
+    },
+    "pet": {
+      "title": "Metgezellen op de grond",
+      "intro": "Loopt naast je mee – iedereen met TRS Client ziet hem. De voorbeeldweergave toont hem naast je personage.",
+      "creatorHint": "Creators krijgen automatisch pinguïns op basis van fans: één vanaf 1 fan, twee vanaf 10, drie vanaf 100, vier vanaf 1000.",
+      "empty": "Nog geen metgezellen op de grond.",
+      "wearing": "Naast je: {name}",
+      "selectedWorn": "Loopt naast je mee – iedereen met TRS Client ziet hem.",
+      "toasts": {
+        "on": "„{name}” loopt nu naast je",
+        "off": "Metgezel op de grond weggestuurd"
+      },
+      "states": "Metgezel:",
+      "state": {
+        "idle": "Staat",
+        "walk": "Loopt",
+        "slide": "Glijdt",
+        "swim": "Zwemt",
+        "air": "Springt"
+      },
+      "count": "{n} × {name} | {n} × {name}",
+      "counts": {
+        "penguin": "{n} pinguïn | {n} pinguïns"
+      },
+      "creatorTier": "{label} – creator-niveau"
+    },
+    "options": {
+      "title": "{name}:",
+      "on": "aan",
+      "off": "uit",
+      "hintWorn": "Wordt meteen opgeslagen – anderen zien het in het spel.",
+      "hintPreview": "Alleen in de voorbeeldweergave – geldt bij het opzetten.",
+      "toasts": {
+        "on": "{option} aan ({name})",
+        "off": "{option} uit ({name})"
       }
     }
   },
@@ -5606,7 +5648,8 @@
       "website": "Op de website",
       "websiteHint": "Opent de website in je browser (inloggen met Microsoft).",
       "blog": "Blog",
-      "featured": "Uitgelichte modpacks"
+      "featured": "Uitgelichte modpacks",
+      "previews": "Testversies"
     },
     "search": {
       "placeholder": "Zoek spelers, UUID’s, meldings-ID’s, #straffen, capes …",
@@ -6009,7 +6052,8 @@
       "blog_publish": "Blogberichten publiceren, inplannen en terugtrekken",
       "events_manage": "Evenementen beheren",
       "featured_manage": "Uitgelichte modpacks beheren",
-      "serverrules_bypass": "Door de server geblokkeerde TRS Client-functies toch gebruiken (na bevestiging in het spel)"
+      "serverrules_bypass": "Door de server geblokkeerde TRS Client-functies toch gebruiken (na bevestiging in het spel)",
+      "previews_access": "Testversies: Testversies van launcher en TRS Client downloaden, net als Partner-creators"
     }
   },
   "trsChoice": {

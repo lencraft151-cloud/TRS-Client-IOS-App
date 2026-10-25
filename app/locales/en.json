@@ -654,7 +654,9 @@
       "invalidCodeId": "Invalid code ID.",
       "redemptionsRange": "Redemptions per code: 1 to 100,000.",
       "countRange": "Amount: 1 to 100 codes at once.",
-      "expiryInPast": "The expiry date is in the past."
+      "expiryInPast": "The expiry date is in the past.",
+      "invalidCosmeticSlot": "Unknown cosmetic slot.",
+      "invalidCosmeticOption": "Invalid option for this item."
     },
     "trsEvents": {
       "invalidEvent": "Invalid event."
@@ -2518,6 +2520,8 @@
       "startIntroDescription": "A short 4-second scene plays when the launcher opens. On the first start of the day and after an update a longer version always plays once; click or press any key to skip it.",
       "startIntroSoundTitle": "Start animation sound",
       "startIntroSoundDescription": "Music and sound effects of the start animation. They are muted while the launcher window is not in focus.",
+      "startIntroVolumeTitle": "Start animation volume",
+      "startIntroVolumeDescription": "How loud the music and effects of the start animation are. 0% = muted.",
       "startIntroReplay": "Play now",
       "startIntroFlickerTitle": "Flicker and flashes in the start animation",
       "startIntroFlickerDescription": "Flickering torches, flashes of light and bright pulses on the beat. When off, the same scenes and music play calmly: steady lights and a soft glow instead of a flash."
@@ -3931,7 +3935,9 @@
       "title": "“{name}” unlocked!",
       "text": "Put it on now? You will see it on your head in the TRS Client (third person), and so will other TRS players.",
       "wear": "Put on",
-      "later": "Later"
+      "later": "Later",
+      "textPet": "Bring it along now? It walks next to you in TRS Client, and other TRS players see it too.",
+      "textOther": "Put it on now? You see it in TRS Client (third person), and so do other TRS players."
     },
     "filter": {
       "search": "Search capes by name",
@@ -4045,6 +4051,42 @@
         "idle": "Standing",
         "air": "In the air",
         "sneak": "Sneaking"
+      }
+    },
+    "pet": {
+      "title": "Ground companions",
+      "intro": "Walks along next to you – everyone with TRS Client sees it. The preview shows it next to your character.",
+      "creatorHint": "Creators get penguins automatically by fans: one from 1 fan, two from 10, three from 100, four from 1000.",
+      "empty": "No ground companions yet.",
+      "wearing": "Next to you: {name}",
+      "selectedWorn": "Walks along next to you – everyone with TRS Client sees it.",
+      "toasts": {
+        "on": "“{name}” now walks next to you",
+        "off": "Ground companion sent away"
+      },
+      "states": "Companion:",
+      "state": {
+        "idle": "Stands",
+        "walk": "Walks",
+        "slide": "Slides",
+        "swim": "Swims",
+        "air": "Jumps"
+      },
+      "count": "{n} × {name} | {n} × {name}",
+      "counts": {
+        "penguin": "{n} penguin | {n} penguins"
+      },
+      "creatorTier": "{label} – creator tier"
+    },
+    "options": {
+      "title": "{name}:",
+      "on": "on",
+      "off": "off",
+      "hintWorn": "Saved right away – others see it in game.",
+      "hintPreview": "Preview only – applies when you put it on.",
+      "toasts": {
+        "on": "{option} on ({name})",
+        "off": "{option} off ({name})"
       }
     }
   },
@@ -5751,7 +5793,8 @@
       "websiteHint": "Opens the website in your browser (sign in with Microsoft).",
       "blog": "Blog",
       "creators": "Creators",
-      "featured": "Featured modpacks"
+      "featured": "Featured modpacks",
+      "previews": "Preview builds"
     },
     "search": {
       "placeholder": "Search players, UUIDs, report IDs, #sanctions, capes …",
@@ -6156,7 +6199,8 @@
       "creators_review": "Review creator symbols and fan capes",
       "creators_manage": "Manage creators",
       "featured_manage": "Manage featured modpacks",
-      "serverrules_bypass": "Use server-locked TRS Client features anyway (after an in-game prompt)"
+      "serverrules_bypass": "Use server-locked TRS Client features anyway (after an in-game prompt)",
+      "previews_access": "Preview builds: Download launcher and TRS Client preview builds like Partner creators"
     },
     "creators": {
       "intro": "Review fan symbols and fan capes, manage creators and answer their requests. Applications are handled on the website.",

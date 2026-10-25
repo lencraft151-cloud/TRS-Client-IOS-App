@@ -147,6 +147,8 @@ public final class TrsClient {
 		version = event.getModMetadata().version;
 		// Benchmark „Vanilla“ (-PtrsBenchVanilla): TRS Client bleibt ganz aus, nur der Messablauf läuft (siehe init).
 		if (BENCH_VANILLA) return;
+		// Begleiter am Boden: unsichtbarer Anker im Entity-Durchgang (zeichnet Pinguine vor dem Wasser)
+		dev.theredstonee.trsclient.online.LegacyPets.registerRenderer();
 		File file = new File(event.getModConfigurationDirectory(), "trsclient.json");
 		// Farben des Launchers (config/trsclient/launcher-theme.json) – fehlt sie, gilt das Standard-Thema.
 		dev.theredstonee.trsclient.core.ui.Theme.loadFrom(file.getParentFile().toPath());
@@ -225,6 +227,8 @@ public final class TrsClient {
 		MinecraftForge.EVENT_BUS.register(new dev.theredstonee.trsclient.online.LegacyOnline.NameTags());
 		// Creator-Programm: Fan-Symbole über dem Kopf und in der Tabliste.
 		MinecraftForge.EVENT_BUS.register(new dev.theredstonee.trsclient.online.LegacyFans());
+		// Begleiter am Boden (Pinguine): Zeichnen nach der Welt
+		MinecraftForge.EVENT_BUS.register(new dev.theredstonee.trsclient.online.LegacyPets());
 		// Kamera-Fahrten: Tasten, Hilfs-Kamera je Bild, keine Hand.
 		MinecraftForge.EVENT_BUS.register(dev.theredstonee.trsclient.cinematic.LegacyCinematic.get());
 		MinecraftForge.EVENT_BUS.register(dev.theredstonee.trsclient.perf.LegacyPerf.get());
