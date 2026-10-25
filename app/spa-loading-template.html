@@ -97,7 +97,8 @@
         ctx.fillStyle = c
         ctx.fillRect(mx + x * 2, 1 + y * 2, 2, 2)
       }
-      if (!reduced) requestAnimationFrame(paint)
+      // Nur solange der Ladebildschirm steht – danach entfernt ihn die App, die Schleife endet mit ihm.
+      if (!reduced && canvas.isConnected) requestAnimationFrame(paint)
     }
     requestAnimationFrame(paint)
   })()

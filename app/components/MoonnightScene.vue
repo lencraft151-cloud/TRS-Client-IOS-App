@@ -151,12 +151,14 @@ watch([quiet, look.flicker], sync)
   transform-origin: top center;
   animation: dangle 5s ease-in-out infinite;
 }
+/* Faden und Spinne per transform (Faden kürzer, Spinne zieht mit) statt über die Fadenhöhe – kein Layout je Bild. */
 .dangle i {
   display: block;
   width: 1px;
   margin: 0 auto;
   height: var(--len, 60px);
   background: rgba(207, 213, 227, 0.45);
+  transform-origin: top;
   animation: drop 6s ease-in-out infinite;
 }
 .dangle canvas {
@@ -164,9 +166,11 @@ watch([quiet, look.flicker], sync)
   width: 14px;
   height: 12px;
   image-rendering: pixelated;
+  animation: drop-spider 6s ease-in-out infinite;
 }
 .dangle.still,
-.dangle.still i {
+.dangle.still i,
+.dangle.still canvas {
   animation: none;
 }
 @keyframes dangle {
@@ -176,7 +180,12 @@ watch([quiet, look.flicker], sync)
 }
 @keyframes drop {
   50% {
-    height: calc(var(--len, 60px) * 0.55);
+    transform: scaleY(0.55);
+  }
+}
+@keyframes drop-spider {
+  50% {
+    transform: translateY(calc(var(--len, 60px) * -0.45));
   }
 }
 </style>
