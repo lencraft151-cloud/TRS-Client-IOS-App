@@ -4,7 +4,7 @@
 //! Engine (`trs-game://state`/`trs-game://log`) landen im Spiele-Manager des
 //! Kerns – damit gibt es `game-event`, Laufzeit, Spielzeit und Logs wie am PC.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use tauri::{AppHandle, Listener, Runtime};
 use tauri_plugin_trs_game::{GameLogEvent, GameState, GameStateEvent, JavaRunSpec, TrsGameExt};
@@ -13,12 +13,23 @@ use trs_core::forge::{ProcessorCall, ProcessorOutput, ProcessorRunner};
 use trs_core::mobile_launch::{MobileLaunch, engine_java};
 use trs_core::prepare::ProgressFn;
 
-/// Start und Übernahme in den Spiele-Manager am Stück: Ereignisse der Engine warten,
-/// bis die Sitzung eingetragen ist (sonst gingen frühe Zeilen verloren).
-static ATTACH: Mutex<()> = Mutex::new(());
+use crate::engine_events::EarlyEvents;
 
-fn attach_lock() -> std::sync::MutexGuard<'static, ()> {
-    ATTACH.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+/// Ereignis der Engine (`trs-game://log` bzw. `trs-game://state`).
+enum EngineEvent {
+    Log(GameLogEvent),
+    State(GameStateEvent),
+}
+
+/// Ereignisse vor dem Eintragen der Sitzung: gesammelt und danach nachgereicht – nie darauf warten
+/// (siehe [`crate::engine_events`]).
+static EARLY: EarlyEvents<EngineEvent> = EarlyEvents::new();
+
+fn handle_event(launcher: &Arc<Launcher>, event: EngineEvent) {
+    in_runtime(|| match event {
+        EngineEvent::Log(log) => launcher.games().engine_logs(&log.session, &log.lines),
+        EngineEvent::State(state) => apply_state(launcher, state),
+    });
 }
 
 /// Engine-Ereignisse kommen auf fremden Threads (JNI/Swift) an: Der Kern (Spielzeit, Verlauf,
@@ -124,7 +135,8 @@ pub async fn launch<R: Runtime>(
             log::error!("Startbeschreibung passt nicht zum Plugin: {e}");
             trs_core::Error::launch(trs_core::msg!("game.engineFailed", "Die Spiel-Engine konnte nicht gestartet werden."))
         })?;
-    let _attach = attach_lock();
+    // Frühe Ereignisse (iOS meldet „starting“ noch in `launch`) sammeln, bis die Sitzung eingetragen ist.
+    let starting = EARLY.begin();
     let session = engine.launch(spec).map_err(engine_error)?;
     log::info!("Spiel gestartet (Sitzung {})", session.0);
     // iOS: Das Spielende beendet die App – das ist kein Absturz des Launchers.
@@ -142,6 +154,7 @@ pub async fn launch<R: Runtime>(
         stop();
         return Err(e);
     }
+    starting.attached(|event| handle_event(launcher, event));
     Ok(0)
 }
 
@@ -149,18 +162,12 @@ pub async fn launch<R: Runtime>(
 pub fn forward_events<R: Runtime>(app: &AppHandle<R>, launcher: &Arc<Launcher>) {
     let logs = Arc::clone(launcher);
     app.listen(tauri_plugin_trs_game::EVENT_LOG, move |event| match serde_json::from_str::<GameLogEvent>(event.payload()) {
-        Ok(log) => in_runtime(|| {
-            let _attach = attach_lock();
-            logs.games().engine_logs(&log.session, &log.lines);
-        }),
+        Ok(log) => EARLY.deliver(EngineEvent::Log(log), |e| handle_event(&logs, e)),
         Err(e) => log::debug!("trs-game://log unlesbar: {e}"),
     });
     let states = Arc::clone(launcher);
     app.listen(tauri_plugin_trs_game::EVENT_STATE, move |event| match serde_json::from_str::<GameStateEvent>(event.payload()) {
-        Ok(state) => in_runtime(|| {
-            let _attach = attach_lock();
-            apply_state(&states, state);
-        }),
+        Ok(state) => EARLY.deliver(EngineEvent::State(state), |e| handle_event(&states, e)),
         Err(e) => log::debug!("trs-game://state unlesbar: {e}"),
     });
 }
