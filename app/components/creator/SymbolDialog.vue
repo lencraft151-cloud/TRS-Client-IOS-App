@@ -51,7 +51,9 @@ async function pick() {
   picking.value = true
   error.value = null
   try {
-    const sources = await backend.trs.pickCapeSources()
+    const from = await chooseImageSource()
+    if (from === null) return
+    const sources = await backend.trs.pickCapeSources(from)
     const source = sources?.[0]
     if (!source) return
     if (source.kind === 'studio') {

@@ -7,6 +7,7 @@ mod dialog_text;
 mod engine_events;
 mod error;
 mod event_icon;
+mod image_pick;
 mod mobile;
 #[cfg(mobile)]
 mod mobile_game;

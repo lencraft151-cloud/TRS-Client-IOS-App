@@ -3382,6 +3382,13 @@
     "iosStarted": "Confirm “Install” in the dialog – the app closes and updates itself.",
     "permissionRequired": "Allow “Install unknown apps” for TRS Launcher, then tap “Install” again."
   },
+  "imageSource": {
+    "title": "Choose image",
+    "photos": "Photos",
+    "photosHint": "From your photo library",
+    "files": "Files",
+    "filesHint": "From the Files app, e.g. Safari downloads"
+  },
   "play": {
     "stopGame": "Stop game",
     "cancelLaunch": "Cancel launch",

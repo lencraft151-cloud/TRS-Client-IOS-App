@@ -2,11 +2,9 @@
 //! Alle Anfragen laufen im Kern; das Webview bekommt nur gesäuberte Daten,
 //! nie den Token und nie Dateipfade. Bilder lädt es über `trschat:`.
 
-use std::path::PathBuf;
 
 use serde_json::Value;
 use tauri::{AppHandle, Manager, State};
-use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_notification::NotificationExt;
 use trs_core::trs_api::chat::{
     ChatConversation, ChatMessage, ChatReaction, ConversationPage, InviteStatus, MessagePage, OutgoingMessage, PageAt,
@@ -18,6 +16,7 @@ use trs_core::trs_api::moderation::{AuditQuery, MyModeration, MyReport, NewFilte
 
 use super::system::DropState;
 use crate::LauncherState;
+use crate::image_pick::{self, IMAGE_EXTENSIONS, ImagePick, ImageSource};
 use crate::dialog_text::{self, DialogText};
 use crate::error::CommandResult;
 
@@ -182,20 +181,14 @@ pub async fn chat_server_status(launcher: State<'_, LauncherState>, address: Str
 /// Dateidialog für Bilder (Mehrfachauswahl). Die Pfade bleiben im Kern.
 /// `None` = abgebrochen.
 #[tauri::command]
-pub async fn chat_pick_images(app: AppHandle, launcher: State<'_, LauncherState>) -> CommandResult<Option<StagedImages>> {
+pub async fn chat_pick_images(
+    app: AppHandle,
+    launcher: State<'_, LauncherState>,
+    source: Option<ImageSource>,
+) -> CommandResult<Option<StagedImages>> {
     let lang = dialog_text::language(&launcher).await;
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .file()
-            .set_title(DialogText::PickChatImages.text(lang))
-            .add_filter(DialogText::Images.text(lang), &["png", "jpg", "jpeg", "webp"])
-            .blocking_pick_files()
-    })
-    .await
-    .ok()
-    .flatten();
-    let Some(picked) = picked else { return Ok(None) };
-    let files: Vec<PathBuf> = picked.into_iter().filter_map(|p| p.into_path().ok()).collect();
+    let pick = ImagePick { title: DialogText::PickChatImages.text(lang), filter: DialogText::Images.text(lang), extensions: IMAGE_EXTENSIONS, multiple: true };
+    let Some(files) = image_pick::pick(&app, pick, source).await else { return Ok(None) };
     if files.is_empty() {
         return Ok(None);
     }

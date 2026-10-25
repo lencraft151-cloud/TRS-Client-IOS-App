@@ -3382,6 +3382,13 @@
     "iosStarted": "Bestätige „Installieren“ im Dialog – die App schließt sich und aktualisiert sich selbst.",
     "permissionRequired": "Erlaube „Unbekannte Apps installieren“ für TRS Launcher und tippe dann erneut auf „Installieren“."
   },
+  "imageSource": {
+    "title": "Bild wählen",
+    "photos": "Fotos",
+    "photosHint": "Aus deiner Mediathek",
+    "files": "Dateien",
+    "filesHint": "Aus der Dateien-App, z. B. Safari-Downloads"
+  },
   "play": {
     "stopGame": "Spiel beenden",
     "cancelLaunch": "Start abbrechen",

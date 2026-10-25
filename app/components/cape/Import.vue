@@ -160,7 +160,9 @@ async function pick() {
   picking.value = true
   error.value = null
   try {
-    const sources = await backend.trs.pickCapeSources()
+    const source = await chooseImageSource()
+    if (source === null) return
+    const sources = await backend.trs.pickCapeSources(source)
     if (sources) await use(sources)
   } catch (e) {
     error.value = errorMessage(e)
