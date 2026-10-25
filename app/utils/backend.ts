@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { savedTextSchema, textFileSchema } from './config/types'
 import { crashReportSchema } from './crashReport'
 import { backupEntrySchema, backupOverviewSchema } from './backup'
+import type { ImageSource } from './imageSource'
 import { instanceLocationSchema, movePlanSchema, pickedFolderSchema, unavailableInstancesSchema } from './relocate'
 import {
   trsAdminCapeSchema,
@@ -411,7 +412,7 @@ export const backend = {
   ) => call<Instance>('set_instance_shared_folder', { id, kind, enabled, copy, onProgress: channel(onProgress), taskId }),
   openInstanceDir: (id: string) => call<void>('open_instance_dir', { id }),
   /** Öffnet den Bilddialog; `null` = abgebrochen. */
-  pickInstanceIcon: (id: string) => call<Instance | null>('pick_instance_icon', { id }),
+  pickInstanceIcon: (id: string, source?: ImageSource) => call<Instance | null>('pick_instance_icon', { id, source }),
   removeInstanceIcon: (id: string) => call<Instance>('remove_instance_icon', { id }),
   /** Symbol-Editor: fertiges PNG (Base64) + Quelle (JSON); der Kern prüft beides noch einmal. */
   saveInstanceIcon: async (id: string, png: string, source: string | null) =>
@@ -422,11 +423,11 @@ export const backend = {
   mcTextureVersions: () => checked(z.array(z.string().max(128)).max(500), 'mc_texture_versions'),
   mcTextures: (version: string | null) => checked(mcTextureSetSchema, 'mc_textures', { version }),
   /** Eigenes Bild über den nativen Dialog (geprüft, höchstens 512 px); `null` = abgebrochen. */
-  pickIconImage: () => checked(pickedIconImageSchema.nullable(), 'pick_icon_image'),
+  pickIconImage: (source?: ImageSource) => checked(pickedIconImageSchema.nullable(), 'pick_icon_image', { source }),
   /** Pixel-Bild als PNG speichern; `false` = abgebrochen. */
   saveIconPng: (png: string, name: string) => checked(z.boolean(), 'save_icon_png', { png, name }),
   /** Öffnet den Bilddialog für das Banner; `null` = abgebrochen. */
-  pickInstanceBanner: (id: string) => call<Instance | null>('pick_instance_banner', { id }),
+  pickInstanceBanner: (id: string, source?: ImageSource) => call<Instance | null>('pick_instance_banner', { id, source }),
   /** Nimmt einen Screenshot der Instanz als Banner (Rust prüft den Dateinamen). */
   setInstanceBannerFromScreenshot: (id: string, fileName: string) =>
     call<Instance>('set_instance_banner_screenshot', { id, fileName }),
@@ -714,7 +715,7 @@ export const backend = {
   /** Offizielle Skin-Pakete von minecraft.net (leer ohne Internet und Cache). */
   skinPacks: () => call<SkinPack[]>('skin_packs'),
   /** Dateidialog (Mehrfachauswahl) → vorgemerkte Skins; `null` = abgebrochen. */
-  pickSkinFiles: () => call<SkinImportBatch | null>('pick_skin_files'),
+  pickSkinFiles: (source?: ImageSource) => call<SkinImportBatch | null>('pick_skin_files', { source }),
   /** Zuletzt ins Fenster gezogene Dateien vormerken (Marke aus dem `file-drop`-Event). */
   stageDroppedSkins: (token: number) => call<SkinImportBatch>('stage_dropped_skins', { token }),
   /** Skin von einem öffentlichen https-Link (geprüft im Kern). */
@@ -941,7 +942,7 @@ export const backend = {
     capes: () => checked(z.array(trsCapeSchema), 'trs_capes'),
     setCape: (capeId: string | null) => checked(z.string().nullable(), 'trs_set_cape', { capeId }),
     /** Dateidialog im Kern (auch mehrere Bilder = Frames); `null` = abgebrochen. */
-    pickCapeSources: () => checked(z.array(trsCapeSourceSchema).nullable(), 'trs_pick_cape_sources'),
+    pickCapeSources: (source?: ImageSource) => checked(z.array(trsCapeSourceSchema).nullable(), 'trs_pick_cape_sources', { source }),
     /** Video wählen (nur mit FFmpeg, Windows): Kennung + Dauer/Größe; `null` = abgebrochen. */
     pickCapeVideo: () => checked(trsCapeVideoSchema.nullable(), 'trs_pick_cape_video'),
     /** Bereich des Videos als Frames (Aufgabe mit Fortschritt 0–100 und Abbrechen). */
@@ -1186,7 +1187,7 @@ export const backend = {
     typing: (id: string, typing: boolean) => call<void>('chat_typing', { id, typing }),
     serverStatus: (address: string) => checked(inviteStatusSchema, 'chat_server_status', { address }),
     /** Dateidialog; `null` = abgebrochen. */
-    pickImages: () => checked(stagedImagesSchema.nullable(), 'chat_pick_images'),
+    pickImages: (source?: ImageSource) => checked(stagedImagesSchema.nullable(), 'chat_pick_images', { source }),
     stageDropped: (token: number) => checked(stagedImagesSchema, 'chat_stage_dropped', { token }),
     stagePasted: (name: string, data: string) => checked(localImageSchema, 'chat_stage_pasted', { name, data }),
     localImages: () => checked(z.array(localImageSchema), 'chat_local_images'),

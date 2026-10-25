@@ -3385,6 +3385,13 @@
     "storeStarted": "SideStore está abierto: toca «Instalar» allí. Tus datos se conservan.",
     "noStore": "Para actualizar sin Mac, instala SideStore (guía: IOS.md). Mientras tanto, actualiza como instalaste la app."
   },
+  "imageSource": {
+    "title": "Elegir imagen",
+    "photos": "Fotos",
+    "photosHint": "De tu fototeca",
+    "files": "Archivos",
+    "filesHint": "De la app Archivos, p. ej. descargas de Safari"
+  },
   "play": {
     "stopGame": "Cerrar el juego",
     "cancelLaunch": "Cancelar inicio",

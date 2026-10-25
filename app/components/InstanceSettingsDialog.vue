@@ -174,7 +174,9 @@ const iconEditorOpen = ref(false)
 async function pickIcon() {
   iconBusy.value = true
   try {
-    const updated = await backend.pickInstanceIcon(inst.value.id)
+    const source = await chooseImageSource()
+    if (source === null) return
+    const updated = await backend.pickInstanceIcon(inst.value.id, source)
     if (updated) applyMeta(updated)
   } catch (e) {
     toasts.error(e)
@@ -194,7 +196,9 @@ const bannerBusy = ref(false)
 async function pickBanner() {
   bannerBusy.value = true
   try {
-    const updated = await backend.pickInstanceBanner(inst.value.id)
+    const source = await chooseImageSource()
+    if (source === null) return
+    const updated = await backend.pickInstanceBanner(inst.value.id, source)
     if (updated) applyMeta(updated)
   } catch (e) {
     toasts.error(e)

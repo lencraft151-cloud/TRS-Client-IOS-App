@@ -1,7 +1,6 @@
 //! TRS API: Umhänge, Freunde, Präsenz, Verwaltung. Alle Anfragen laufen im
 //! Kern; das Webview bekommt nur Daten (Texturen als Data-URL), nie den Token.
 
-use std::path::PathBuf;
 
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
@@ -19,6 +18,7 @@ use trs_core::trs_api::types::{
 };
 
 use crate::LauncherState;
+use crate::image_pick::{self, ImagePick, ImageSource};
 use crate::dialog_text::{self, DialogText};
 use crate::error::CommandResult;
 
@@ -100,20 +100,16 @@ pub async fn trs_set_cape(launcher: State<'_, LauncherState>, cape_id: Option<St
 pub async fn trs_pick_cape_sources(
     app: AppHandle,
     launcher: State<'_, LauncherState>,
+    source: Option<ImageSource>,
 ) -> CommandResult<Option<Vec<CapeSource>>> {
     let lang = dialog_text::language(&launcher).await;
-    let picked = tauri::async_runtime::spawn_blocking(move || {
-        app.dialog()
-            .file()
-            .set_title(DialogText::PickCape.text(lang))
-            .add_filter(DialogText::Cape.text(lang), &["png", "jpg", "jpeg", "webp", "gif", "json"])
-            .blocking_pick_files()
-    })
-    .await
-    .ok()
-    .flatten();
-    let Some(picked) = picked else { return Ok(None) };
-    let files: Vec<PathBuf> = picked.into_iter().filter_map(|p| p.into_path().ok()).collect();
+    let pick = ImagePick {
+        title: DialogText::PickCape.text(lang),
+        filter: DialogText::Cape.text(lang),
+        extensions: &["png", "jpg", "jpeg", "webp", "gif", "json"],
+        multiple: true,
+    };
+    let Some(files) = image_pick::pick(&app, pick, source).await else { return Ok(None) };
     if files.is_empty() {
         return Ok(None);
     }

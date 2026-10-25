@@ -233,6 +233,15 @@ class TrsIosPlugin: Plugin {
     }
   }
 
+  /// Bilder aus „Fotos“ oder „Dateien“ wählen (`ImagePicker`). Antwort: `{ paths: [...] }`, `null` = abgebrochen.
+  @objc public func pickImages(_ invoke: Invoke) {
+    guard let args = try? invoke.parseArgs(PickImagesArgs.self), ["photos", "files"].contains(args.source) else {
+      invoke.reject("invalid_args", code: "invalid_args")
+      return
+    }
+    ImagePicker.shared.pick(invoke, args: args)
+  }
+
   @objc public func deviceInfo(_ invoke: Invoke) {
     let info = ProcessInfo.processInfo
     invoke.resolve([

@@ -205,6 +205,33 @@ impl<R: Runtime> TrsIos<R> {
     pub fn open_store_install(&self, ipa_url: &str) -> Result<Option<String>> {
         self.call::<StoreOpened, _>("openStoreInstall", UrlArgs { url: ipa_url }).map(|r| r.store)
     }
+
+    /// Bilder aus „Fotos“ oder „Dateien“ wählen (blockiert bis zur Auswahl). Kopien im temporären Ordner der App;
+    /// Formate außerhalb von `extensions` (HEIC …) als PNG bzw. JPEG. `None` = abgebrochen.
+    pub fn pick_images(&self, source: ImageSource, multiple: bool, extensions: &[&str]) -> Result<Option<Vec<std::path::PathBuf>>> {
+        self.call::<PickedImages, _>("pickImages", PickImagesArgs { source, multiple, extensions })
+            .map(|p| p.paths.map(|paths| paths.into_iter().map(std::path::PathBuf::from).collect()))
+    }
+}
+
+/// Woher Bilder kommen: Mediathek („Fotos“) oder Dateien-App.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImageSource {
+    Photos,
+    Files,
+}
+
+#[derive(Serialize)]
+struct PickImagesArgs<'a> {
+    source: ImageSource,
+    multiple: bool,
+    extensions: &'a [&'a str],
+}
+
+#[derive(Debug, Deserialize)]
+struct PickedImages {
+    paths: Option<Vec<String>>,
 }
 
 /// Zugriff über `app.trs_ios()`.
