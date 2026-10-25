@@ -5246,7 +5246,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-trs-ios"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "serde",
  "serde_json",
