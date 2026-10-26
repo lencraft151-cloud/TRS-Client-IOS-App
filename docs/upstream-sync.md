@@ -38,7 +38,9 @@ pnpm install --frozen-lockfile && pnpm test && pnpm typecheck
 
 Dann pushen und einen Pull Request gegen `main` öffnen (Titel „Upstream <Version> übernehmen“, im Text die
 übernommenen Commits). Merge-Methode **Merge-Commit** (nicht Squash – die einzelnen `cherry picked from`-Zeilen
-bleiben so sichtbar). Nach dem Merge den Branch `claude/ios-xcode-signierbar` auf `main` vorspulen
+bleiben so sichtbar). Bringt upstream nur Release-Abschnitte und keinen neuen Punkt unter „## Unreleased“ (direkt nach
+einem Release), verlangt die PR-Prüfung „changelog“ trotzdem einen neuen Punkt – dann bekommt der PR das Label
+`no-changelog` (die Neuerungen stehen in den Release-Abschnitten). Nach dem Merge den Branch `claude/ios-xcode-signierbar` auf `main` vorspulen
 (`git push origin origin/main:claude/ios-xcode-signierbar`).
 
 ## Konflikte

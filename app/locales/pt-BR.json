@@ -319,7 +319,15 @@
       "curseforge_unavailable": "O CurseForge não está disponível no servidor TRS agora.",
       "upstream_failed": "O Modrinth ou o CurseForge não está respondendo agora – tente mais tarde.",
       "invalid_window": "O período não é válido: o fim precisa ser depois do início.",
-      "invalid_order": "A ordem não confere – recarregue a lista."
+      "invalid_order": "A ordem não confere – recarregue a lista.",
+      "creator_no_pet": "Você ainda não tem um pet próprio – peça um para a equipe primeiro.",
+      "limit_reached": "Seu limite mensal de códigos de pet não dá para isso – escolha menos códigos ou resgates, ou espere o próximo mês.",
+      "creator_pet_unavailable": "Seu pet não está disponível agora – fale com a equipe.",
+      "creator_pet_owned": "Você já tem um pet próprio.",
+      "request_closed": "A equipe já está trabalhando neste pedido – ele não pode mais ser alterado.",
+      "code_not_found": "Este código não existe (mais).",
+      "creator_not_found": "Este criador não existe (mais).",
+      "creator_team_forbidden": "Só o criador pode fazer isso – nem no modo equipe."
     },
     "auth": {
       "accountMismatch": "Este login pertence a outra conta – entre novamente.",
@@ -973,7 +981,14 @@
       "invalidWindow": "O fim precisa ser depois do início.",
       "invalidOrder": "A ordem não confere – recarregue a lista."
     },
-    "messeBlocked": "Indisponível no PC da feira."
+    "messeBlocked": "Indisponível no PC da feira.",
+    "creatorPet": {
+      "countRange": "Quantidade: de 1 a {max} códigos de uma vez.",
+      "usesRange": "Resgates por código: de 1 a {max}.",
+      "imageTooLarge": "A imagem é grande demais (no máximo 2 MB).",
+      "invalidImage": "A imagem de referência precisa ser PNG ou JPG.",
+      "speciesLength": "Animal: de 1 a {max} caracteres."
+    }
   },
   "browse": {
     "title": "Explorar",
@@ -2367,11 +2382,13 @@
       "designDescription": "A aparência geral do launcher: cena de fundo, padrão e cores. A cor de destaque e o tema de cores continuam sendo escolha sua.",
       "designs": {
         "redstone": "Redstone",
-        "winter": "Noite de inverno"
+        "winter": "Noite de inverno",
+        "fox": "Toca da raposa"
       },
       "designHints": {
         "redstone": "Ardósia profunda e um circuito de redstone vivo",
-        "winter": "Paisagem nevada em pixels, aurora boreal, azul-gelo"
+        "winter": "Paisagem nevada em pixels, aurora boreal, azul-gelo",
+        "fox": "Floresta do Minecraft ao entardecer, fogueira, laranja-raposa"
       },
       "designLabel": "Visual {name}",
       "colorScheme": "Tema de cores",
@@ -2387,7 +2404,8 @@
         "emerald": "Esmeralda",
         "lapis": "Lápis-lazúli",
         "amethyst": "Ametista",
-        "ice": "Gelo"
+        "ice": "Gelo",
+        "fox": "Raposa"
       },
       "accentTitle": "Cor de destaque",
       "accentDescription": "Cor dos botões, itens ativos e luzes do fundo.",
@@ -2395,7 +2413,7 @@
       "advancedRenderingTitle": "Renderização avançada",
       "advancedRenderingDescription": "Efeitos de desfoque atrás de diálogos e barras. Desativar economiza um pouco de desempenho em PCs mais lentos.",
       "animatedBackgroundTitle": "Fundo animado",
-      "animatedBackgroundDescription": "Uma cena animada e tranquila atrás de cada página – um circuito de redstone ou uma paisagem de inverno, dependendo do visual. Quando desativado, só o padrão de fundo é exibido.",
+      "animatedBackgroundDescription": "Uma cena animada e tranquila atrás de cada página – um circuito de redstone, uma paisagem de inverno ou uma floresta ao entardecer, dependendo do visual. Quando desativado, só o padrão de fundo é exibido.",
       "eventIconsTitle": "Ícones de eventos",
       "eventIconsDescription": "Durante eventos como o Halloween, o ícone do app também muda – janela, barra de tarefas, atalhos da área de trabalho e do menu Iniciar e a tela inicial do celular. Quando o evento termina, o ícone normal volta sozinho.",
       "eventLookTitle": "Mostrar o visual do evento (ex.: Halloween)",
@@ -3912,7 +3930,7 @@
     "pet": {
       "title": "Companheiros no chão",
       "intro": "Anda ao seu lado – todos com o TRS Client o veem. A prévia o mostra ao lado do seu personagem.",
-      "creatorHint": "Criadores ganham pinguins automaticamente pelos fãs: um a partir de 1 fã, dois a partir de 10, três a partir de 100, quatro a partir de 1000.",
+      "creatorHint": "Pet de criador: os fãs ganham com os códigos do criador, e o próprio criador anda com mais conforme os fãs (dois a partir de 10, três a partir de 100, quatro a partir de 1000).",
       "empty": "Ainda não há companheiros no chão.",
       "wearing": "Ao seu lado: {name}",
       "selectedWorn": "Anda ao seu lado – todos com o TRS Client o veem.",
@@ -3926,7 +3944,11 @@
         "walk": "Anda",
         "slide": "Desliza",
         "swim": "Nada",
-        "air": "Pula"
+        "air": "Pula",
+        "sneak": "Esgueira-se",
+        "grab": "Pega o butim",
+        "flee": "Foge",
+        "handsup": "Mãos ao alto"
       },
       "count": "{n} × {name} | {n} × {name}",
       "counts": {
@@ -5649,7 +5671,9 @@
       "websiteHint": "Abre o site no seu navegador (login com a Microsoft).",
       "blog": "Blog",
       "featured": "Modpacks em destaque",
-      "previews": "Versões de teste"
+      "previews": "Versões de teste",
+      "creatorPets": "Pets de criadores",
+      "creatorStats": "Estatísticas de criadores"
     },
     "search": {
       "placeholder": "Buscar jogadores, UUIDs, IDs de denúncia, #punições, capas …",
@@ -6054,6 +6078,101 @@
       "featured_manage": "Gerenciar modpacks em destaque",
       "serverrules_bypass": "Usar mesmo assim recursos do TRS Client bloqueados pelo servidor (após confirmação no jogo)",
       "previews_access": "Versões de teste: Baixar versões de teste do launcher e do TRS Client como os criadores Partner"
+    },
+    "creators": {
+      "pets": {
+        "title": "Pets de criadores",
+        "text": "Cuidar dos pedidos de pet e atribuir um cosmético de pet a um criador – no site.",
+        "open": "Abrir o site"
+      }
+    },
+    "creatorStats": {
+      "title": "Estatísticas de criadores",
+      "intro": "Todos os criadores lado a lado – só números, nunca nomes de fãs. Clique numa linha para ver o histórico.",
+      "search": "Buscar nome, UUID ou código",
+      "tier": "Nível",
+      "allTiers": "Todos os níveis",
+      "totals": {
+        "creators": "Criadores",
+        "fans": "Fãs no total",
+        "fans7d": "Novos fãs (7 dias)",
+        "newPlayers30d": "Novos jogadores (30 dias)",
+        "petRedemptions": "Resgates de pet",
+        "online7d": "Fãs online (7 dias)"
+      },
+      "groups": {
+        "fans": "Fãs",
+        "newPlayers": "Novos jogadores",
+        "pets": "Códigos de pet",
+        "activity": "Fãs ativos"
+      },
+      "columns": {
+        "name": "Criador",
+        "fans": "Total",
+        "fansToday": "Hoje",
+        "fans7d": "7 d",
+        "fans30d": "30 d",
+        "newPlayers": "Total",
+        "newPlayers7d": "7 d",
+        "newPlayers30d": "30 d",
+        "petCodes": "Códigos",
+        "petRedemptions": "Resgatados",
+        "online7d": "Online 7 d",
+        "online30d": "Online 30 d",
+        "played7d": "Jogaram 7 d",
+        "played30d": "Jogaram 30 d",
+        "petMonth": "Este mês"
+      },
+      "sortBy": "Ordenar por {column}",
+      "empty": "Nenhum criador para estes filtros.",
+      "error": "Não foi possível carregar as estatísticas.",
+      "generated": "Atualizado: {time}",
+      "definitions": "Como contamos",
+      "defFans": "Novos fãs: apoios iniciados naquele dia (UTC). Fãs no total: apoiadores atuais.",
+      "defNewPlayers": "Novos jogadores: fãs cuja conta TRS foi criada no máximo {hours} horas antes do primeiro resgate de um código deste criador.",
+      "defActivity": "Online: TRS Launcher aberto ou jogo rodando; Jogaram: dentro do jogo. Contam os fãs atuais com atividade nos últimos 7 ou 30 dias.",
+      "activitySince": "A atividade por dia é registrada desde {date} – dias anteriores ficam vazios.",
+      "activityNever": "A atividade por dia ainda não é registrada.",
+      "noPet": "Ainda sem pet próprio.",
+      "detail": {
+        "title": "Histórico do criador",
+        "back": "Voltar ao ranking",
+        "open": "Estatísticas",
+        "range": "Período",
+        "days": "{n} dias",
+        "pet": "Pet: {name}",
+        "tiles": {
+          "fans": "Fãs",
+          "fansNew": "Novos: {today} hoje · {d7} em 7 d · {d30} em 30 d",
+          "newPlayers": "Novos jogadores",
+          "recent": "{d7} em 7 d · {d30} em 30 d",
+          "online": "Fãs online (7 dias)",
+          "activity": "{online30} online em 30 d · jogaram: {played7} em 7 d, {played30} em 30 d",
+          "petRedemptions": "Resgates de pet",
+          "petCodes": "{codes} códigos, {active} utilizáveis"
+        },
+        "petMonth": "Limite mensal de códigos de pet",
+        "petMonthText": "{used} de {limit} distribuídos · {redemptions} resgatados",
+        "cape": "Capa de fã entre os fãs atuais",
+        "capeText": "{fanHolders} de {fans} fãs atuais têm ela · {holders} donos no total (incluindo ex-fãs).",
+        "charts": {
+          "fans": "Novos fãs por dia",
+          "players": "Novos jogadores por dia",
+          "active": "Fãs ativos por dia (online)",
+          "playing": "Fãs no jogo por dia",
+          "redemptions": "Resgates de códigos por dia",
+          "pet": "Resgates de pet por dia"
+        },
+        "chartSummary": "{label}: {days} dias, total {total}, pico {peak}. Use as setas para ver dias individuais.",
+        "total": "Total {n}",
+        "peak": "Pico {n}",
+        "notRecorded": "não registrado",
+        "noActivityYet": "Ainda não registrado",
+        "showTable": "Mostrar como tabela",
+        "hideTable": "Ocultar tabela",
+        "day": "Dia",
+        "value": "Valor"
+      }
     }
   },
   "trsChoice": {
@@ -7216,6 +7335,192 @@
       "resetHint": "Volta à página inicial com todas as janelas fechadas.",
       "changePin": "Alterar PIN",
       "quit": "Sair do launcher"
+    }
+  },
+  "creator": {
+    "dashboard": {
+      "tabs": {
+        "pet": "Pet"
+      }
+    },
+    "pet": {
+      "copiedAll": "Todos os códigos copiados.",
+      "yourPet": "Seu pet de criador",
+      "theirPet": "Pet de criador",
+      "intro": "Ele é só seu. Os fãs ganham ele com os códigos que você cria aqui – eles resgatam como qualquer código de cosmético (Skins → Resgatar código).",
+      "escort": {
+        "title": "Comitiva",
+        "intro": "A equipe atribuiu mais um companheiro a você – ele acompanha o seu bichinho. | A equipe atribuiu mais {n} companheiros a você – eles acompanham o seu bichinho.",
+        "show": "Mostrar comitiva",
+        "shown": "Sua comitiva está visível de novo.",
+        "hidden": "Sua comitiva está oculta.",
+        "visibleHint": "Os outros veem a sua comitiva ao seu lado no jogo enquanto você a mostrar.",
+        "hiddenHint": "Sua comitiva está invisível para os outros. Seu bichinho normal continua."
+      },
+      "limit": {
+        "title": "Limite mensal {month}",
+        "titleNoMonth": "Limite mensal",
+        "used": "{used} / {max} resgates",
+        "left": "Restam {n} neste mês",
+        "full": "Limite deste mês atingido",
+        "resets": "renova em {date}"
+      },
+      "created": {
+        "title": "{n} código novo – copie agora | {n} códigos novos – copie agora",
+        "once": "Esses códigos só aparecem uma vez. Depois de ocultar ou sair da página, você só verá o final de cada código.",
+        "uses": "{n}×"
+      },
+      "codes": {
+        "title": "Códigos do pet",
+        "new": "Criar códigos",
+        "empty": "Ainda não há códigos – crie alguns para um sorteio ou sua live.",
+        "note": "Nota",
+        "state": {
+          "active": "ativo",
+          "revoked": "revogado",
+          "usedUp": "esgotado",
+          "expired": "expirado"
+        },
+        "revoke": "Revogar",
+        "revoked": "Código revogado – não pode mais ser resgatado.",
+        "footer": "Até {count} códigos de uma vez, cada um com até {uses} resgates. A soma de todos os resgates conta para o seu limite mensal."
+      },
+      "none": {
+        "title": "Ainda sem pet próprio",
+        "text": "Peça um pet só seu: a equipe cria ele para você e atribui a você. Depois você cria aqui códigos para os seus fãs.",
+        "helperTitle": "Ainda sem pet",
+        "helperText": "Este criador ainda não tem um pet próprio. Só o próprio criador pode pedir um."
+      },
+      "request": {
+        "yours": "Seu pedido",
+        "status": {
+          "open": "Aberto",
+          "in_progress": "Em andamento",
+          "done": "Pronto",
+          "rejected": "Recusado"
+        },
+        "statusText": {
+          "open": "A equipe recebeu seu pedido e vai olhar em breve.",
+          "in_progress": "A equipe está criando o seu pet agora.",
+          "done": "Seu pedido está pronto. Assim que o pet for atribuído a você, ele aparece aqui.",
+          "rejected": "A equipe recusou seu pedido. Você pode enviar um novo."
+        },
+        "answer": "Equipe:",
+        "sentAt": "Enviado em {date}",
+        "again": "Enviar um novo pedido",
+        "title": "Pedir seu próprio pet",
+        "hint": "Descreva o animal, a aparência e as cores. Uma imagem de referência ajuda (PNG ou JPG, até 2 MB). Um pet por criador.",
+        "textLabel": "Descrição",
+        "placeholder": "ex.: pequeno, com cachecol azul, balança o rabo ao andar …",
+        "imageLabel": "Imagem de referência (opcional)",
+        "pickImage": "Escolher imagem …",
+        "removeImage": "Remover",
+        "imageTooLarge": "A imagem é grande demais (no máximo 2 MB).",
+        "imageType": "Escolha uma imagem PNG ou JPG.",
+        "textInvalid": "Descreva o seu pet (de 1 a {max} caracteres).",
+        "sending": "Enviando …",
+        "send": "Enviar pedido",
+        "sent": "Pedido enviado – a equipe vai responder.",
+        "speciesLabel": "Animal",
+        "speciesPlaceholder": "ex.: raposa",
+        "colorsLabel": "Cores (opcional)",
+        "colorsPlaceholder": "ex.: laranja, branco, azul-escuro",
+        "colorsShown": "Cores: {colors}",
+        "speciesInvalid": "Informe o animal (de 1 a {max} caracteres).",
+        "colorsInvalid": "Cores: no máximo {max} caracteres.",
+        "imageAttached": "Imagem de referência anexada",
+        "addImage": "Anexar imagem",
+        "replaceImage": "Trocar imagem",
+        "imageAdded": "Imagem anexada ao seu pedido.",
+        "withdraw": "Retirar",
+        "withdrawTitle": "Retirar o pedido?",
+        "withdrawText": "Seu pedido e a imagem serão apagados. Você pode enviar um novo quando quiser.",
+        "withdrawn": "Pedido retirado."
+      },
+      "create": {
+        "title": "Criar códigos do pet",
+        "count": "Quantidade de códigos (1–{max})",
+        "uses": "Resgates por código (1–{max})",
+        "note": "Nota (opcional)",
+        "notePlaceholder": "ex.: sorteio na live de sexta",
+        "cost": "Conta para o seu limite: {cost} de {left} disponíveis",
+        "fit": "Com esse número cabem no máximo {n} códigos.",
+        "once": "Você só verá os códigos completos uma vez, logo depois de criar.",
+        "countInvalid": "Quantidade de códigos: de 1 a {max}.",
+        "usesInvalid": "Resgates por código: de 1 a {max}.",
+        "noteInvalid": "Nota: no máximo {max} caracteres.",
+        "overLimit": "Seriam {cost} resgates, mas neste mês só restam {left}.",
+        "done": "{n} código criado | {n} códigos criados"
+      },
+      "revoke": {
+        "title": "Revogar o código?",
+        "text": "{code} não poderá mais ser resgatado. Fãs que já resgataram continuam com o pet."
+      },
+      "unavailable": "Seu pet não está disponível agora, então não dá para criar códigos novos. Os códigos já distribuídos voltam a funcionar quando ele voltar."
+    },
+    "toast": {
+      "answer": "Equipe: {reason}",
+      "updated": {
+        "pet_assigned": {
+          "title": "Seu pet chegou!",
+          "body": "Crie códigos para os seus fãs na aba \"Pet\"."
+        },
+        "pet_removed": {
+          "title": "Seu pet de criador foi removido",
+          "body": "Em caso de dúvidas, fale com a equipe."
+        },
+        "pet_request_answered": {
+          "title": "Seu pedido de pet foi respondido",
+          "body": "Detalhes na aba \"Pet\"."
+        },
+        "team_changed": {
+          "title": "Alterado pela equipe",
+          "body": "{action} – veja \"Alterado pela equipe\" no seu painel."
+        }
+      }
+    },
+    "stats": {
+      "capeShare": "{n} % dos seus fãs atuais têm ela ({held} de {fans})"
+    },
+    "teamMode": {
+      "option": "Equipe: {name}",
+      "pick": "Escolher criador (equipe)",
+      "pickTitle": "Abrir o painel de um criador (equipe)",
+      "pickText": "Com \"Gerenciar criadores\" você pode abrir qualquer painel de criador com todos os direitos. Cada alteração é registrada e mostrada ao criador.",
+      "search": "Buscar nome ou código",
+      "fans": "{n} fãs",
+      "noResults": "Nenhum criador ativo encontrado.",
+      "bannerTitle": "Modo equipe – alterações são registradas",
+      "bannerText": "Você está vendo o painel de {name} com todos os direitos. Cada alteração vai para o registro da equipe e {name} a vê em \"Alterado pela equipe\".",
+      "changesTitle": "Alterado pela equipe",
+      "changesHint": "A equipe pode abrir seu painel para ajudar com problemas e mudar coisas por você. Cada alteração é registrada.",
+      "all": "Mostrar todas ({n})",
+      "less": "Mostrar menos",
+      "noInvite": "Só o criador pode convidar ajudantes – no modo equipe você pode mudar direitos ou remover ajudantes.",
+      "openDashboard": "Abrir painel (equipe)",
+      "openDashboardHint": "Abre o painel do criador no modo equipe com todos os direitos – cada alteração é registrada.",
+      "actions": {
+        "code_create": "Código criado",
+        "code_update": "Código alterado",
+        "symbol_upload": "Símbolo de fã enviado",
+        "symbol_withdraw": "Símbolo de fã retirado",
+        "cape_upload": "Capa de fã enviada",
+        "cape_withdraw": "Capa de fã retirada",
+        "pack_list": "Pack listado",
+        "pack_unlist": "Pack removido da lista",
+        "request_create": "Pedido enviado",
+        "profile_submit": "Perfil enviado",
+        "profile_withdraw": "Alteração de perfil retirada",
+        "helper_update": "Direitos de ajudante alterados",
+        "helper_remove": "Ajudante removido",
+        "pet_code_create": "Códigos de pet criados",
+        "pet_code_revoke": "Código de pet revogado",
+        "pet_request_create": "Pet solicitado",
+        "pet_request_withdraw": "Pedido de pet retirado",
+        "pet_request_image": "Imagem de referência enviada",
+        "pet_request_image_delete": "Imagem de referência removida",
+        "other": "Painel alterado"
+      }
     }
   }
 }

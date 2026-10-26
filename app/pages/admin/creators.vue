@@ -8,11 +8,13 @@ import {
   type CreatorQueueItem,
   type CreatorTier,
 } from '~/utils/creator'
+import { CREATOR_PETS_ADMIN_URL } from '~/utils/teamAccess'
 
 // Creator verwalten (API §35.6): Prüfung neuer Fan-Symbole und Fan-Umhänge
 // (`creators.review`), Creator-Liste mit Stufe, Haupt-Code, Entziehen/Sperren/
 // Wiederherstellen und Hinzufügen sowie Anträge (Aufstieg, Team-Umhang) –
-// beides `creators.manage`. Bewerbungen laufen über die Website.
+// beides `creators.manage`. Bewerbungen und Creator-Haustiere (Anträge,
+// Zuordnung) laufen über die Website.
 const team = useTeam()
 const toasts = useToasts()
 
@@ -228,6 +230,11 @@ async function answer() {
   }
 }
 
+/** Dashboard des Creators im Team-Modus öffnen (alle Rechte, jede Änderung wird protokolliert). */
+function openDashboard(c: AdminCreator) {
+  void navigateTo({ path: '/creator', query: { view: c.uuid, team: '1', name: c.name } })
+}
+
 function openUrl(url: string) {
   void backend.openExternalUrl(url).catch((e) => toasts.error(e))
 }
@@ -248,6 +255,16 @@ const stateClass = { active: 'bg-ok/15 text-ok', revoked: 'bg-base-800 text-base
 <template>
   <section class="space-y-4" :aria-label="t('team.nav.creators')" data-testid="admin-creators">
     <p class="text-xs text-base-400">{{ t('team.creators.intro') }}</p>
+    <div v-if="team.can('creators.manage')" class="card flex flex-wrap items-center gap-3 px-4 py-3" data-testid="admin-creator-pets-link">
+      <SocialIcon name="star" class="size-5 shrink-0 text-lamp-300" />
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium text-base-50">{{ t('team.creators.pets.title') }}</p>
+        <p class="text-xs text-base-400">{{ t('team.creators.pets.text') }}</p>
+      </div>
+      <button class="btn btn-ghost px-3 py-1.5 text-xs" @click="openUrl(CREATOR_PETS_ADMIN_URL)">
+        {{ t('team.creators.pets.open') }} <SocialIcon name="external" class="size-3.5" />
+      </button>
+    </div>
     <div class="flex gap-1" role="tablist">
       <button v-for="k in tabs" :key="k" class="tab" :class="{ 'tab-on': tab === k }" role="tab" :aria-selected="tab === k" @click="tab = k">
         {{ t(`team.creators.tabs.${k}`) }}
@@ -351,6 +368,10 @@ const stateClass = { active: 'bg-ok/15 text-ok', revoked: 'bg-base-800 text-base
               <td class="py-2"><span class="badge" :class="stateClass[c.state]">{{ t(`team.creators.roster.states.${c.state}`) }}</span></td>
               <td class="py-2 pr-4 text-right whitespace-nowrap">
                 <template v-if="c.state === 'active'">
+                  <button class="btn btn-ghost px-3 py-1 text-xs" :data-testid="`creator-open-dashboard-${c.uuid}`" :title="t('creator.teamMode.openDashboardHint')" @click="openDashboard(c)">
+                    {{ t('creator.teamMode.openDashboard') }}
+                  </button>
+                  <NuxtLink :to="`/admin/creator-stats/${c.uuid}`" class="btn btn-ghost px-3 py-1 text-xs">{{ t('team.creatorStats.detail.open') }}</NuxtLink>
                   <button class="btn btn-ghost px-3 py-1 text-xs" :disabled="busy === c.uuid" @click="startRevoke(c, false)">{{ t('team.creators.roster.revoke') }}</button>
                   <button class="btn btn-danger ml-1 px-3 py-1 text-xs" :disabled="busy === c.uuid" @click="startRevoke(c, true)">{{ t('team.creators.roster.ban') }}</button>
                 </template>

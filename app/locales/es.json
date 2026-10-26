@@ -344,7 +344,15 @@
       "curseforge_unavailable": "CurseForge no está disponible en el servidor de TRS ahora mismo.",
       "upstream_failed": "Modrinth o CurseForge no responde ahora mismo; inténtalo más tarde.",
       "invalid_window": "El periodo no es válido: el final debe ser posterior al inicio.",
-      "invalid_order": "El orden no coincide: vuelve a cargar la lista."
+      "invalid_order": "El orden no coincide: vuelve a cargar la lista.",
+      "creator_no_pet": "Todavía no tienes mascota propia: primero pídele una al equipo.",
+      "limit_reached": "Tu límite mensual de códigos de mascota no alcanza para eso: elige menos códigos o canjes, o espera al mes que viene.",
+      "creator_pet_unavailable": "Tu mascota no está disponible ahora mismo: pregunta al equipo.",
+      "creator_pet_owned": "Ya tienes una mascota propia.",
+      "request_closed": "El equipo ya está trabajando en esta solicitud: ya no se puede cambiar.",
+      "code_not_found": "Este código no existe (o ya no existe).",
+      "creator_not_found": "Este creador no existe (ya).",
+      "creator_team_forbidden": "Solo el creador puede hacer esto, ni siquiera en modo equipo."
     },
     "auth": {
       "accountMismatch": "El inicio de sesión pertenece a otra cuenta: vuelve a iniciar sesión.",
@@ -1026,6 +1034,13 @@
       "noPlace": "No se encontró ningún lugar para las copias.",
       "downloadFailed": "No se pudo descargar la copia de iCloud.",
       "gameRunning": "Minecraft está en marcha – ciérralo primero y luego restaura."
+    },
+    "creatorPet": {
+      "countRange": "Cantidad: de 1 a {max} códigos a la vez.",
+      "usesRange": "Canjes por código: de 1 a {max}.",
+      "imageTooLarge": "La imagen es demasiado grande (máximo 2 MB).",
+      "invalidImage": "La imagen de referencia debe ser PNG o JPG.",
+      "speciesLength": "Animal: de 1 a {max} caracteres."
     }
   },
   "browse": {
@@ -2474,11 +2489,13 @@
       "designDescription": "El aspecto general del launcher: escena de fondo, patrón y colores. El color de acento y el tema de color siguen siendo tu elección.",
       "designs": {
         "redstone": "Redstone",
-        "winter": "Noche de invierno"
+        "winter": "Noche de invierno",
+        "fox": "Madriguera"
       },
       "designHints": {
         "redstone": "Pizarra profunda y un circuito de redstone vivo",
-        "winter": "Paisaje nevado en píxeles, auroras boreales, azul hielo"
+        "winter": "Paisaje nevado en píxeles, auroras boreales, azul hielo",
+        "fox": "Bosque de Minecraft al atardecer, fogata, naranja zorro"
       },
       "designLabel": "Diseño {name}",
       "colorScheme": "Tema de color",
@@ -2494,7 +2511,8 @@
         "emerald": "Esmeralda",
         "lapis": "Lapislázuli",
         "amethyst": "Amatista",
-        "ice": "Hielo"
+        "ice": "Hielo",
+        "fox": "Zorro"
       },
       "accentTitle": "Color de acento",
       "accentDescription": "Color de los botones, los elementos activos y las luces del fondo.",
@@ -2502,7 +2520,7 @@
       "advancedRenderingTitle": "Renderizado avanzado",
       "advancedRenderingDescription": "Efectos de desenfoque detrás de diálogos y barras. Desactivarlo ahorra algo de rendimiento en equipos modestos.",
       "animatedBackgroundTitle": "Fondo animado",
-      "animatedBackgroundDescription": "Una escena animada y tranquila detrás de todas las páginas: un circuito de redstone o un paisaje invernal, según el diseño. Desactivado, solo se ve el patrón de fondo.",
+      "animatedBackgroundDescription": "Una escena animada y tranquila detrás de todas las páginas: un circuito de redstone, un paisaje invernal o un bosque al atardecer, según el diseño. Desactivado, solo se ve el patrón de fondo.",
       "eventIconsTitle": "Iconos de eventos",
       "eventIconsDescription": "Durante eventos como Halloween también cambia el icono de la app: ventana, barra de tareas, accesos directos del escritorio y del menú Inicio, y la pantalla de inicio del móvil. Al terminar el evento vuelve solo el icono normal.",
       "eventLookTitle": "Mostrar el diseño del evento (p. ej. Halloween)",
@@ -4072,7 +4090,7 @@
     "pet": {
       "title": "Compañeros en el suelo",
       "intro": "Camina a tu lado: todos con TRS Client lo ven. La vista previa lo muestra junto a tu personaje.",
-      "creatorHint": "Los creadores reciben pingüinos automáticamente según sus fans: uno desde 1 fan, dos desde 10, tres desde 100, cuatro desde 1000.",
+      "creatorHint": "Mascota de creador: los fans la consiguen con los códigos del creador, y el creador lleva más según sus fans (dos desde 10, tres desde 100, cuatro desde 1000).",
       "empty": "Aún no hay compañeros en el suelo.",
       "wearing": "A tu lado: {name}",
       "selectedWorn": "Camina a tu lado: todos con TRS Client lo ven.",
@@ -4086,7 +4104,11 @@
         "walk": "Camina",
         "slide": "Se desliza",
         "swim": "Nada",
-        "air": "Salta"
+        "air": "Salta",
+        "sneak": "Se acerca sigiloso",
+        "grab": "Agarra el botín",
+        "flee": "Huye",
+        "handsup": "Manos arriba"
       },
       "count": "{n} × {name} | {n} × {name}",
       "counts": {
@@ -5810,7 +5832,9 @@
       "blog": "Blog",
       "creators": "Creadores",
       "featured": "Modpacks destacados",
-      "previews": "Versiones de prueba"
+      "previews": "Versiones de prueba",
+      "creatorPets": "Mascotas de creadores",
+      "creatorStats": "Estadísticas de creadores"
     },
     "search": {
       "placeholder": "Buscar jugadores, UUID, ID de reportes, #sanciones, capas …",
@@ -6294,6 +6318,99 @@
         "declineTitle": "Rechazar solicitud",
         "reason": "Respuesta al creador (opcional)",
         "upgradeHint": "Aceptar sube al creador un nivel."
+      },
+      "pets": {
+        "title": "Mascotas de creadores",
+        "text": "Gestionar solicitudes de mascotas y asignar un cosmético de mascota a un creador, en la web.",
+        "open": "Abrir la web"
+      }
+    },
+    "creatorStats": {
+      "title": "Estadísticas de creadores",
+      "intro": "Todos los creadores comparados: solo números, nunca nombres de fans. Haz clic en una fila para ver la evolución.",
+      "search": "Buscar nombre, UUID o código",
+      "tier": "Nivel",
+      "allTiers": "Todos los niveles",
+      "totals": {
+        "creators": "Creadores",
+        "fans": "Fans en total",
+        "fans7d": "Fans nuevos (7 días)",
+        "newPlayers30d": "Jugadores nuevos (30 días)",
+        "petRedemptions": "Canjes de mascota",
+        "online7d": "Fans en línea (7 días)"
+      },
+      "groups": {
+        "fans": "Fans",
+        "newPlayers": "Jugadores nuevos",
+        "pets": "Códigos de mascota",
+        "activity": "Fans activos"
+      },
+      "columns": {
+        "name": "Creador",
+        "fans": "Total",
+        "fansToday": "Hoy",
+        "fans7d": "7 d",
+        "fans30d": "30 d",
+        "newPlayers": "Total",
+        "newPlayers7d": "7 d",
+        "newPlayers30d": "30 d",
+        "petCodes": "Códigos",
+        "petRedemptions": "Canjeados",
+        "online7d": "En línea 7 d",
+        "online30d": "En línea 30 d",
+        "played7d": "Jugado 7 d",
+        "played30d": "Jugado 30 d",
+        "petMonth": "Este mes"
+      },
+      "sortBy": "Ordenar por {column}",
+      "empty": "Ningún creador coincide con estos filtros.",
+      "error": "No se pudieron cargar las estadísticas.",
+      "generated": "Actualizado: {time}",
+      "definitions": "Cómo contamos",
+      "defFans": "Fans nuevos: apoyos iniciados ese día (UTC). Fans en total: seguidores actuales.",
+      "defNewPlayers": "Jugadores nuevos: fans cuya cuenta TRS se creó como máximo {hours} horas antes de canjear por primera vez un código de este creador.",
+      "defActivity": "En línea: TRS Launcher abierto o juego en marcha; Jugado: dentro del juego. Se cuentan los fans actuales con actividad en los últimos 7 o 30 días.",
+      "activitySince": "La actividad por día se registra desde el {date}; los días anteriores quedan vacíos.",
+      "activityNever": "La actividad por día aún no se registra.",
+      "noPet": "Todavía sin mascota propia.",
+      "detail": {
+        "title": "Evolución del creador",
+        "back": "Volver a la clasificación",
+        "open": "Estadísticas",
+        "range": "Periodo",
+        "days": "{n} días",
+        "pet": "Mascota: {name}",
+        "tiles": {
+          "fans": "Fans",
+          "fansNew": "Nuevos: {today} hoy · {d7} en 7 d · {d30} en 30 d",
+          "newPlayers": "Jugadores nuevos",
+          "recent": "{d7} en 7 d · {d30} en 30 d",
+          "online": "Fans en línea (7 días)",
+          "activity": "{online30} en línea en 30 d · jugado: {played7} en 7 d, {played30} en 30 d",
+          "petRedemptions": "Canjes de mascota",
+          "petCodes": "{codes} códigos, {active} utilizables"
+        },
+        "petMonth": "Límite mensual de códigos de mascota",
+        "petMonthText": "{used} de {limit} repartidos · {redemptions} canjeados",
+        "cape": "Capa de fan entre los fans actuales",
+        "capeText": "{fanHolders} de {fans} fans actuales la tienen · {holders} propietarios en total (incluidos antiguos fans).",
+        "charts": {
+          "fans": "Fans nuevos por día",
+          "players": "Jugadores nuevos por día",
+          "active": "Fans activos por día (en línea)",
+          "playing": "Fans jugando por día",
+          "redemptions": "Canjes de códigos por día",
+          "pet": "Canjes de mascota por día"
+        },
+        "chartSummary": "{label}: {days} días, total {total}, máximo {peak}. Usa las flechas para ver días sueltos.",
+        "total": "Total {n}",
+        "peak": "Máximo {n}",
+        "notRecorded": "sin registrar",
+        "noActivityYet": "Aún sin registrar",
+        "showTable": "Ver como tabla",
+        "hideTable": "Ocultar tabla",
+        "day": "Día",
+        "value": "Valor"
       }
     }
   },
@@ -7565,14 +7682,15 @@
         "previews": "Versiones de prueba",
         "packs": "Packs",
         "helpers": "Ayudantes",
-        "tier": "Nivel y ventajas"
+        "tier": "Nivel y ventajas",
+        "pet": "Mascota"
       }
     },
     "stats": {
       "activeFans": "Fans activos",
       "redemptions": "Canjes de códigos en total",
       "capeHolders": "Capas de fan entregadas",
-      "capeShare": "El {n} % de tus fans la lleva",
+      "capeShare": "El {n} % de tus fans actuales la tiene ({held} de {fans})",
       "fromPartner": "desde Partner",
       "newPlayers": "Nuevos jugadores del launcher con tu código",
       "newPlayersHint": "iniciaron TRS por primera vez con tu código",
@@ -7842,7 +7960,179 @@
         "helper_left": {
           "title": "{name} ha dejado de ayudar",
           "body": "Puedes invitar a un nuevo ayudante."
+        },
+        "pet_assigned": {
+          "title": "¡Tu mascota está lista!",
+          "body": "Crea códigos para tus fans en la pestaña «Mascota»."
+        },
+        "pet_removed": {
+          "title": "Se quitó tu mascota de creador",
+          "body": "Si tienes dudas, pregunta al equipo."
+        },
+        "pet_request_answered": {
+          "title": "Respondieron tu solicitud de mascota",
+          "body": "Detalles en la pestaña «Mascota»."
+        },
+        "team_changed": {
+          "title": "Cambiado por el equipo",
+          "body": "{action}: más detalles en «Cambiado por el equipo» de tu panel."
         }
+      },
+      "answer": "Equipo: {reason}"
+    },
+    "pet": {
+      "copiedAll": "Todos los códigos copiados.",
+      "yourPet": "Tu mascota de creador",
+      "theirPet": "Mascota de creador",
+      "intro": "Es solo tuya. Los fans la consiguen con los códigos que creas aquí: se canjean como cualquier código de cosmético (Skins → Canjear código).",
+      "escort": {
+        "title": "Séquito",
+        "intro": "El equipo te ha asignado un compañero más: acompaña a tu mascota. | El equipo te ha asignado {n} compañeros más: acompañan a tu mascota.",
+        "show": "Mostrar séquito",
+        "shown": "Tu séquito vuelve a ser visible.",
+        "hidden": "Tu séquito está oculto.",
+        "visibleHint": "Los demás ven tu séquito a tu lado en el juego mientras lo muestres.",
+        "hiddenHint": "Tu séquito es invisible para los demás. Tu mascota normal se queda."
+      },
+      "limit": {
+        "title": "Límite mensual {month}",
+        "titleNoMonth": "Límite mensual",
+        "used": "{used} / {max} canjes",
+        "left": "Quedan {n} este mes",
+        "full": "Límite de este mes alcanzado",
+        "resets": "se renueva el {date}"
+      },
+      "created": {
+        "title": "{n} código nuevo: cópialo ahora | {n} códigos nuevos: cópialos ahora",
+        "once": "Estos códigos solo se muestran una vez. Al ocultarlos o salir de la página solo verás el final de cada código.",
+        "uses": "{n}×"
+      },
+      "codes": {
+        "title": "Códigos de mascota",
+        "new": "Crear códigos",
+        "empty": "Aún no hay códigos: crea algunos para un sorteo o tu directo.",
+        "note": "Nota",
+        "state": {
+          "active": "activo",
+          "revoked": "revocado",
+          "usedUp": "agotado",
+          "expired": "caducado"
+        },
+        "revoke": "Revocar",
+        "revoked": "Código revocado: ya no se puede canjear.",
+        "footer": "Hasta {count} códigos a la vez, cada uno con hasta {uses} canjes. La suma de todos los canjes cuenta para tu límite mensual."
+      },
+      "none": {
+        "title": "Todavía no tienes mascota propia",
+        "text": "Pide una mascota propia: el equipo la diseña para ti y te la asigna. Después podrás crear aquí códigos para tus fans.",
+        "helperTitle": "Todavía sin mascota",
+        "helperText": "Este creador todavía no tiene mascota propia. Solo el creador puede pedirla."
+      },
+      "request": {
+        "yours": "Tu solicitud",
+        "status": {
+          "open": "Abierta",
+          "in_progress": "En curso",
+          "done": "Lista",
+          "rejected": "Rechazada"
+        },
+        "statusText": {
+          "open": "El equipo recibió tu solicitud y la revisará pronto.",
+          "in_progress": "El equipo está creando tu mascota ahora mismo.",
+          "done": "Tu solicitud está lista. En cuanto se te asigne la mascota, aparecerá aquí.",
+          "rejected": "El equipo rechazó tu solicitud. Puedes enviar una nueva."
+        },
+        "answer": "Equipo:",
+        "sentAt": "Enviada el {date}",
+        "again": "Enviar una nueva solicitud",
+        "title": "Pedir tu propia mascota",
+        "hint": "Describe el animal, su aspecto y sus colores. Una imagen de referencia ayuda (PNG o JPG, hasta 2 MB). Una mascota por creador.",
+        "textLabel": "Descripción",
+        "placeholder": "p. ej. pequeño, con bufanda azul, mueve la cola al andar …",
+        "imageLabel": "Imagen de referencia (opcional)",
+        "pickImage": "Elegir imagen …",
+        "removeImage": "Quitar",
+        "imageTooLarge": "La imagen es demasiado grande (máximo 2 MB).",
+        "imageType": "Elige una imagen PNG o JPG.",
+        "textInvalid": "Describe tu mascota (de 1 a {max} caracteres).",
+        "sending": "Enviando …",
+        "send": "Enviar solicitud",
+        "sent": "Solicitud enviada: el equipo te responderá.",
+        "speciesLabel": "Animal",
+        "speciesPlaceholder": "p. ej. zorro",
+        "colorsLabel": "Colores (opcional)",
+        "colorsPlaceholder": "p. ej. naranja, blanco, azul oscuro",
+        "colorsShown": "Colores: {colors}",
+        "speciesInvalid": "Indica el animal (de 1 a {max} caracteres).",
+        "colorsInvalid": "Colores: máximo {max} caracteres.",
+        "imageAttached": "Imagen de referencia adjunta",
+        "addImage": "Adjuntar imagen",
+        "replaceImage": "Cambiar imagen",
+        "imageAdded": "Imagen adjuntada a tu solicitud.",
+        "withdraw": "Retirar",
+        "withdrawTitle": "¿Retirar la solicitud?",
+        "withdrawText": "Se borrarán tu solicitud y su imagen. Puedes enviar una nueva cuando quieras.",
+        "withdrawn": "Solicitud retirada."
+      },
+      "create": {
+        "title": "Crear códigos de mascota",
+        "count": "Número de códigos (1–{max})",
+        "uses": "Canjes por código (1–{max})",
+        "note": "Nota (opcional)",
+        "notePlaceholder": "p. ej. sorteo en el directo del viernes",
+        "cost": "Cuenta para tu límite: {cost} de {left} disponibles",
+        "fit": "Con este número caben como máximo {n} códigos.",
+        "once": "Solo verás los códigos completos una vez, justo después de crearlos.",
+        "countInvalid": "Número de códigos: de 1 a {max}.",
+        "usesInvalid": "Canjes por código: de 1 a {max}.",
+        "noteInvalid": "Nota: máximo {max} caracteres.",
+        "overLimit": "Serían {cost} canjes, pero este mes solo quedan {left}.",
+        "done": "{n} código creado | {n} códigos creados"
+      },
+      "revoke": {
+        "title": "¿Revocar el código?",
+        "text": "{code} ya no se podrá canjear. Los fans que ya lo canjearon conservan la mascota."
+      },
+      "unavailable": "Tu mascota no está disponible ahora mismo, así que no se pueden crear códigos nuevos. Los códigos ya repartidos vuelven a funcionar cuando regrese."
+    },
+    "teamMode": {
+      "option": "Equipo: {name}",
+      "pick": "Elegir creador (equipo)",
+      "pickTitle": "Abrir el panel de un creador (equipo)",
+      "pickText": "Con «Gestionar creadores» puedes abrir cualquier panel de creador con todos los permisos. Cada cambio se registra y se muestra al creador.",
+      "search": "Buscar nombre o código",
+      "fans": "{n} fans",
+      "noResults": "No hay creadores activos.",
+      "bannerTitle": "Modo equipo: los cambios se registran",
+      "bannerText": "Estás viendo el panel de {name} con todos los permisos. Cada cambio queda en el registro del equipo y {name} lo ve en «Cambiado por el equipo».",
+      "changesTitle": "Cambiado por el equipo",
+      "changesHint": "El equipo puede abrir tu panel para ayudarte con problemas y cambiar cosas por ti. Cada cambio se registra.",
+      "all": "Ver los {n}",
+      "less": "Ver menos",
+      "noInvite": "Solo el creador puede invitar ayudantes; en modo equipo puedes cambiar permisos o quitar ayudantes.",
+      "openDashboard": "Abrir panel (equipo)",
+      "openDashboardHint": "Abre el panel del creador en modo equipo con todos los permisos; cada cambio se registra.",
+      "actions": {
+        "code_create": "Código creado",
+        "code_update": "Código cambiado",
+        "symbol_upload": "Símbolo de fan enviado",
+        "symbol_withdraw": "Símbolo de fan retirado",
+        "cape_upload": "Capa de fan enviada",
+        "cape_withdraw": "Capa de fan retirada",
+        "pack_list": "Pack publicado",
+        "pack_unlist": "Pack retirado de la lista",
+        "request_create": "Solicitud enviada",
+        "profile_submit": "Perfil enviado",
+        "profile_withdraw": "Cambio de perfil retirado",
+        "helper_update": "Permisos de ayudante cambiados",
+        "helper_remove": "Ayudante eliminado",
+        "pet_code_create": "Códigos de mascota creados",
+        "pet_code_revoke": "Código de mascota revocado",
+        "pet_request_create": "Mascota solicitada",
+        "pet_request_withdraw": "Deseo de mascota retirado",
+        "pet_request_image": "Imagen de referencia subida",
+        "pet_request_image_delete": "Imagen de referencia eliminada",
+        "other": "Panel cambiado"
       }
     }
   },

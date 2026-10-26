@@ -19,9 +19,13 @@ def show(ref):
 
 
 def split(text):
-    """Kopf, Inhalt von „## Unreleased“, Rest ab dem nächsten „## “."""
+    """Kopf, Inhalt von „## Unreleased“, Rest ab dem nächsten „## “. Direkt nach einem Release hat upstream den
+    Abschnitt oft gar nicht – dann ist er leer und steht vor dem ersten Release."""
     if MARK not in text:
-        raise SystemExit('CHANGELOG.md ohne „## Unreleased“')
+        if '\n## ' not in text:
+            raise SystemExit('CHANGELOG.md ohne „## Unreleased“ und ohne Release-Abschnitt')
+        head, tail = text.split('\n## ', 1)
+        return head, '', '\n## ' + tail
     head, rest = text.split(MARK, 1)
     if '\n## ' in rest:
         body, tail = rest.split('\n## ', 1)

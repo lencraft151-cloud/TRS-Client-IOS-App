@@ -27,7 +27,9 @@ pub const TIERS: [&str; 3] = ["starter", "partner", "top"];
 pub const STATES: [&str; 3] = ["active", "revoked", "banned"];
 pub const MILESTONES: [&str; 4] = ["bronze", "silver", "gold", "diamond"];
 /// Arten von `creator_updated` (§35.7).
-pub const UPDATE_KINDS: [&str; 12] = [
+/// `pet_*` (Creator-Haustiere, §35.13): zugeordnet, entfernt, Wunsch beantwortet (`reason` = Antwort des Teams).
+/// `team_changed` (§35.9): das Team hat im Team-Modus etwas geändert (`action`).
+pub const UPDATE_KINDS: [&str; 17] = [
     "symbol_approved",
     "symbol_rejected",
     "cape_approved",
@@ -40,6 +42,11 @@ pub const UPDATE_KINDS: [&str; 12] = [
     "became_creator",
     "helper_joined",
     "helper_left",
+    "pet_assigned",
+    "pet_removed",
+    "pet_extras_changed",
+    "pet_request_answered",
+    "team_changed",
 ];
 /// Rechte eines Helfers (§35.9). Stufe, Anträge, Helfer und Vorschau-Builds bleiben beim Creator.
 pub const HELPER_RIGHTS: [&str; 4] = ["stats", "codes", "uploads", "packs"];
@@ -54,7 +61,7 @@ const IMAGE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 // --- Prüfungen --------------------------------------------------------------------------
 
-fn invalid(msg: crate::error::Msg) -> Error {
+pub(super) fn invalid(msg: crate::error::Msg) -> Error {
     Error::validation(msg)
 }
 
@@ -102,7 +109,7 @@ fn sha256_hex(input: &str) -> bool {
 }
 
 /// IDs aus der API (Warteschlange, Anträge, Vorschauen): Zahl oder `[A-Za-z0-9_-]{1,40}`.
-fn id_of(value: &Value) -> Option<String> {
+pub(super) fn id_of(value: &Value) -> Option<String> {
     match value {
         Value::Number(n) => n.as_u64().map(|n| n.to_string()),
         Value::String(s) if (1..=40).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') => {
@@ -112,7 +119,7 @@ fn id_of(value: &Value) -> Option<String> {
     }
 }
 
-fn id_arg(input: &str) -> Result<&str> {
+pub(super) fn id_arg(input: &str) -> Result<&str> {
     id_of(&Value::String(input.to_owned()))
         .map(|_| input)
         .ok_or_else(|| invalid(crate::msg!("creator.invalidId", "Ungültiger Eintrag.")))
@@ -129,7 +136,7 @@ pub fn https_url(input: &str) -> Option<String> {
         .then(|| url.to_string())
 }
 
-fn time(t: Option<String>) -> Option<String> {
+pub(super) fn time(t: Option<String>) -> Option<String> {
     t.map(|t| validate::text(&t, 40)).filter(|t| !t.is_empty())
 }
 
@@ -137,7 +144,7 @@ fn reason_text(r: Option<String>) -> Option<String> {
     r.map(|r| chat_text(&r, 500)).map(|r| r.trim().to_owned()).filter(|r| !r.is_empty())
 }
 
-fn pick(value: Option<String>, allowed: &[&str]) -> Option<String> {
+pub(super) fn pick(value: Option<String>, allowed: &[&str]) -> Option<String> {
     value.filter(|v| allowed.contains(&v.as_str()))
 }
 
@@ -147,7 +154,7 @@ fn reason_arg(input: &str) -> Result<String> {
 }
 
 /// Mehrzeiliger Text (Wunsch an das Team): Umbrüche erlaubt, 1–`max` Zeichen.
-fn long_text(input: &str, max: usize) -> Result<String> {
+pub(super) fn long_text(input: &str, max: usize) -> Result<String> {
     let text: String = input.chars().filter(|c| *c != '\r').map(|c| if c == '\t' { ' ' } else { c }).collect();
     let text = text.trim();
     if text.is_empty() || text.chars().count() > max {
@@ -373,6 +380,8 @@ pub struct CreatorStats {
     pub fan_cape_holders: u64,
     pub new_players: u64,
     pub pack_installs: u64,
+    /// Aktuelle Fans, die einen Fan-Umhang dieses Creators besitzen (`None` = ältere API).
+    pub fan_cape_fans: Option<u64>,
     /// Letzte 30 Tage, älteste zuerst.
     pub daily: Vec<DailyStat>,
 }
@@ -450,8 +459,19 @@ pub struct CreatorSelf {
     pub packs: Vec<CreatorPackRef>,
     /// Helfer (nur für den Creator selbst).
     pub helpers: Vec<Helper>,
-    /// Wer gerade schaut: `Some` = ein Helfer mit diesen Rechten (`?as=`).
+    /// Wer gerade schaut: `Some` = ein Helfer mit diesen Rechten bzw. das Team (`?as=`).
     pub viewer: Option<Viewer>,
+    /// Änderungen des Teams im Team-Modus (neueste zuerst, ohne Namen).
+    pub team_changes: Vec<TeamChange>,
+}
+
+/// Eine Änderung des Teams am Dashboard (§35.9, Team-Modus).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TeamChange {
+    /// z. B. `code.create` oder `pet.code.revoke`.
+    pub action: String,
+    pub at: Option<String>,
 }
 
 /// Helfer eines Creators (§35.9).
@@ -470,6 +490,8 @@ pub struct Helper {
 #[serde(rename_all = "camelCase")]
 pub struct Viewer {
     pub helper: bool,
+    /// Team-Mitglied mit `creators.manage` im Team-Modus: alle Rechte, Änderungen werden protokolliert.
+    pub team: bool,
     pub rights: Vec<String>,
 }
 
@@ -611,15 +633,15 @@ pub struct AdminRequest {
 
 // --- Rohdaten → Ansicht ------------------------------------------------------------------
 
-fn u64_of(v: &Value, key: &str) -> u64 {
+pub(super) fn u64_of(v: &Value, key: &str) -> u64 {
     v.get(key).and_then(Value::as_u64).unwrap_or(0)
 }
 
-fn opt_u64(v: &Value, key: &str) -> Option<u64> {
+pub(super) fn opt_u64(v: &Value, key: &str) -> Option<u64> {
     v.get(key).and_then(Value::as_u64)
 }
 
-fn str_of(v: &Value, key: &str) -> Option<String> {
+pub(super) fn str_of(v: &Value, key: &str) -> Option<String> {
     v.get(key).and_then(Value::as_str).map(str::to_owned)
 }
 
@@ -717,6 +739,7 @@ fn clean_stats(v: Option<&Value>) -> CreatorStats {
         fan_cape_holders: u64_of(v, "fanCapeHolders"),
         new_players: u64_of(v, "newPlayers"),
         pack_installs: u64_of(v, "packInstalls"),
+        fan_cape_fans: opt_u64(v, "fanCapeFans"),
         daily: daily.into_iter().skip(skip).collect(),
     }
 }
@@ -789,11 +812,28 @@ fn clean_self(v: &Value) -> Option<CreatorSelf> {
         requests: v.get("requests").and_then(Value::as_array).into_iter().flatten().take(50).filter_map(clean_request).collect(),
         packs: v.get("packs").and_then(Value::as_array).into_iter().flatten().take(200).filter_map(clean_pack_ref).collect(),
         helpers: v.get("helpers").and_then(Value::as_array).into_iter().flatten().take(50).filter_map(clean_helper).collect(),
-        viewer: v.get("viewer").filter(|w| w.is_object()).map(|w| Viewer {
-            helper: w.get("helper").and_then(Value::as_bool).unwrap_or(false),
-            rights: clean_rights(w.get("rights")),
+        viewer: v.get("viewer").filter(|w| w.is_object()).map(|w| {
+            let team = w.get("team").and_then(Value::as_bool).unwrap_or(false);
+            Viewer {
+                // Team-Modus hat Vorrang (auch wenn man zusätzlich eingeschränkter Helfer ist).
+                helper: !team && w.get("helper").and_then(Value::as_bool).unwrap_or(false),
+                team,
+                rights: if team { HELPER_RIGHTS.iter().map(|r| (*r).to_owned()).collect() } else { clean_rights(w.get("rights")) },
+            }
         }),
+        team_changes: v.get("teamChanges").and_then(Value::as_array).into_iter().flatten().take(20).filter_map(clean_team_change).collect(),
     })
+}
+
+/// Aktions-Kennung einer Team-Änderung: `[a-z_]` in Abschnitten mit Punkt, höchstens 40 Zeichen.
+pub(super) fn team_action(input: &str) -> Option<String> {
+    let ok = (1..=40).contains(&input.len())
+        && input.split('.').all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_lowercase() || b == b'_'));
+    ok.then(|| input.to_owned())
+}
+
+fn clean_team_change(v: &Value) -> Option<TeamChange> {
+    Some(TeamChange { action: team_action(v.get("action")?.as_str()?)?, at: time(str_of(v, "at")) })
 }
 
 fn clean_me(v: &Value) -> Option<MyCreator> {
@@ -948,7 +988,7 @@ fn max_uses_arg(n: u64) -> Result<u64> {
     }
 }
 
-fn expiry_arg(at: &str) -> Result<String> {
+pub(super) fn expiry_arg(at: &str) -> Result<String> {
     let at = validate::iso_datetime(at)?;
     let parsed = chrono::DateTime::parse_from_rfc3339(&at).map_err(|_| invalid_expiry())?;
     if parsed <= chrono::Utc::now() {
@@ -1042,7 +1082,7 @@ fn rights_arg(rights: &[String]) -> Result<Vec<String>> {
 }
 
 /// Dashboard-Anfrage für einen anderen Creator (Helfer, `?as=<uuid>`, §35.9).
-fn acting(path: String, as_creator: Option<&str>) -> Result<String> {
+pub(super) fn acting(path: String, as_creator: Option<&str>) -> Result<String> {
     match as_creator.filter(|a| !a.is_empty()) {
         None => Ok(path),
         Some(a) => {
@@ -1157,6 +1197,8 @@ struct LiveData {
     rights: Option<Value>,
     #[serde(default)]
     helper: Option<Value>,
+    #[serde(default)]
+    action: Option<String>,
 }
 
 /// Helfer-Ereignisse und `creator_updated` / `creator_milestone` → gesäubertes Ereignis (kaputt → `None`).
@@ -1169,6 +1211,7 @@ pub(crate) fn decode_live(event: &str, data: &str) -> Option<LiveEvent> {
             tier: pick(d.tier, &TIERS),
             milestone: pick(d.milestone, &MILESTONES),
             helper: user_ref(d.helper.as_ref()),
+            action: d.action.as_deref().and_then(team_action),
         }),
         "creator_helper_invite" => Some(LiveEvent::CreatorHelperInvite {
             creator: user_ref(d.creator.as_ref())?,
@@ -1195,7 +1238,7 @@ impl TrsApi {
     }
 
     /// Pfad ab `/v1/…` einer Bild-URL der eigenen API (relativ oder mit vertrauenswürdiger Adresse).
-    fn own_path<'a>(&self, url: &'a str) -> Option<&'a str> {
+    pub(super) fn own_path<'a>(&self, url: &'a str) -> Option<&'a str> {
         let path = if url.starts_with("/v1/") { url } else { self.trusted_bases().into_iter().find_map(|b| url.strip_prefix(b))? };
         let file = path.split('?').next()?;
         let query_ok = path.split_once('?').is_none_or(|(_, q)| {
@@ -1210,7 +1253,7 @@ impl TrsApi {
     }
 
     /// Lädt ein Bild der eigenen API (mit Token, wenn es nicht öffentlich ist).
-    async fn own_png(&self, path: &str, token: Option<&str>, max: usize) -> Option<Vec<u8>> {
+    pub(super) async fn own_png(&self, path: &str, token: Option<&str>, max: usize) -> Option<Vec<u8>> {
         let mut request = self.http.get(format!("{}{path}", self.base)).header("Accept", "image/png").timeout(IMAGE_TIMEOUT);
         if let Some(token) = token {
             request = request.bearer_auth(token);
@@ -1265,7 +1308,7 @@ impl TrsApi {
 // --- Anfragen ----------------------------------------------------------------------------
 
 impl Launcher {
-    async fn creator_token(&self) -> Option<String> {
+    pub(super) async fn creator_token(&self) -> Option<String> {
         let account = self.trs_account().await.ok()?;
         self.trs.store.token(&account).await
     }
@@ -1435,8 +1478,9 @@ impl Launcher {
         self.trs_do(Req::delete(acting("/v1/creator/fan-cape/pending".into(), as_creator)?)).await
     }
 
-    pub async fn creator_request(&self, request: &NewRequest) -> Result<Vec<CreatorRequest>> {
-        let raw: Value = self.trs_get(Req::post("/v1/creator/requests", request.body()?)).await?;
+    /// Antrag ans Team; `as_creator` nur im Team-Modus (Helfer dürfen das nicht).
+    pub async fn creator_request(&self, request: &NewRequest, as_creator: Option<&str>) -> Result<Vec<CreatorRequest>> {
+        let raw: Value = self.trs_get(Req::post(acting("/v1/creator/requests".into(), as_creator)?, request.body()?)).await?;
         Ok(raw.get("requests").and_then(Value::as_array).into_iter().flatten().take(50).filter_map(clean_request).collect())
     }
 
@@ -1464,14 +1508,16 @@ impl Launcher {
         self.trs_do(Req::post("/v1/creator/helpers", json!({ "uuid": uuid, "rights": rights_arg(rights)? }))).await
     }
 
-    pub async fn creator_update_helper(&self, uuid: &str, rights: &[String]) -> Result<()> {
+    /// Rechte eines Helfers ändern – der Creator selbst oder das Team im Team-Modus (`as_creator`).
+    pub async fn creator_update_helper(&self, uuid: &str, rights: &[String], as_creator: Option<&str>) -> Result<()> {
         let uuid = uuid_arg(uuid)?;
-        self.trs_do(Req::patch(format!("/v1/creator/helpers/{uuid}"), json!({ "rights": rights_arg(rights)? }))).await
+        self.trs_do(Req::patch(acting(format!("/v1/creator/helpers/{uuid}"), as_creator)?, json!({ "rights": rights_arg(rights)? }))).await
     }
 
-    pub async fn creator_remove_helper(&self, uuid: &str) -> Result<()> {
+    /// Helfer entfernen – der Creator selbst oder das Team im Team-Modus (`as_creator`).
+    pub async fn creator_remove_helper(&self, uuid: &str, as_creator: Option<&str>) -> Result<()> {
         let uuid = uuid_arg(uuid)?;
-        self.trs_do(Req::delete(format!("/v1/creator/helpers/{uuid}"))).await
+        self.trs_do(Req::delete(acting(format!("/v1/creator/helpers/{uuid}"), as_creator)?)).await
     }
 
     /// Einladung als Helfer annehmen oder ablehnen.
@@ -1737,7 +1783,11 @@ mod tests {
     #[test]
     fn live_events_are_cleaned() {
         let e = decode_live("creator_updated", &json!({ "type": "creator_updated", "kind": "symbol_rejected", "reason": "Fremdes\u{202E} Logo" }).to_string()).unwrap();
-        assert_eq!(e, LiveEvent::CreatorUpdated { kind: "symbol_rejected".into(), reason: Some("Fremdes Logo".into()), tier: None, milestone: None, helper: None });
+        assert_eq!(e, LiveEvent::CreatorUpdated { kind: "symbol_rejected".into(), reason: Some("Fremdes Logo".into()), tier: None, milestone: None, helper: None, action: None });
+        let team = decode_live("creator_updated", r#"{"kind":"team_changed","action":"pet.code.create"}"#).unwrap();
+        assert!(matches!(team, LiveEvent::CreatorUpdated { ref kind, action: Some(ref a), .. } if kind == "team_changed" && a == "pet.code.create"));
+        let bad = decode_live("creator_updated", r#"{"kind":"team_changed","action":"../Drop"}"#).unwrap();
+        assert!(matches!(bad, LiveEvent::CreatorUpdated { action: None, .. }), "unbekannte Form fällt weg");
         let t = decode_live("creator_updated", r#"{"kind":"tier_changed","tier":"top"}"#).unwrap();
         assert!(matches!(t, LiveEvent::CreatorUpdated { tier: Some(ref t), .. } if t == "top"));
         assert!(decode_live("creator_updated", r#"{"kind":"nuke"}"#).is_none());

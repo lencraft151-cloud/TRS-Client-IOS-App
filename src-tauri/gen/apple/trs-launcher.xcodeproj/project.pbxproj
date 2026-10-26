@@ -465,70 +465,14 @@
 			};
 			name = release;
 		};
-		141A97F132BB2909D0C0F880E1AAFC0D /* release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
-			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Halloween";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = "$(TRS_ENTITLEMENTS)";
-				CURRENT_PROJECT_VERSION = 0.29.0;
-				ENABLE_BITCODE = NO;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "trs-launcher_iOS/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
-				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
-				MARKETING_VERSION = 0.29.0;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-lapp",
-					"-weak_framework",
-					ActivityKit,
-					"-weak_framework",
-					AppIntents,
-				);
-				PRODUCT_NAME = "TRS Launcher";
-				SDKROOT = iphoneos;
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-				VALID_ARCHS = arm64;
-			};
-			name = release;
-		};
-		305F7119E9EF8BAC37DE8FB50DD09D71 /* debug */ = {
+		19AEDB938E51926B7BD49ECB6054B179 /* release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = "$(TRS_WIDGET_ENTITLEMENTS)";
-				CURRENT_PROJECT_VERSION = 0.29.0;
+				CURRENT_PROJECT_VERSION = 0.31.0;
 				ENABLE_BITCODE = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -539,7 +483,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.29.0;
+				MARKETING_VERSION = 0.31.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).widgets";
 				PRODUCT_NAME = TRSWidgets;
 				PROVISIONING_PROFILE_SPECIFIER = "$(TRS_WIDGET_PROFILE)";
@@ -550,8 +494,9 @@
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
-			name = debug;
+			name = release;
 		};
 		3886E9D231F684CAEA56BA7268FB9866 /* debug */ = {
 			isa = XCBuildConfiguration;
@@ -614,7 +559,39 @@
 			};
 			name = debug;
 		};
-		6715D392825BCE78635C73ADC2485520 /* debug */ = {
+		53D9B5DBFB26F24D3A6E1EE6EBF61BFE /* debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = "$(TRS_WIDGET_ENTITLEMENTS)";
+				CURRENT_PROJECT_VERSION = 0.31.0;
+				ENABLE_BITCODE = NO;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.31.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).widgets";
+				PRODUCT_NAME = TRSWidgets;
+				PROVISIONING_PROFILE_SPECIFIER = "$(TRS_WIDGET_PROFILE)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = debug;
+		};
+		D10EC4487D4C40C918A414B3E855AFD7 /* debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
 			buildSettings = {
@@ -624,7 +601,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = "$(TRS_ENTITLEMENTS)";
-				CURRENT_PROJECT_VERSION = 0.29.0;
+				CURRENT_PROJECT_VERSION = 0.31.0;
 				ENABLE_BITCODE = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
@@ -649,7 +626,7 @@
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
 					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
-				MARKETING_VERSION = 0.29.0;
+				MARKETING_VERSION = 0.31.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lapp",
@@ -669,36 +646,59 @@
 			};
 			name = debug;
 		};
-		F86BB4B49E2757BD009D619528DD1A4B /* release */ = {
+		F57C0537C1BA0472B9D3FB4F7CE4BCCB /* release */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 09E3383702D4EBEA53C9C76DDC439A56 /* Signing.xcconfig */;
 			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Halloween";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = "$(TRS_WIDGET_ENTITLEMENTS)";
-				CURRENT_PROJECT_VERSION = 0.29.0;
+				CODE_SIGN_ENTITLEMENTS = "$(TRS_ENTITLEMENTS)";
+				CURRENT_PROJECT_VERSION = 0.31.0;
 				ENABLE_BITCODE = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Widgets/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_FILE = "trs-launcher_iOS/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.29.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).widgets";
-				PRODUCT_NAME = TRSWidgets;
-				PROVISIONING_PROFILE_SPECIFIER = "$(TRS_WIDGET_PROFILE)";
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				MARKETING_VERSION = 0.31.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lapp",
+					"-weak_framework",
+					ActivityKit,
+					"-weak_framework",
+					AppIntents,
+				);
+				PRODUCT_NAME = "TRS Launcher";
 				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
+				VALID_ARCHS = arm64;
 			};
 			name = release;
 		};
@@ -717,8 +717,8 @@
 		9BF79CE1E43873E8CD048A8CAE44D272 /* Build configuration list for PBXNativeTarget "TRSWidgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F86BB4B49E2757BD009D619528DD1A4B /* release */,
-				305F7119E9EF8BAC37DE8FB50DD09D71 /* debug */,
+				19AEDB938E51926B7BD49ECB6054B179 /* release */,
+				53D9B5DBFB26F24D3A6E1EE6EBF61BFE /* debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = release;
@@ -726,8 +726,8 @@
 		B49E3D38DD74D88F7B93DBF6E7D85D4A /* Build configuration list for PBXNativeTarget "trs-launcher_iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				141A97F132BB2909D0C0F880E1AAFC0D /* release */,
-				6715D392825BCE78635C73ADC2485520 /* debug */,
+				F57C0537C1BA0472B9D3FB4F7CE4BCCB /* release */,
+				D10EC4487D4C40C918A414B3E855AFD7 /* debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = release;

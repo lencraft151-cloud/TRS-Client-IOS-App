@@ -173,13 +173,14 @@ case "$mode" in
     finish
     ;;
   --continue)
-    [ -s "$TODO" ] || die "Kein Abgleich in Arbeit"
-    c="$(head -n 1 "$TODO")"
+    # Leere Liste, aber angefangen: alles übernommen, nur der Abschluss (Changelog, Lockfiles …) fehlt noch.
+    [ -s "$TODO" ] || [ -s "$TARGET" ] || die "Kein Abgleich in Arbeit"
+    c="$(head -n 1 "$TODO" 2> /dev/null || true)"
     if git rev-parse -q --verify CHERRY_PICK_HEAD > /dev/null; then
       [ -z "$(conflicts)" ] || die "Noch ungelöst: $(conflicts | tr '\n' ' ')"
       finish_pick
       pop
-    elif git log -1 --format=%B | grep -qF "cherry picked from commit $c"; then
+    elif [ -n "$c" ] && git log -1 --format=%B | grep -qF "cherry picked from commit $c"; then
       pop # schon von Hand abgeschlossen
     fi
     pick_all

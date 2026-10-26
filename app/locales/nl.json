@@ -319,7 +319,15 @@
       "curseforge_unavailable": "CurseForge is nu niet beschikbaar op de TRS-server.",
       "upstream_failed": "Modrinth of CurseForge reageert nu niet – probeer het later opnieuw.",
       "invalid_window": "De periode klopt niet: het einde moet na het begin liggen.",
-      "invalid_order": "De volgorde klopt niet – herlaad de lijst."
+      "invalid_order": "De volgorde klopt niet – herlaad de lijst.",
+      "creator_no_pet": "Je hebt nog geen eigen huisdier – vraag er eerst een aan bij het team.",
+      "limit_reached": "Je maandlimiet voor huisdiercodes is daarvoor niet genoeg – kies minder codes of inwisselingen, of wacht tot volgende maand.",
+      "creator_pet_unavailable": "Je huisdier is op dit moment niet beschikbaar – vraag het team.",
+      "creator_pet_owned": "Je hebt al een eigen huisdier.",
+      "request_closed": "Het team werkt al aan deze aanvraag – hij kan niet meer worden gewijzigd.",
+      "code_not_found": "Deze code bestaat niet (meer).",
+      "creator_not_found": "Deze creator bestaat niet (meer).",
+      "creator_team_forbidden": "Alleen de creator kan dit doen – ook niet in teammodus."
     },
     "auth": {
       "accountMismatch": "Deze login hoort bij een ander account – log opnieuw in.",
@@ -973,7 +981,14 @@
       "invalidWindow": "Het einde moet na het begin liggen.",
       "invalidOrder": "De volgorde klopt niet – herlaad de lijst."
     },
-    "messeBlocked": "Niet beschikbaar op de beurs-pc."
+    "messeBlocked": "Niet beschikbaar op de beurs-pc.",
+    "creatorPet": {
+      "countRange": "Aantal: 1 tot {max} codes tegelijk.",
+      "usesRange": "Inwisselingen per code: 1 tot {max}.",
+      "imageTooLarge": "De afbeelding is te groot (maximaal 2 MB).",
+      "invalidImage": "De voorbeeldafbeelding moet een PNG of JPG zijn.",
+      "speciesLength": "Dier: 1 tot {max} tekens."
+    }
   },
   "browse": {
     "title": "Ontdekken",
@@ -2367,11 +2382,13 @@
       "designDescription": "Het totale uiterlijk van de launcher: achtergrondscène, patroon en kleuren. Accentkleur en kleurthema kies je nog steeds zelf.",
       "designs": {
         "redstone": "Redstone",
-        "winter": "Winternacht"
+        "winter": "Winternacht",
+        "fox": "Vossenhol"
       },
       "designHints": {
         "redstone": "Deepslate en een levend redstonecircuit",
-        "winter": "Besneeuwd pixellandschap, noorderlicht, ijsblauw"
+        "winter": "Besneeuwd pixellandschap, noorderlicht, ijsblauw",
+        "fox": "Minecraft-bos in de schemering, kampvuur, vossenoranje"
       },
       "designLabel": "Ontwerp {name}",
       "colorScheme": "Kleurthema",
@@ -2387,7 +2404,8 @@
         "emerald": "Smaragd",
         "lapis": "Lapis",
         "amethyst": "Amethist",
-        "ice": "IJs"
+        "ice": "IJs",
+        "fox": "Vos"
       },
       "accentTitle": "Accentkleur",
       "accentDescription": "Kleur voor knoppen, actieve items en lichtjes in de achtergrond.",
@@ -2395,7 +2413,7 @@
       "advancedRenderingTitle": "Geavanceerde weergave",
       "advancedRenderingDescription": "Vervagingseffecten achter dialogen en balken. Uitschakelen bespaart wat prestaties op tragere pc’s.",
       "animatedBackgroundTitle": "Geanimeerde achtergrond",
-      "animatedBackgroundDescription": "Een rustige, geanimeerde scène achter elke pagina – een redstonecircuit of een winterlandschap, afhankelijk van het ontwerp. Als dit uit staat, wordt alleen het achtergrondpatroon getoond.",
+      "animatedBackgroundDescription": "Een rustige, geanimeerde scène achter elke pagina – een redstonecircuit, een winterlandschap of een bos in de schemering, afhankelijk van het ontwerp. Als dit uit staat, wordt alleen het achtergrondpatroon getoond.",
       "eventIconsTitle": "Evenementpictogrammen",
       "eventIconsDescription": "Tijdens evenementen zoals Halloween verandert ook het app-pictogram – venster, taakbalk, snelkoppelingen op het bureaublad en in het startmenu en het startscherm van je telefoon. Na het evenement komt het gewone pictogram vanzelf terug.",
       "eventLookTitle": "Evenementontwerp tonen (bijv. Halloween)",
@@ -3912,7 +3930,7 @@
     "pet": {
       "title": "Metgezellen op de grond",
       "intro": "Loopt naast je mee – iedereen met TRS Client ziet hem. De voorbeeldweergave toont hem naast je personage.",
-      "creatorHint": "Creators krijgen automatisch pinguïns op basis van fans: één vanaf 1 fan, twee vanaf 10, drie vanaf 100, vier vanaf 1000.",
+      "creatorHint": "Creator-huisdier: fans krijgen het met de codes van de creator, de creator zelf loopt met meer naargelang de fans (twee vanaf 10, drie vanaf 100, vier vanaf 1000).",
       "empty": "Nog geen metgezellen op de grond.",
       "wearing": "Naast je: {name}",
       "selectedWorn": "Loopt naast je mee – iedereen met TRS Client ziet hem.",
@@ -3926,7 +3944,11 @@
         "walk": "Loopt",
         "slide": "Glijdt",
         "swim": "Zwemt",
-        "air": "Springt"
+        "air": "Springt",
+        "sneak": "Sluipt",
+        "grab": "Grijpt de buit",
+        "flee": "Vlucht",
+        "handsup": "Handen omhoog"
       },
       "count": "{n} × {name} | {n} × {name}",
       "counts": {
@@ -5649,7 +5671,9 @@
       "websiteHint": "Opent de website in je browser (inloggen met Microsoft).",
       "blog": "Blog",
       "featured": "Uitgelichte modpacks",
-      "previews": "Testversies"
+      "previews": "Testversies",
+      "creatorPets": "Creator-huisdieren",
+      "creatorStats": "Creatorstatistieken"
     },
     "search": {
       "placeholder": "Zoek spelers, UUID’s, meldings-ID’s, #straffen, capes …",
@@ -6054,6 +6078,101 @@
       "featured_manage": "Uitgelichte modpacks beheren",
       "serverrules_bypass": "Door de server geblokkeerde TRS Client-functies toch gebruiken (na bevestiging in het spel)",
       "previews_access": "Testversies: Testversies van launcher en TRS Client downloaden, net als Partner-creators"
+    },
+    "creators": {
+      "pets": {
+        "title": "Creator-huisdieren",
+        "text": "Huisdieraanvragen afhandelen en een huisdier-cosmetic aan een creator toewijzen – op de website.",
+        "open": "Website openen"
+      }
+    },
+    "creatorStats": {
+      "title": "Creatorstatistieken",
+      "intro": "Alle creators naast elkaar – alleen cijfers, nooit namen van fans. Klik op een rij voor het verloop.",
+      "search": "Naam, UUID of code zoeken",
+      "tier": "Niveau",
+      "allTiers": "Alle niveaus",
+      "totals": {
+        "creators": "Creators",
+        "fans": "Fans in totaal",
+        "fans7d": "Nieuwe fans (7 dagen)",
+        "newPlayers30d": "Nieuwe spelers (30 dagen)",
+        "petRedemptions": "Huisdiercodes ingewisseld",
+        "online7d": "Fans online (7 dagen)"
+      },
+      "groups": {
+        "fans": "Fans",
+        "newPlayers": "Nieuwe spelers",
+        "pets": "Huisdiercodes",
+        "activity": "Actieve fans"
+      },
+      "columns": {
+        "name": "Creator",
+        "fans": "Totaal",
+        "fansToday": "Vandaag",
+        "fans7d": "7 d",
+        "fans30d": "30 d",
+        "newPlayers": "Totaal",
+        "newPlayers7d": "7 d",
+        "newPlayers30d": "30 d",
+        "petCodes": "Codes",
+        "petRedemptions": "Ingewisseld",
+        "online7d": "Online 7 d",
+        "online30d": "Online 30 d",
+        "played7d": "Gespeeld 7 d",
+        "played30d": "Gespeeld 30 d",
+        "petMonth": "Deze maand"
+      },
+      "sortBy": "Sorteren op {column}",
+      "empty": "Geen creators voor deze filters.",
+      "error": "De statistieken konden niet worden geladen.",
+      "generated": "Stand: {time}",
+      "definitions": "Zo tellen we",
+      "defFans": "Nieuwe fans: steun die op die dag (UTC) begon. Fans in totaal: huidige supporters.",
+      "defNewPlayers": "Nieuwe spelers: fans van wie het TRS-account hoogstens {hours} uur vóór hun eerste ingewisselde code van deze creator is aangemaakt.",
+      "defActivity": "Online: TRS Launcher open of spel actief; Gespeeld: in het spel. Geteld worden huidige fans met activiteit in de laatste 7 of 30 dagen.",
+      "activitySince": "Activiteit per dag wordt sinds {date} vastgelegd – eerdere dagen blijven leeg.",
+      "activityNever": "Activiteit per dag wordt nog niet vastgelegd.",
+      "noPet": "Nog geen eigen huisdier.",
+      "detail": {
+        "title": "Creatorverloop",
+        "back": "Terug naar de ranglijst",
+        "open": "Statistieken",
+        "range": "Periode",
+        "days": "{n} dagen",
+        "pet": "Huisdier: {name}",
+        "tiles": {
+          "fans": "Fans",
+          "fansNew": "Nieuw: {today} vandaag · {d7} in 7 d · {d30} in 30 d",
+          "newPlayers": "Nieuwe spelers",
+          "recent": "{d7} in 7 d · {d30} in 30 d",
+          "online": "Fans online (7 dagen)",
+          "activity": "{online30} online in 30 d · gespeeld: {played7} in 7 d, {played30} in 30 d",
+          "petRedemptions": "Huisdiercodes ingewisseld",
+          "petCodes": "{codes} codes, {active} bruikbaar"
+        },
+        "petMonth": "Maandlimiet huisdiercodes",
+        "petMonthText": "{used} van {limit} uitgegeven · {redemptions} ingewisseld",
+        "cape": "Fancape onder huidige fans",
+        "capeText": "{fanHolders} van {fans} huidige fans hebben hem · {holders} bezitters in totaal (inclusief oud-fans).",
+        "charts": {
+          "fans": "Nieuwe fans per dag",
+          "players": "Nieuwe spelers per dag",
+          "active": "Actieve fans per dag (online)",
+          "playing": "Fans in het spel per dag",
+          "redemptions": "Codes ingewisseld per dag",
+          "pet": "Huisdiercodes ingewisseld per dag"
+        },
+        "chartSummary": "{label}: {days} dagen, totaal {total}, hoogste {peak}. Gebruik de pijltjestoetsen voor losse dagen.",
+        "total": "Totaal {n}",
+        "peak": "Hoogste {n}",
+        "notRecorded": "niet vastgelegd",
+        "noActivityYet": "Nog niet vastgelegd",
+        "showTable": "Als tabel tonen",
+        "hideTable": "Tabel verbergen",
+        "day": "Dag",
+        "value": "Waarde"
+      }
     }
   },
   "trsChoice": {
@@ -7216,6 +7335,192 @@
       "resetHint": "Terug naar de startpagina, alle vensters gesloten.",
       "changePin": "Pincode wijzigen",
       "quit": "Launcher afsluiten"
+    }
+  },
+  "creator": {
+    "dashboard": {
+      "tabs": {
+        "pet": "Huisdier"
+      }
+    },
+    "pet": {
+      "copiedAll": "Alle codes gekopieerd.",
+      "yourPet": "Jouw creator-huisdier",
+      "theirPet": "Creator-huisdier",
+      "intro": "Het is alleen van jou. Fans krijgen het met de codes die je hier maakt – ze wisselen ze in zoals elke cosmetische code (Skins → Code inwisselen).",
+      "escort": {
+        "title": "Gevolg",
+        "intro": "Het team heeft je nog een metgezel toegewezen – die loopt mee naast je huisdier. | Het team heeft je nog {n} metgezellen toegewezen – ze lopen mee naast je huisdier.",
+        "show": "Gevolg tonen",
+        "shown": "Je gevolg is weer zichtbaar.",
+        "hidden": "Je gevolg is verborgen.",
+        "visibleHint": "Anderen zien je gevolg naast je in het spel zolang je het toont.",
+        "hiddenHint": "Je gevolg is onzichtbaar voor anderen. Je gewone huisdier blijft."
+      },
+      "limit": {
+        "title": "Maandlimiet {month}",
+        "titleNoMonth": "Maandlimiet",
+        "used": "{used} / {max} inwisselingen",
+        "left": "Nog {n} over deze maand",
+        "full": "Limiet voor deze maand bereikt",
+        "resets": "weer vrij op {date}"
+      },
+      "created": {
+        "title": "{n} nieuwe code – kopieer hem nu | {n} nieuwe codes – kopieer ze nu",
+        "once": "Deze codes zie je maar één keer. Na verbergen of het verlaten van de pagina zie je alleen nog het einde van elke code.",
+        "uses": "{n}×"
+      },
+      "codes": {
+        "title": "Huisdiercodes",
+        "new": "Codes maken",
+        "empty": "Nog geen codes – maak er een paar voor een winactie of je stream.",
+        "note": "Notitie",
+        "state": {
+          "active": "actief",
+          "revoked": "ingetrokken",
+          "usedUp": "opgebruikt",
+          "expired": "verlopen"
+        },
+        "revoke": "Intrekken",
+        "revoked": "Code ingetrokken – hij kan niet meer worden ingewisseld.",
+        "footer": "Tot {count} codes tegelijk, elk met tot {uses} inwisselingen. Het totaal van alle inwisselingen telt mee voor je maandlimiet."
+      },
+      "none": {
+        "title": "Nog geen eigen huisdier",
+        "text": "Vraag een eigen huisdier aan: het team ontwerpt het voor je en wijst het aan je toe. Daarna maak je hier codes voor je fans.",
+        "helperTitle": "Nog geen huisdier",
+        "helperText": "Deze creator heeft nog geen eigen huisdier. Alleen de creator zelf kan er een aanvragen."
+      },
+      "request": {
+        "yours": "Jouw aanvraag",
+        "status": {
+          "open": "Open",
+          "in_progress": "In behandeling",
+          "done": "Klaar",
+          "rejected": "Afgewezen"
+        },
+        "statusText": {
+          "open": "Het team heeft je aanvraag ontvangen en bekijkt hem binnenkort.",
+          "in_progress": "Het team bouwt je huisdier op dit moment.",
+          "done": "Je aanvraag is klaar. Zodra het huisdier aan je is toegewezen, verschijnt het hier.",
+          "rejected": "Het team heeft je aanvraag afgewezen. Je kunt een nieuwe sturen."
+        },
+        "answer": "Team:",
+        "sentAt": "Verstuurd op {date}",
+        "again": "Nieuwe aanvraag sturen",
+        "title": "Eigen huisdier aanvragen",
+        "hint": "Beschrijf het dier, het uiterlijk en de kleuren. Een voorbeeldafbeelding helpt (PNG of JPG, tot 2 MB). Eén huisdier per creator.",
+        "textLabel": "Beschrijving",
+        "placeholder": "bijv. klein, met een blauwe sjaal, kwispelt bij het lopen …",
+        "imageLabel": "Voorbeeldafbeelding (optioneel)",
+        "pickImage": "Afbeelding kiezen …",
+        "removeImage": "Verwijderen",
+        "imageTooLarge": "De afbeelding is te groot (maximaal 2 MB).",
+        "imageType": "Kies een PNG- of JPG-afbeelding.",
+        "textInvalid": "Beschrijf je huisdier (1 tot {max} tekens).",
+        "sending": "Versturen …",
+        "send": "Aanvraag sturen",
+        "sent": "Aanvraag verstuurd – het team laat van zich horen.",
+        "speciesLabel": "Dier",
+        "speciesPlaceholder": "bijv. vos",
+        "colorsLabel": "Kleuren (optioneel)",
+        "colorsPlaceholder": "bijv. oranje, wit, donkerblauw",
+        "colorsShown": "Kleuren: {colors}",
+        "speciesInvalid": "Geef het dier op (1 tot {max} tekens).",
+        "colorsInvalid": "Kleuren: maximaal {max} tekens.",
+        "imageAttached": "Voorbeeldafbeelding bijgevoegd",
+        "addImage": "Afbeelding toevoegen",
+        "replaceImage": "Afbeelding vervangen",
+        "imageAdded": "Afbeelding aan je aanvraag toegevoegd.",
+        "withdraw": "Intrekken",
+        "withdrawTitle": "Aanvraag intrekken?",
+        "withdrawText": "Je aanvraag en de afbeelding worden verwijderd. Je kunt altijd een nieuwe sturen.",
+        "withdrawn": "Aanvraag ingetrokken."
+      },
+      "create": {
+        "title": "Huisdiercodes maken",
+        "count": "Aantal codes (1–{max})",
+        "uses": "Inwisselingen per code (1–{max})",
+        "note": "Notitie (optioneel)",
+        "notePlaceholder": "bijv. winactie in de stream op vrijdag",
+        "cost": "Telt mee voor je limiet: {cost} van {left} vrij",
+        "fit": "Met dit aantal passen maximaal {n} codes.",
+        "once": "Je ziet de codes maar één keer volledig – direct na het maken.",
+        "countInvalid": "Aantal codes: 1 tot {max}.",
+        "usesInvalid": "Inwisselingen per code: 1 tot {max}.",
+        "noteInvalid": "Notitie: maximaal {max} tekens.",
+        "overLimit": "Dat zijn {cost} inwisselingen, maar deze maand zijn er nog maar {left} vrij.",
+        "done": "{n} code gemaakt | {n} codes gemaakt"
+      },
+      "revoke": {
+        "title": "Code intrekken?",
+        "text": "{code} kan daarna niet meer worden ingewisseld. Fans die hem al hebben ingewisseld, houden het huisdier."
+      },
+      "unavailable": "Je huisdier is op dit moment niet beschikbaar, dus er kunnen geen nieuwe codes worden gemaakt. Uitgedeelde codes werken weer zodra het terug is."
+    },
+    "toast": {
+      "answer": "Team: {reason}",
+      "updated": {
+        "pet_assigned": {
+          "title": "Je huisdier is er!",
+          "body": "Maak op het tabblad „Huisdier” codes voor je fans."
+        },
+        "pet_removed": {
+          "title": "Je creator-huisdier is verwijderd",
+          "body": "Vragen? Neem contact op met het team."
+        },
+        "pet_request_answered": {
+          "title": "Je huisdieraanvraag is beantwoord",
+          "body": "Details op het tabblad „Huisdier”."
+        },
+        "team_changed": {
+          "title": "Gewijzigd door het team",
+          "body": "{action} – details onder \"Gewijzigd door het team\" in je dashboard."
+        }
+      }
+    },
+    "stats": {
+      "capeShare": "{n} % van je huidige fans heeft hem ({held} van {fans})"
+    },
+    "teamMode": {
+      "option": "Team: {name}",
+      "pick": "Creator kiezen (team)",
+      "pickTitle": "Creator-dashboard openen (team)",
+      "pickText": "Met \"Creators beheren\" kun je elk creator-dashboard met alle rechten openen. Elke wijziging wordt vastgelegd en aan de creator getoond.",
+      "search": "Naam of code zoeken",
+      "fans": "{n} fans",
+      "noResults": "Geen actieve creators gevonden.",
+      "bannerTitle": "Teammodus – wijzigingen worden vastgelegd",
+      "bannerText": "Je bekijkt het dashboard van {name} met alle rechten. Elke wijziging komt in het teamlogboek en {name} ziet hem onder \"Gewijzigd door het team\".",
+      "changesTitle": "Gewijzigd door het team",
+      "changesHint": "Het team kan je dashboard openen om bij problemen te helpen en dingen voor je te wijzigen. Elke wijziging wordt vastgelegd.",
+      "all": "Alle {n} tonen",
+      "less": "Minder tonen",
+      "noInvite": "Alleen de creator kan helpers uitnodigen – in teammodus kun je rechten wijzigen of helpers verwijderen.",
+      "openDashboard": "Dashboard openen (team)",
+      "openDashboardHint": "Opent het creator-dashboard in teammodus met alle rechten – elke wijziging wordt vastgelegd.",
+      "actions": {
+        "code_create": "Code aangemaakt",
+        "code_update": "Code gewijzigd",
+        "symbol_upload": "Fansymbool ingediend",
+        "symbol_withdraw": "Fansymbool ingetrokken",
+        "cape_upload": "Fancape ingediend",
+        "cape_withdraw": "Fancape ingetrokken",
+        "pack_list": "Pack vermeld",
+        "pack_unlist": "Pack niet meer vermeld",
+        "request_create": "Aanvraag verstuurd",
+        "profile_submit": "Profiel ingediend",
+        "profile_withdraw": "Profielwijziging ingetrokken",
+        "helper_update": "Helperrechten gewijzigd",
+        "helper_remove": "Helper verwijderd",
+        "pet_code_create": "Huisdiercodes aangemaakt",
+        "pet_code_revoke": "Huisdiercode ingetrokken",
+        "pet_request_create": "Huisdier aangevraagd",
+        "pet_request_withdraw": "Huisdierwens ingetrokken",
+        "pet_request_image": "Referentieafbeelding geüpload",
+        "pet_request_image_delete": "Referentieafbeelding verwijderd",
+        "other": "Dashboard gewijzigd"
+      }
     }
   }
 }

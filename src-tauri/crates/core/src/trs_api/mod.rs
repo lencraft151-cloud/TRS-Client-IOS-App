@@ -23,6 +23,8 @@ pub mod cape_import;
 pub mod cape_video;
 pub mod chat;
 pub mod creator;
+pub mod creator_pet;
+pub mod creator_stats;
 pub mod events;
 pub mod featured;
 pub mod halloween;
@@ -443,9 +445,25 @@ fn message_for(code: &str) -> Msg {
         "creator_helper_exists" => msg!("trsApi.creator_helper_exists", "Dieser Spieler ist schon dein Helfer oder eingeladen."),
         "creator_helper_right" => msg!("trsApi.creator_helper_right", "Dafür hat dir der Creator kein Recht gegeben."),
         "creator_self" => msg!("trsApi.creator_self", "Das ist dein eigener Creator-Code."),
+        "creator_not_found" => msg!("trsApi.creator_not_found", "Diesen Creator gibt es nicht (mehr)."),
+        "creator_team_forbidden" => {
+            msg!("trsApi.creator_team_forbidden", "Das darf nur der Creator selbst – auch im Team-Modus nicht.")
+        }
         "pack_not_found" => msg!("trsApi.pack_not_found", "Dieses Modpack gibt es nicht (mehr)."),
         "helper_not_found" => msg!("trsApi.helper_not_found", "Dieser Spieler ist (nicht mehr) Helfer."),
         "helper_invite_not_found" => msg!("trsApi.helper_invite_not_found", "Diese Einladung gibt es nicht mehr."),
+        // --- Creator-Haustiere (§35) ---
+        "creator_no_pet" | "creator_pet_missing" => {
+            msg!("trsApi.creator_no_pet", "Du hast noch kein eigenes Haustier – wünsch dir zuerst eins vom Team.")
+        }
+        "limit_reached" | "creator_pet_limit" => msg!(
+            "trsApi.limit_reached",
+            "Das Monatslimit für Haustier-Codes reicht dafür nicht mehr – weniger Codes oder Einlösungen wählen oder bis nächsten Monat warten."
+        ),
+        "creator_pet_unavailable" => msg!("trsApi.creator_pet_unavailable", "Dein Haustier ist gerade nicht verfügbar – frag beim Team nach."),
+        "creator_pet_owned" => msg!("trsApi.creator_pet_owned", "Du hast schon ein eigenes Haustier."),
+        "request_closed" => msg!("trsApi.request_closed", "Das Team arbeitet schon an diesem Wunsch – er lässt sich nicht mehr ändern."),
+        "code_not_found" => msg!("trsApi.code_not_found", "Diesen Code gibt es nicht (mehr)."),
         // --- Halloween (§36) ---
         "pumpkin_unknown" => msg!("trsApi.pumpkin_unknown", "Diesen Kürbis gibt es nicht."),
         "trick_used" => msg!("trsApi.trick_used", "Heute hast du schon angeklopft – morgen wieder!"),
@@ -493,6 +511,8 @@ pub struct TrsApi {
     pub(crate) achievements: achievements::ReportQueue,
     /// Adressen der v2-Kopf-Kosmetik aus dem letzten Katalog (für die 3D-Vorschau).
     head_sources: std::sync::Mutex<std::collections::HashMap<String, head_cosmetics::V2Source>>,
+    /// IDs der Gefolge-Begleiter in `head_sources` (nicht im Katalog, bleiben beim Neuladen erhalten).
+    extra_ids: std::sync::Mutex<Vec<String>>,
     /// Aktive Events des Spielers (aus `GET /v1/me` und `events_changed`, §31) – nur im Speicher.
     events: std::sync::Mutex<Vec<String>>,
     /// Davon die Events, deren Look (Design & Effekte) der Spieler sehen soll (`eventLook`/`look`,
@@ -570,6 +590,7 @@ impl TrsApi {
             appeal_tokens: sanctions::AppealTokens::default(),
             achievements: achievements::ReportQueue::default(),
             head_sources: std::sync::Mutex::default(),
+            extra_ids: std::sync::Mutex::default(),
             events: std::sync::Mutex::default(),
             look: std::sync::Mutex::default(),
         })
@@ -982,6 +1003,8 @@ mod team_tests;
 mod achievements_tests;
 #[cfg(test)]
 mod creator_tests;
+#[cfg(test)]
+mod creator_pet_tests;
 #[cfg(test)]
 mod halloween_tests;
 #[cfg(test)]
