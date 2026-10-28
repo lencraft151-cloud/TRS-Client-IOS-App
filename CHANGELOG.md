@@ -52,6 +52,7 @@ How to write an entry:
 - **Fixed:** Minecraft on iPhone and iPad no longer gets stuck at “Starting game 98 %” – the game view now opens.
 - **Pictures from Photos or Files on iPhone and iPad.** Wherever you add a picture – skins, instance icon and banner, the icon editor, chat and capes – the app asks whether it comes from Photos or from the Files app (for example skins downloaded in Safari). Camera photos (HEIC) are converted automatically.
 - **Updates without a Mac on iPhone and iPad (SideStore).** With a free Apple account, set up SideStore once: it signs the app on your iPhone, renews the 7-day signature by itself and installs updates. When a new version is out, the launcher opens SideStore on its own – you just tap “Install”.
+- **TRS Client: crash on Minecraft 1.21.6 to 1.21.10 fixed.** On Fabric, NeoForge and Forge for these versions the game could crash right at startup ("Mods clash while changing ChatHud") because the chat heads hooked into a place that moved in these versions. Chat heads now work there again, and if the place ever moves again only the heads are missing – the game still starts.
 
 ### Deutsch
 - **iPhone und iPad: mit eigenem Profil installieren.** Die iOS-App gibt es jetzt als fertig signierbares Xcode-Projekt und als IPA, die mit deinem eigenen Zertifikat und Provisioning-Profil signiert ist – direkt aus Safari, mit Apple Configurator, Xcode oder Apps wie Feather und ESign installierbar.
@@ -75,6 +76,7 @@ How to write an entry:
 - **Behoben:** Minecraft bleibt auf iPhone und iPad nicht mehr bei „Starte Spiel 98 %“ hängen – die Spielansicht öffnet sich jetzt.
 - **Bilder aus Fotos oder Dateien auf iPhone und iPad.** Überall, wo du ein Bild hinzufügst – Skins, Symbol und Banner einer Instanz, Symbol-Editor, Chat und Umhänge –, fragt die App, ob es aus „Fotos“ oder aus der Dateien-App kommt (zum Beispiel in Safari geladene Skins). Kamera-Fotos (HEIC) werden dabei automatisch umgewandelt.
 - **Updates ohne Mac auf iPhone und iPad (SideStore).** Mit kostenlosem Apple-Konto richtest du einmal SideStore ein: Es signiert die App auf dem iPhone, erneuert die 7-Tage-Signatur von selbst und installiert Updates. Gibt es eine neue Version, öffnet der Launcher SideStore von selbst – du tippst nur noch „Installieren“.
+- **TRS Client: Absturz unter Minecraft 1.21.6 bis 1.21.10 behoben.** Mit Fabric, NeoForge und Forge konnte das Spiel in diesen Versionen direkt beim Start abstürzen („Mods kollidieren bei ChatHud“), weil sich die Chat-Köpfe an einer Stelle einhakten, die es dort so nicht mehr gibt. Die Chat-Köpfe funktionieren dort wieder, und sollte sich die Stelle noch einmal ändern, fehlen nur die Köpfe – das Spiel startet trotzdem.
 
 ## 0.31.0 – 2026-10-25 – The Heist | Der Coup
 <!-- banner: accent=#41cd62 motif=/news/0.31.0/banner.png -->
