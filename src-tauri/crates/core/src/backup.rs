@@ -571,7 +571,7 @@ mod tests {
 
     fn names(file: &Path) -> Vec<String> {
         let mut archive = zip::ZipArchive::new(std::fs::File::open(file).unwrap()).unwrap();
-        let mut out: Vec<String> = (0..archive.len()).map(|i| archive.by_index(i).unwrap().name().to_owned()).collect();
+        let mut out: Vec<String> = (0..archive.len()).map(|i| archive.by_index(i).unwrap().name().unwrap().into_owned()).collect();
         out.sort();
         out
     }
