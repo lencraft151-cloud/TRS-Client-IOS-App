@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { chatMessageSchema, messagePageSchema, messageSummary } from '../app/utils/chat'
 import { adminReportListSchema, reportActions } from '../app/utils/moderation'
 import { setLocale } from '../app/utils/i18n'
@@ -74,7 +74,7 @@ describe('Wegpunkt-Karte', () => {
   })
 })
 
-function shared(id = 'Qm9vLWJhei1xdXV4LTEyMw', expiresAt = '2026-10-27T10:00:00.000Z'): SharedImage {
+function shared(id = 'Qm9vLWJhei1xdXV4LTEyMw', expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString()): SharedImage {
   return sharedImageSchema.parse({
     id,
     url: `https://trs-launcher.theredstonee.de/s/${id}`,
@@ -120,9 +120,6 @@ describe('Screenshot als Link teilen', () => {
   })
 
   it('Warteschlange: kein doppelter Upload, Link wird wiederverwendet, Löschen vergisst', async () => {
-    // Uhr auf die Zeit der Testdaten: Der Link läuft am 27.10.2026 ab – danach liefe der Test sonst ins Leere.
-    vi.useFakeTimers({ toFake: ['Date'], now: Date.parse('2026-09-27T12:00:00.000Z') })
-    onTestFinished(() => vi.useRealTimers())
     const q = new ShareQueue()
     let resolve!: (s: SharedImage) => void
     const upload = vi.fn(() => new Promise<SharedImage>((r) => (resolve = r)))

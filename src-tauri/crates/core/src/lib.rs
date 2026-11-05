@@ -48,6 +48,7 @@ pub mod loaders;
 pub mod local_servers;
 pub mod logfiles;
 pub mod meta;
+pub mod minigames;
 pub mod mobile_launch;
 pub mod mobile_profile;
 pub mod modcompat;

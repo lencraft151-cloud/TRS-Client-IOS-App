@@ -62,6 +62,10 @@ loom {
 			if (project.hasProperty('trsAutotestServer')) {
 				vmArg "-Dtrsclient.autotest.server=${project.trsAutotestServer}"
 			}
+			// -PtrsJvmArgs="-XX:ActiveProcessorCount=8 …" → zusätzliche JVM-Argumente (Messungen, z. B. kleinere CPU nachstellen)
+			if (project.hasProperty('trsJvmArgs')) {
+				project.property('trsJvmArgs').toString().trim().split(/\s+/).each { vmArg it }
+			}
 			// -PtrsSys.<name>=<wert> → -D<name>=<wert> (eigene Schalter einzelner Autotests, z. B. fastconnect)
 			project.properties.findAll { it.key.toString().startsWith('trsSys.') }.each { k, v ->
 				vmArg "-D${k.toString().substring(7)}=${v}"
@@ -88,7 +92,7 @@ loom {
 			if (project.hasProperty('trsBenchVanilla')) {
 				vmArg '-Dtrsclient.bench.vanilla=true'
 			}
-			if (project.findProperty('trsAutotestOnly') in ['realbench', 'mapcompare']) {
+			if (project.findProperty('trsAutotestOnly') in ['realbench', 'mapcompare', 'threads']) {
 				programArgs '--width', '1920', '--height', '1080'
 			}
 		}
@@ -195,6 +199,14 @@ if (!bundledMods.isEmpty()) {
 			content { includeGroup 'trsclient.bundled' }
 		}
 	}
+}
+
+// From Sponge Mixin 0.17.4 (Fabric Loader 0.19.5) @Redirect#at is an array, so javac writes a list into the class file.
+// MixinExtras before 0.5.5 (Fabric Loader up to 0.19.4) casts that value to a single annotation and takes the game down
+// as soon as the mixin's target class loads. Compiling against the last Mixin with a single At keeps the jars loadable
+// on every Fabric Loader we support; newer Mixin versions read the single value as well.
+configurations.matching { it.name == 'compileClasspath' }.configureEach {
+	resolutionStrategy.force 'net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7'
 }
 
 dependencies {
@@ -370,6 +382,9 @@ sourceSets.main.resources.srcDir(files(bundledList).builtBy(writeBundledList))
 apply from: new File(buildscript.sourceFile.parentFile, '../gradle/autotest-mute.gradle')
 // Vorschau-Builds (-PtrsPreview=map-v3, siehe gradle/preview-features.gradle).
 apply from: new File(buildscript.sourceFile.parentFile, '../gradle/preview-features.gradle')
+// Optionale private Erweiterungen (nur Release-Builds mit -PtrsPrivate=<ordner> bzw. TRS_PRIVATE_DIR, siehe gradle/trs-private.gradle).
+ext.trsTree = 'fabric'
+apply from: new File(buildscript.sourceFile.parentFile, '../gradle/trs-private.gradle')
 
 // Welt-Hosting-Test mit zwei Spielen: -PtrsRunCommandFile=<datei> schreibt die fertige Startzeile (Arbeitsordner,
 // Java, JVM-Argumente, Klassenpfad, Hauptklasse, Programmargumente) als JSON und startet NICHT – das Testskript startet

@@ -327,6 +327,7 @@ onBeforeUnmount(() => void backListener?.unregister())
     <BackupRestoreDialog />
     <!-- iOS: „Fotos oder Dateien?“ vor dem Hochladen eines Bildes. -->
     <ImageSourceSheet />
+    <MinigamesLaunchMinigame v-if="!isBig" />
     <ToastHost />
     <SocialToastHost />
     <JoinServerDialog />
