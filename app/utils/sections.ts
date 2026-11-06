@@ -39,6 +39,7 @@ const allAppSettingsSections: ShellSection[] = [
   section('storage', 'settingsSections.app.storage', 'storage', 'settingsSections.groups.instances'),
   section('backup', 'settingsSections.app.backup', 'cloud', 'settingsSections.groups.instances'),
   section('network', 'settingsSections.app.network', 'network', 'settingsSections.groups.instances'),
+  section('about', 'settingsSections.app.about', 'info', 'settingsSections.groups.about'),
 ]
 
 /**

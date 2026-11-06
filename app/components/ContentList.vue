@@ -18,6 +18,7 @@ import {
   type GroupColor,
   type OriginFilter,
 } from '~/utils/contentGroups'
+import { applyRange, rangeAction, rangeBetween, type RangeAction } from '~/utils/contentSelection'
 
 // Inhalte einer Instanz als EINE Tabelle: Filter-Chips,
 // Suche, Sortierung, Mehrfachauswahl mit Sammelaktionen, Dateien per Dialog
@@ -238,13 +239,121 @@ function toggleOne(item: ContentItem) {
   if (!next.delete(keyOf(item))) next.add(keyOf(item))
   selected.value = next
 }
+
+// Wie im Dateimanager: Strg+Klick schaltet einen Eintrag, Umschalt+Klick den ganzen Bereich vom Startpunkt bis hierher.
+// Die angeklickte Zeile entscheidet: Ist sie schon ausgewählt, wird der Bereich abgewählt.
+const SELECT_TIP_KEY = 'trs.content.selectTipSeen'
+const selectAnchor = ref<string | null>(null)
+const shiftHeld = ref(false)
+const hoveredRow = ref<string | null>(null)
+const flashRows = ref<Set<string>>(new Set())
+const flashOff = ref(false)
+const selectConfirm = ref<{ n: number; action: RangeAction } | null>(null)
+const selectTipOpen = ref(!readSelectTipSeen())
+let confirmTimer: ReturnType<typeof setTimeout> | null = null
+
+function readSelectTipSeen() {
+  try {
+    return localStorage.getItem(SELECT_TIP_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+function closeSelectTip() {
+  selectTipOpen.value = false
+  try {
+    localStorage.setItem(SELECT_TIP_KEY, '1')
+  } catch {
+    // Ohne Speicher erscheint der Hinweis beim nächsten Start wieder, mehr passiert nicht.
+  }
+}
+const selectKeys = computed(() => rows.value.flatMap((row) => (row.type === 'item' ? [row.key] : [])))
+/** Zeilen, die ein Klick gerade ändern würde: nur während Umschalt gedrückt ist. */
+const rangePreview = computed(() => {
+  if (!shiftHeld.value || !selectAnchor.value || !hoveredRow.value) return new Set<string>()
+  return new Set(rangeBetween(selectKeys.value, selectAnchor.value, hoveredRow.value) ?? [])
+})
+const previewAction = computed<RangeAction>(() => (hoveredRow.value ? rangeAction(selected.value, hoveredRow.value) : 'select'))
+const selectPill = computed(() => {
+  if (selectConfirm.value) {
+    const { n, action } = selectConfirm.value
+    return t(action === 'select' ? 'content.selection.confirmed' : 'content.selection.confirmedOff', { n }, n)
+  }
+  if (!shiftHeld.value || mobile.value || !selectKeys.value.length) return ''
+  if (!selectAnchor.value) return t('content.selection.needStart')
+  const n = rangePreview.value.size
+  if (!n) return t('content.selection.hoverRow')
+  return t(previewAction.value === 'select' ? 'content.selection.preview' : 'content.selection.previewOff', { n }, n)
+})
+function confirmSelection(keys: string[], action: RangeAction) {
+  flashRows.value = new Set(keys)
+  flashOff.value = action === 'deselect'
+  selectConfirm.value = { n: keys.length, action }
+  if (confirmTimer) clearTimeout(confirmTimer)
+  confirmTimer = setTimeout(() => {
+    flashRows.value = new Set()
+    selectConfirm.value = null
+  }, 1600)
+}
+function selectRange(item: ContentItem) {
+  const key = keyOf(item)
+  const keys = selectAnchor.value ? rangeBetween(selectKeys.value, selectAnchor.value, key) : null
+  // Ohne Startpunkt beginnt hier einer.
+  selectAnchor.value = key
+  closeSelectTip()
+  if (!keys) {
+    toggleOne(item)
+    return
+  }
+  const action = rangeAction(selected.value, key)
+  selected.value = applyRange(selected.value, keys, action)
+  confirmSelection(keys, action)
+}
 function selectRow(event: MouseEvent, item: ContentItem) {
-  if (!event.shiftKey) return
   const target = event.target
   if (target instanceof Element && target.closest('button, input, [role="switch"], [data-row-menu]')) return
-  event.preventDefault()
-  toggleOne(item)
+  if (event.shiftKey) {
+    event.preventDefault()
+    selectRange(item)
+  } else if (event.ctrlKey || event.metaKey) {
+    event.preventDefault()
+    toggleOne(item)
+    selectAnchor.value = keyOf(item)
+    closeSelectTip()
+  } else {
+    // Ein normaler Klick wählt nichts aus, setzt aber den Startpunkt für Umschalt+Klick.
+    selectAnchor.value = keyOf(item)
+  }
 }
+function selectBox(event: MouseEvent, item: ContentItem) {
+  const box = event.currentTarget as HTMLInputElement
+  if (event.shiftKey) selectRange(item)
+  else {
+    toggleOne(item)
+    selectAnchor.value = keyOf(item)
+  }
+  // Der Browser hat das Kästchen schon umgeschaltet; bleibt der Zustand gleich, rendert Vue es nicht neu.
+  void nextTick(() => {
+    box.checked = selected.value.has(keyOf(item))
+  })
+}
+function trackShift(event: KeyboardEvent) {
+  if (event.key === 'Shift') shiftHeld.value = event.type === 'keydown'
+}
+function releaseShift() {
+  shiftHeld.value = false
+}
+onMounted(() => {
+  window.addEventListener('keydown', trackShift)
+  window.addEventListener('keyup', trackShift)
+  window.addEventListener('blur', releaseShift)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', trackShift)
+  window.removeEventListener('keyup', trackShift)
+  window.removeEventListener('blur', releaseShift)
+  if (confirmTimer) clearTimeout(confirmTimer)
+})
 const selectedUpdates = computed(() => selectedItems.value.map(updateFor).filter((u): u is ContentUpdate => !!u))
 
 // --- Gruppen ----------------------------------------------------------------------
@@ -595,6 +704,15 @@ const pendingUpdates = computed(() => updates.value ?? [])
       {{ instance.overrides.boost === false ? t('content.boostOff') : t('content.boostOn') }}
     </p>
 
+    <div v-if="selectTipOpen && !mobile && selectKeys.length > 1" class="card mb-3 flex items-center gap-3 px-4 py-2 text-xs text-base-300" data-testid="content-select-tip">
+      <span class="min-w-0 flex-1"><b class="text-base-100">{{ t('content.selection.tipTitle') }}</b> {{ t('content.selection.tip') }}</span>
+      <button class="text-base-400 hover:text-base-50" :aria-label="t('common.actions.close')" @click="closeSelectTip">
+        <svg viewBox="0 0 24 24" class="size-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+    </div>
+
+    <div v-if="selectPill" class="select-pill" role="status" aria-live="polite" data-testid="content-select-pill">{{ selectPill }}</div>
+
     <div v-if="loading && !items.length" class="card divide-y divide-base-800">
       <div v-for="i in 6" :key="i" class="flex items-center gap-3 px-3 py-2.5">
         <div class="skeleton size-4 rounded" />
@@ -632,11 +750,15 @@ const pendingUpdates = computed(() => updates.value ?? [])
             </div>
             <button v-if="selectedUpdates.length" class="bulk-btn text-lamp-300" :disabled="!!bulkBusy" @click="applyUpdates(selectedUpdates)">{{ t('content.selection.update', { n: selectedUpdates.length }) }}</button>
             <button class="bulk-btn text-redstone-300" :disabled="!!bulkBusy" @click="toDelete = [...selectedItems]">{{ t('common.actions.delete') }}</button>
-            <button class="ml-auto text-base-400 hover:text-base-50" @click="selected = new Set()">{{ t('content.selection.clear') }}</button>
+            <span class="ml-auto min-w-0 truncate font-normal text-base-400 mobile:hidden" data-testid="content-select-hint-bulk">{{ t('content.selection.hint') }}</span>
+            <button class="text-base-400 hover:text-base-50 mobile:ml-auto" @click="selected = new Set()">{{ t('content.selection.clear') }}</button>
           </div>
         </template>
         <template v-else>
-          <span>{{ t('content.columns.project') }}</span>
+          <span class="flex min-w-0 items-baseline gap-3">
+            <span class="shrink-0">{{ t('content.columns.project') }}</span>
+            <span class="min-w-0 truncate font-normal text-base-400 mobile:hidden" data-testid="content-select-hint">{{ t('content.selection.hint') }}</span>
+          </span>
           <span class="mobile:hidden">{{ t('common.labels.version') }}</span>
           <span class="text-right mobile:hidden">{{ t('content.columns.actions') }}</span>
         </template>
@@ -705,10 +827,21 @@ const pendingUpdates = computed(() => updates.value ?? [])
           <li
             v-else
           class="group grid grid-cols-[1.5rem_minmax(0,1fr)_11rem_10.5rem] items-center gap-3 px-3 py-2 transition-colors hover:bg-base-850 mobile:grid-cols-[1.5rem_minmax(0,1fr)_auto] mobile:gap-x-2 mobile:gap-y-0.5"
-          :class="{ 'bg-redstone-900/15': selected.has(keyOf(row.item)), 'opacity-40': drag?.items.includes(row.item) }"
+          :class="{
+            'bg-redstone-900/15': selected.has(keyOf(row.item)),
+            'opacity-40': drag?.items.includes(row.item),
+            'row-anchor': selectAnchor === keyOf(row.item) && !mobile,
+            'row-preview': rangePreview.has(keyOf(row.item)) && previewAction === 'select',
+            'row-preview-off': rangePreview.has(keyOf(row.item)) && previewAction === 'deselect',
+            'row-flash': flashRows.has(keyOf(row.item)) && !flashOff,
+            'row-flash-off': flashRows.has(keyOf(row.item)) && flashOff,
+          }"
+          @mousedown="$event.shiftKey && $event.preventDefault()"
+          @mouseenter="hoveredRow = keyOf(row.item)"
+          @mouseleave="hoveredRow = null"
           @click="selectRow($event, row.item)"
           >
-          <input type="checkbox" class="size-4 accent-redstone-500 mobile:row-span-2" :checked="selected.has(keyOf(row.item))" :aria-label="t('content.row.select', { name: titleOf(row.item) })" @change="toggleOne(row.item)" />
+          <input type="checkbox" class="size-4 accent-redstone-500 mobile:row-span-2" :checked="selected.has(keyOf(row.item))" :aria-label="t('content.row.select', { name: titleOf(row.item) })" @click="selectBox($event, row.item)" />
 
           <div class="flex min-w-0 items-center gap-3" :class="{ 'opacity-55': !row.item.enabled }">
             <button
@@ -921,6 +1054,42 @@ const pendingUpdates = computed(() => updates.value ?? [])
 :root.is-mobile .filter-chip {
   min-height: 2.5rem;
   padding-inline: 0.875rem;
+}
+.select-pill {
+  @apply pointer-events-none fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-full bg-base-850 px-4 py-2 text-xs font-semibold text-base-50 shadow-xl ring-1 ring-redstone-500/60;
+}
+.row-anchor {
+  box-shadow: inset 3px 0 0 0 var(--color-redstone-500);
+}
+.row-preview {
+  @apply bg-redstone-900/10;
+  outline: 1px dashed color-mix(in srgb, var(--color-redstone-400) 60%, transparent);
+  outline-offset: -1px;
+}
+.row-preview-off {
+  @apply bg-base-800/40;
+  outline: 1px dashed var(--color-base-400);
+  outline-offset: -1px;
+}
+.row-flash {
+  animation: row-flash 0.7s ease-out;
+}
+.row-flash-off {
+  animation: row-flash-off 0.7s ease-out;
+}
+@keyframes row-flash {
+  from {
+    background-color: color-mix(in srgb, var(--color-redstone-500) 45%, transparent);
+  }
+}
+@keyframes row-flash-off {
+  from {
+    background-color: color-mix(in srgb, var(--color-base-400) 35%, transparent);
+  }
+}
+:root[data-reduced-motion] .row-flash,
+:root[data-reduced-motion] .row-flash-off {
+  animation: none;
 }
 .bulk-btn {
   @apply rounded-md bg-base-800 px-2.5 py-1 font-medium text-base-200 transition-colors hover:bg-base-700 hover:text-base-50 disabled:opacity-50;
