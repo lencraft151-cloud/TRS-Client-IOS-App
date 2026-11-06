@@ -178,7 +178,7 @@ public final class NewSince {
 	public static final String MENU_MINIGAMES = "menu:minigames";
 
 	/**
-	 * Live-Wegpunkte mit Freunden (nächste Version nach TRS Client 0.23.1): geteilte Wegpunkte, Live-Position,
+	 * Live-Wegpunkte mit Freunden (Version mit den neuen Wegpunkten): geteilte Wegpunkte, Live-Position,
 	 * Todespunkt, Freigabe je Freund.
 	 */
 	public static final String WAYPOINT_LIVE = "0.25.0";
