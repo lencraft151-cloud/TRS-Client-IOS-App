@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { isTauri } from '@tauri-apps/api/core'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type {
   DropEvent,
   LauncherSkinScan,
@@ -121,44 +120,38 @@ function pickFiles() {
 
 // --- Drag & Drop (Pfade bleiben im Kern, hier nur die Marke) ---------------------------
 const dragging = ref(false)
-let unlisten: UnlistenFn | null = null
-let unlistenOpened: UnlistenFn | null = null
-
-onMounted(async () => {
+// „Öffnen in TRS Launcher“: eine geöffnete Skin-Datei wie eine hineingezogene übernehmen.
+async function takeOpened() {
+  const token = await backend.takeOpenedSkins().catch(() => null)
+  if (token === null) return
+  void run('drop', async () => {
+    const batch = await backend.stageDroppedSkins(token)
+    busy.value = null
+    await handleBatch(batch)
+  })
+}
+useTauriListen('open-skin-files', () => void takeOpened())
+onMounted(() => {
   document.addEventListener('pointerdown', onDocPointer)
   document.addEventListener('keydown', onKey)
-  if (!isTauri()) return
-  // „Öffnen in TRS Launcher“: eine geöffnete Skin-Datei wie eine hineingezogene übernehmen.
-  const takeOpened = async () => {
-    const token = await backend.takeOpenedSkins().catch(() => null)
-    if (token === null) return
+  if (isTauri()) void takeOpened()
+})
+useTauriListen<DropEvent>('file-drop', ({ payload }) => {
+  if (payload.type === 'enter') dragging.value = !busy.value
+  else if (payload.type === 'leave') dragging.value = false
+  else {
+    dragging.value = false
     void run('drop', async () => {
-      const batch = await backend.stageDroppedSkins(token)
+      const batch = await backend.stageDroppedSkins(payload.token)
       busy.value = null
       await handleBatch(batch)
     })
   }
-  unlistenOpened = await listen('open-skin-files', () => void takeOpened())
-  void takeOpened()
-  unlisten = await listen<DropEvent>('file-drop', ({ payload }) => {
-    if (payload.type === 'enter') dragging.value = !busy.value
-    else if (payload.type === 'leave') dragging.value = false
-    else {
-      dragging.value = false
-      void run('drop', async () => {
-        const batch = await backend.stageDroppedSkins(payload.token)
-        busy.value = null
-        await handleBatch(batch)
-      })
-    }
-  })
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocPointer)
   document.removeEventListener('keydown', onKey)
-  unlisten?.()
-  unlistenOpened?.()
   // Offene Vormerkungen nicht liegen lassen.
   if (confirmSkin.value) discard([confirmSkin.value.token])
   if (scan.value) discard(scan.value.candidates.map((c) => c.token))
