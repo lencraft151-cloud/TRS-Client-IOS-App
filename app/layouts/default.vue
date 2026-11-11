@@ -97,7 +97,11 @@ onMounted(async () => {
     const c = typeof code === 'string' ? normalizePackCode(code) : null
     if (c) packs.openCode(c)
   }
-  unlistenPackLink = await listen<string>('open-pack-link', (e) => open(e.payload))
+  unlistenPackLink = await listen<string>('open-pack-link', (e) => {
+    open(e.payload)
+    // erledigt – nach einem Neuladen nicht noch einmal öffnen
+    void backend.packs.takePendingLink().catch(() => null)
+  })
   open(await backend.packs.takePendingLink().catch(() => null))
 })
 onBeforeUnmount(() => unlistenPackLink?.())
@@ -111,7 +115,10 @@ onMounted(async () => {
   const open = (token: unknown) => {
     if (isWebLoginToken(token)) webLogin.open(token)
   }
-  unlistenWebLogin = await listen<string>('open-web-login', (e) => open(e.payload))
+  unlistenWebLogin = await listen<string>('open-web-login', (e) => {
+    open(e.payload)
+    void backend.webLogin.takePending().catch(() => null)
+  })
   open(await backend.webLogin.takePending().catch(() => null))
 })
 onBeforeUnmount(() => unlistenWebLogin?.())
@@ -125,7 +132,10 @@ onMounted(async () => {
     const c = typeof code === 'string' ? normalizePairCode(code) : null
     if (c) void router.push({ path: '/pc', query: { code: c } })
   }
-  unlistenRemotePair = await listen<string>('open-remote-pair', (e) => open(e.payload))
+  unlistenRemotePair = await listen<string>('open-remote-pair', (e) => {
+    open(e.payload)
+    void backend.remote.takePendingPair().catch(() => null)
+  })
   open(await backend.remote.takePendingPair().catch(() => null))
 })
 onBeforeUnmount(() => unlistenRemotePair?.())
@@ -139,7 +149,10 @@ onMounted(async () => {
     const target = parseModpackLink(value)
     if (target) void router.push(projectRoute(target.platform, target.projectId))
   }
-  unlistenModpackLink = await listen<string>('open-modpack-link', (e) => open(e.payload))
+  unlistenModpackLink = await listen<string>('open-modpack-link', (e) => {
+    open(e.payload)
+    void backend.takePendingModpackLink().catch(() => null)
+  })
   open(await backend.takePendingModpackLink().catch(() => null))
 })
 onBeforeUnmount(() => unlistenModpackLink?.())
@@ -205,7 +218,10 @@ onMounted(async () => {
     else if (action.kind === 'application') applications.show(action.id)
     else void backend.openExternalUrl(action.url).catch(() => {})
   }
-  unlistenPushTarget = await listen<string>('open-push-target', (e) => open(e.payload))
+  unlistenPushTarget = await listen<string>('open-push-target', (e) => {
+    open(e.payload)
+    void backend.push.takePendingTarget().catch(() => null)
+  })
   open(await backend.push.takePendingTarget().catch(() => null))
 })
 onBeforeUnmount(() => unlistenPushTarget?.())
