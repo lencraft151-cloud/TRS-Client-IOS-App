@@ -373,6 +373,7 @@ export const backend = {
   /** TRS Client: mitgelieferte Version und ein schon geladenes Update aus dem Kanal. */
   clientModStatus: () => call<ClientModStatus>('client_mod_status'),
   openDataDir: () => call<void>('open_data_dir'),
+  prepareUpdateRestart: () => call<void>('prepare_update_restart'),
 
   // --- Umziehen (Datenordner, Speicherort einer Instanz) ---
   /** Nativer Ordner-Dialog; `null` = abgebrochen. Geprüft wird erst im Plan. */
@@ -509,6 +510,9 @@ export const backend = {
     call<void>('repair_instance', { id, onProgress: channel(onProgress), taskId }),
   /** Lädt den Log geschwärzt auf mclo.gs hoch; liefert den Link. */
   shareLog: (id: string) => call<string>('share_log', { id }),
+  /** Launcher-Log geschwärzt auf mclo.gs; liefert den Link. */
+  shareLauncherLog: () => call<string>('share_launcher_log'),
+  openLauncherLogFolder: () => call<void>('open_launcher_log_folder'),
 
   listAccounts: () => call<Account[]>('list_accounts'),
   loginBrowser: () => call<Account>('login_browser'),
