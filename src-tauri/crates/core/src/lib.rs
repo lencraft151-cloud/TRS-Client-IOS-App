@@ -1150,7 +1150,8 @@ impl Launcher {
         if !extra {
             self.link.set_pid(&instance.id, pid);
             if !memory.safe {
-                let options = LaunchOptions { extra: false, account_id: account_id.map(str::to_owned), skip_mod_check };
+                // `low_power` nur iOS (dort startet das Spiel nicht über diesen Weg).
+                let options = LaunchOptions { extra: false, account_id: account_id.map(str::to_owned), skip_mod_check, low_power: false };
                 let join = join_request.map(OwnedJoin::from);
                 self.watch_heap_failure(instance.id.clone(), log_dir.clone(), join, options);
             }
